@@ -1,0 +1,88 @@
+# InventSight Backend Application Configuration
+spring:
+  application:
+    name: inventsight-backend
+    
+  # PostgreSQL Configuration (SQL Database)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/inventsight_db
+    username: inventsight_user
+    password: inventsight_password
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    
+  # MongoDB Configuration (NoSQL Database)
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/inventsight_analytics
+      auto-index-creation: true
+      
+    # Redis Configuration (Cache)
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      password: # Leave empty for local development
+      
+  # Security Configuration
+  security:
+    jwt:
+      secret: inventsight-super-secret-jwt-key-change-in-production-2025
+      expiration: 86400000 # 24 hours in milliseconds
+      
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+    
+# Logging Configuration
+logging:
+  level:
+    com.inventsight: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    
+# Management/Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /docs
+  swagger-ui:
+    path: /swagger
+    
+# Custom InventSight Configuration
+inventsight:
+  system:
+    name: "InventSight - Intelligent Inventory System"
+    version: "1.0.0"
+    current-user: "WinKyaw"
+    timezone: "UTC"
+    current-datetime: "2025-08-26 08:41:42"
+  database:
+    sql-enabled: true
+    nosql-enabled: true
+    cache-enabled: true
+  features:
+    real-time-sync: true
+    analytics-tracking: true
+    audit-logging: true
+    intelligent-forecasting: true

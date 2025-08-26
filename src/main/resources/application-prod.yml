@@ -1,0 +1,40 @@
+# InventSight Production Configuration
+# Current Date and Time (UTC): 2025-08-26 09:17:13
+# Current User's Login: WinKyaw
+
+spring:
+  profiles:
+    active: prod
+    
+  # Production Database Settings
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/inventsight_prod}
+    username: ${DATABASE_USERNAME:inventsight_prod}
+    password: ${DATABASE_PASSWORD}
+    
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+      
+  # Production Logging
+logging:
+  level:
+    com.inventsight: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
+  file:
+    name: logs/inventsight.log
+    
+# Production Security
+inventsight:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration: 3600000 # 1 hour in production
+      
+  system:
+    environment: "Production"
+    debug: false
+    current-user: "WinKyaw"
+    current-datetime: "2025-08-26 09:17:13"

@@ -1,0 +1,41 @@
+# InventSight Development Configuration
+# Current Date and Time (UTC): 2025-08-26 09:17:13
+# Current User's Login: WinKyaw
+
+spring:
+  profiles:
+    active: dev
+    
+  # Development Database Settings
+  datasource:
+    url: jdbc:postgresql://localhost:5432/inventsight_dev
+    username: inventsight_dev
+    password: dev_password_2025
+    
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        
+  # Development Logging
+logging:
+  level:
+    com.inventsight: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate: DEBUG
+    
+# Development Security
+inventsight:
+  security:
+    jwt:
+      secret: inventsight-dev-secret-2025-winkyaw
+      expiration: 86400000 # 24 hours
+      
+  system:
+    environment: "Development"
+    debug: true
+    current-user: "WinKyaw"
+    current-datetime: "2025-08-26 09:17:13"
