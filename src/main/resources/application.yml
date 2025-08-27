@@ -1,13 +1,17 @@
-# InventSight Backend Application Configuration
+# InventSight - Intelligent Inventory & POS System Configuration
+# Current Date and Time (UTC): 2025-08-26 09:33:31
+# Current User's Login: WinKyaw
+# Repository: WinKyaw/InventSight
+
 spring:
   application:
     name: inventsight-backend
     
-  # PostgreSQL Configuration (SQL Database)
+  # PostgreSQL Configuration (Core Business Data)
   datasource:
     url: jdbc:postgresql://localhost:5432/inventsight_db
     username: inventsight_user
-    password: inventsight_password
+    password: inventsight_password_2025
     driver-class-name: org.postgresql.Driver
     
   jpa:
@@ -18,25 +22,19 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-    
-  # MongoDB Configuration (NoSQL Database)
+        
+  # MongoDB Configuration (Analytics & Logs)
   data:
     mongodb:
       uri: mongodb://localhost:27017/inventsight_analytics
       auto-index-creation: true
       
-    # Redis Configuration (Cache)
+    # Redis Configuration (Cache & Sessions)  
     redis:
       host: localhost
       port: 6379
       timeout: 2000ms
       password: # Leave empty for local development
-      
-  # Security Configuration
-  security:
-    jwt:
-      secret: inventsight-super-secret-jwt-key-change-in-production-2025
-      expiration: 86400000 # 24 hours in milliseconds
       
 # Server Configuration
 server:
@@ -44,13 +42,39 @@ server:
   servlet:
     context-path: /api
     
+# Security Configuration
+inventsight:
+  security:
+    jwt:
+      secret: inventsight-super-secret-jwt-key-winkyaw-2025-08-26
+      expiration: 86400000 # 24 hours
+      
+  system:
+    name: "InventSight - Intelligent Inventory & POS System"
+    version: "1.0.0"
+    current-user: "WinKyaw"
+    timezone: "UTC"
+    current-datetime: "2025-08-26 09:33:31"
+    
+  database:
+    sql-enabled: true
+    nosql-enabled: true
+    cache-enabled: true
+    
+  features:
+    real-time-sync: true
+    analytics-tracking: true
+    audit-logging: true
+    intelligent-forecasting: true
+
 # Logging Configuration
 logging:
   level:
     com.inventsight: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: logs/inventsight.log
     
 # Management/Actuator Configuration
 management:
@@ -68,21 +92,3 @@ springdoc:
     path: /docs
   swagger-ui:
     path: /swagger
-    
-# Custom InventSight Configuration
-inventsight:
-  system:
-    name: "InventSight - Intelligent Inventory System"
-    version: "1.0.0"
-    current-user: "WinKyaw"
-    timezone: "UTC"
-    current-datetime: "2025-08-26 08:41:42"
-  database:
-    sql-enabled: true
-    nosql-enabled: true
-    cache-enabled: true
-  features:
-    real-time-sync: true
-    analytics-tracking: true
-    audit-logging: true
-    intelligent-forecasting: true
