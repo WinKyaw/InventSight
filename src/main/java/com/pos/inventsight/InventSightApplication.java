@@ -1,4 +1,4 @@
-package com.pos.InventSight;
+package com.pos.inventsight;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,8 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.cache.annotation.EnableCaching;
 
 @SpringBootApplication
-@EnableJpaRepositories(basePackages = "com.pos.InventSight.repository.sql")
-@EnableMongoRepositories(basePackages = "com.pos.InventSight.repository.nosql")
+@EnableJpaRepositories(basePackages = "com.pos.inventsight.repository.sql")
+@EnableMongoRepositories(basePackages = "com.pos.inventsight.repository.nosql")
 @EnableAsync
 @EnableScheduling
 @EnableCaching
