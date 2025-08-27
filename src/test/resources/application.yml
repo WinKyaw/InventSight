@@ -1,0 +1,16 @@
+# Test configuration - minimal config for context loading
+spring:
+  autoconfigure:
+    exclude: 
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+# Mock configuration for required properties
+inventsight:
+  security:
+    jwt:
+      secret: test-secret-key
+      expiration: 86400000
