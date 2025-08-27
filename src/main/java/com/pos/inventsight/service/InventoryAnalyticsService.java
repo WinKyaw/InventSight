@@ -4,6 +4,7 @@ import com.pos.inventsight.model.nosql.InventoryAnalytics;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.repository.nosql.InventoryAnalyticsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ public class InventoryAnalyticsService {
     private ProductService productService;
     
     @Autowired
+    @Lazy
     private SaleService saleService;
     
     public void updateDailyAnalytics(Sale sale) {
