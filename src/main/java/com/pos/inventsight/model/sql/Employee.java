@@ -191,9 +191,3 @@ public class Employee {
         updatedAt = LocalDateTime.now();
     }
 }
-
-enum EmployeeStatus {
-    ACTIVE,
-    INACTIVE,
-    TERMINATED
-}

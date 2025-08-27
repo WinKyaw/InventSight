@@ -153,19 +153,3 @@ public class Sale {
         calculateTotal();
     }
 }
-
-enum SaleStatus {
-    PENDING,
-    COMPLETED,
-    CANCELLED,
-    REFUNDED
-}
-
-enum PaymentMethod {
-    CASH,
-    CREDIT_CARD,
-    DEBIT_CARD,
-    MOBILE_PAYMENT,
-    BANK_TRANSFER,
-    DIGITAL_WALLET
-}
