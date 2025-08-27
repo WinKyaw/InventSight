@@ -14,8 +14,8 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
-@EnableJpaRepositories(basePackages = "com.inventsight.repository.sql")
-@EnableMongoRepositories(basePackages = "com.inventsight.repository.nosql")
+@EnableJpaRepositories(basePackages = "com.pos.inventsight.repository.sql")
+@EnableMongoRepositories(basePackages = "com.pos.inventsight.repository.nosql")
 public class DatabaseConfig extends AbstractMongoClientConfiguration {
     
     @Value("${spring.data.mongodb.database:inventsight_analytics}")
