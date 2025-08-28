@@ -10,6 +10,8 @@ import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.ActivityLogService;
 import com.pos.inventsight.service.EmailVerificationService;
+import com.pos.inventsight.service.PasswordValidationService;
+import com.pos.inventsight.service.RateLimitingService;
 import com.pos.inventsight.config.JwtUtils;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -52,6 +54,12 @@ public class AuthController {
     
     @Autowired
     private EmailVerificationService emailVerificationService;
+    
+    @Autowired
+    private PasswordValidationService passwordValidationService;
+    
+    @Autowired
+    private RateLimitingService rateLimitingService;
     
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private Long jwtExpirationMs;
@@ -131,12 +139,52 @@ public class AuthController {
     
     // POST /auth/register - User registration
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest, 
+                                         HttpServletRequest request) {
         System.out.println("🔐 InventSight - Processing registration request for: " + registerRequest.getEmail());
         System.out.println("📅 Current DateTime (UTC): 2025-08-27 10:27:11");
         System.out.println("👤 Current User: WinKyaw");
         
+        String clientIp = getClientIpAddress(request);
+        
         try {
+            // Check rate limiting
+            if (!rateLimitingService.isRegistrationAllowed(clientIp, registerRequest.getEmail())) {
+                RateLimitingService.RateLimitStatus rateLimitStatus = 
+                    rateLimitingService.getRateLimitStatus(clientIp, registerRequest.getEmail(), "registration");
+                
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "Too many registration attempts. Please try again later.");
+                errorResponse.put("attempts", rateLimitStatus.getAttempts());
+                errorResponse.put("maxAttempts", rateLimitStatus.getMaxAttempts());
+                errorResponse.put("resetTime", rateLimitStatus.getResetTime());
+                errorResponse.put("timestamp", LocalDateTime.now());
+                
+                System.out.println("❌ Registration rate limited for: " + registerRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+            }
+            
+            // Record registration attempt
+            rateLimitingService.recordRegistrationAttempt(clientIp, registerRequest.getEmail());
+            
+            // Validate password strength
+            PasswordValidationService.PasswordValidationResult passwordValidation = 
+                passwordValidationService.validatePassword(registerRequest.getPassword());
+            
+            if (!passwordValidation.isValid()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "Password does not meet security requirements");
+                errorResponse.put("errors", passwordValidation.getErrors());
+                errorResponse.put("strengthScore", passwordValidation.getStrengthScore());
+                errorResponse.put("strength", passwordValidation.getStrength());
+                errorResponse.put("timestamp", LocalDateTime.now());
+                
+                System.out.println("❌ Registration failed - weak password for: " + registerRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
             // Create new user
             User user = new User();
             user.setUsername(registerRequest.getUsername());
@@ -247,10 +295,33 @@ public class AuthController {
     
     // POST /auth/resend-verification - Resend verification email
     @PostMapping("/resend-verification")
-    public ResponseEntity<?> resendVerification(@Valid @RequestBody ResendVerificationRequest resendRequest) {
+    public ResponseEntity<?> resendVerification(@Valid @RequestBody ResendVerificationRequest resendRequest,
+                                              HttpServletRequest request) {
         System.out.println("📧 InventSight - Resending verification email for: " + resendRequest.getEmail());
         
+        String clientIp = getClientIpAddress(request);
+        
         try {
+            // Check rate limiting for email verification
+            if (!rateLimitingService.isEmailVerificationAllowed(clientIp, resendRequest.getEmail())) {
+                RateLimitingService.RateLimitStatus rateLimitStatus = 
+                    rateLimitingService.getRateLimitStatus(clientIp, resendRequest.getEmail(), "email-verification");
+                
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "Too many email verification attempts. Please try again later.");
+                errorResponse.put("attempts", rateLimitStatus.getAttempts());
+                errorResponse.put("maxAttempts", rateLimitStatus.getMaxAttempts());
+                errorResponse.put("resetTime", rateLimitStatus.getResetTime());
+                errorResponse.put("timestamp", LocalDateTime.now());
+                
+                System.out.println("❌ Email verification rate limited for: " + resendRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+            }
+            
+            // Record email verification attempt
+            rateLimitingService.recordEmailVerificationAttempt(clientIp, resendRequest.getEmail());
+            
             // Check if user exists
             if (!userService.emailExists(resendRequest.getEmail())) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -292,6 +363,61 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new AuthResponse("Verification email service temporarily unavailable"));
         }
+    }
+    
+    // POST /auth/validate-password - Password strength validation endpoint
+    @PostMapping("/validate-password")
+    public ResponseEntity<?> validatePassword(@RequestBody Map<String, String> request) {
+        System.out.println("🔐 InventSight - Validating password strength");
+        
+        try {
+            String password = request.get("password");
+            
+            if (password == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("valid", false);
+                response.put("message", "Password is required");
+                response.put("timestamp", LocalDateTime.now());
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            PasswordValidationService.PasswordValidationResult validation = 
+                passwordValidationService.validatePassword(password);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("valid", validation.isValid());
+            response.put("strengthScore", validation.getStrengthScore());
+            response.put("strength", validation.getStrength());
+            response.put("errors", validation.getErrors());
+            response.put("timestamp", LocalDateTime.now());
+            response.put("system", "InventSight");
+            
+            System.out.println("✅ Password validation completed - strength: " + validation.getStrength());
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.out.println("❌ Password validation error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Password validation service temporarily unavailable"));
+        }
+    }
+    
+    // Helper method to get client IP address
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        String xRealIp = request.getHeader("X-Real-IP");
+        String xForwardedProto = request.getHeader("X-Forwarded-Proto");
+        
+        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            // X-Forwarded-For may contain multiple IPs, get the first one
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
+            return xRealIp;
+        }
+        
+        return request.getRemoteAddr();
     }
     
     // POST /auth/refresh - Token refresh endpoint
