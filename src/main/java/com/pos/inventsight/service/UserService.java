@@ -54,6 +54,11 @@ public class UserService implements UserDetailsService {
         user.setCreatedAt(LocalDateTime.now());
         user.setCreatedBy("WinKyaw");
         
+        // Set email verification status (default to false for new registrations)
+        if (user.getEmailVerified() == null) {
+            user.setEmailVerified(false);
+        }
+        
         User savedUser = userRepository.save(user);
         
         // Log activity
@@ -158,5 +163,14 @@ public class UserService implements UserDetailsService {
     public List<User> getRecentActiveUsers(int days) {
         LocalDateTime since = LocalDateTime.now().minusDays(days);
         return userRepository.findActiveUsersSince(since);
+    }
+    
+    // Email and Username availability checks
+    public boolean emailExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+    
+    public boolean usernameExists(String username) {
+        return userRepository.existsByUsername(username);
     }
 }
