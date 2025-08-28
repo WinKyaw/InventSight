@@ -36,4 +36,6 @@ public interface ActivityLogRepository extends MongoRepository<ActivityLog, Stri
     
     long countByUserId(String userId);
     long countByUsername(String username);
+    
+    List<ActivityLog> findTop10ByOrderByTimestampDesc();
 }
