@@ -249,6 +249,179 @@ public class SaleService {
         return new SaleSummary(todayRevenue, todaySales, averageOrderValue);
     }
     
+    // Additional methods for Receipt API
+    public Sale createSale(SaleRequest request, Long userId) {
+        return processSale(request, userId);
+    }
+    
+    public Sale updateSale(Long saleId, SaleRequest request) {
+        Sale existingSale = getSaleById(saleId);
+        
+        // Update basic fields
+        existingSale.setCustomerName(request.getCustomerName());
+        existingSale.setCustomerEmail(request.getCustomerEmail());
+        existingSale.setCustomerPhone(request.getCustomerPhone());
+        existingSale.setPaymentMethod(request.getPaymentMethod());
+        existingSale.setDiscountAmount(request.getDiscountAmount() != null ? 
+            request.getDiscountAmount() : BigDecimal.ZERO);
+        existingSale.setNotes(request.getNotes());
+        existingSale.setUpdatedAt(LocalDateTime.now());
+        
+        // Clear existing items and add new ones
+        if (existingSale.getItems() != null) {
+            existingSale.getItems().clear();
+        }
+        
+        // Recalculate with new items
+        BigDecimal subtotal = BigDecimal.ZERO;
+        List<SaleItem> saleItems = new ArrayList<>();
+        
+        for (SaleRequest.ItemRequest itemRequest : request.getItems()) {
+            Product product = productService.getProductById(itemRequest.getProductId());
+            BigDecimal itemTotal = product.getPrice().multiply(new BigDecimal(itemRequest.getQuantity()));
+            subtotal = subtotal.add(itemTotal);
+            
+            SaleItem saleItem = new SaleItem(existingSale, product, itemRequest.getQuantity(), product.getPrice());
+            saleItems.add(saleItem);
+        }
+        
+        existingSale.setSubtotal(subtotal);
+        existingSale.setTaxAmount(subtotal.multiply(TAX_RATE).setScale(2, RoundingMode.HALF_UP));
+        existingSale.calculateTotal();
+        
+        Sale savedSale = saleRepository.save(existingSale);
+        
+        // Save sale items
+        for (SaleItem item : saleItems) {
+            saleItemRepository.save(item);
+        }
+        
+        activityLogService.logActivity(
+            savedSale.getProcessedBy().getId().toString(),
+            savedSale.getProcessedBy().getUsername(),
+            "SALE_UPDATED",
+            "Sale",
+            "Updated sale: " + savedSale.getReceiptNumber()
+        );
+        
+        return savedSale;
+    }
+    
+    public void deleteSale(Long saleId) {
+        Sale sale = getSaleById(saleId);
+        
+        // For soft delete, change status to CANCELLED
+        sale.setStatus(SaleStatus.CANCELLED);
+        sale.setUpdatedAt(LocalDateTime.now());
+        saleRepository.save(sale);
+        
+        activityLogService.logActivity(
+            sale.getProcessedBy().getId().toString(),
+            sale.getProcessedBy().getUsername(),
+            "SALE_DELETED",
+            "Sale",
+            "Deleted sale: " + sale.getReceiptNumber()
+        );
+    }
+    
+    public Sale addItemsToSale(Long saleId, List<SaleRequest.ItemRequest> itemRequests) {
+        Sale sale = getSaleById(saleId);
+        
+        BigDecimal additionalSubtotal = BigDecimal.ZERO;
+        List<SaleItem> newItems = new ArrayList<>();
+        
+        for (SaleRequest.ItemRequest itemRequest : itemRequests) {
+            Product product = productService.getProductById(itemRequest.getProductId());
+            
+            // Check stock availability
+            if (product.getQuantity() < itemRequest.getQuantity()) {
+                throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
+            }
+            
+            BigDecimal itemTotal = product.getPrice().multiply(new BigDecimal(itemRequest.getQuantity()));
+            additionalSubtotal = additionalSubtotal.add(itemTotal);
+            
+            SaleItem saleItem = new SaleItem(sale, product, itemRequest.getQuantity(), product.getPrice());
+            newItems.add(saleItem);
+            
+            // Update product stock
+            productService.reduceStock(product.getId(), itemRequest.getQuantity(), 
+                "Added to sale: " + sale.getReceiptNumber());
+        }
+        
+        // Update sale totals
+        sale.setSubtotal(sale.getSubtotal().add(additionalSubtotal));
+        sale.setTaxAmount(sale.getSubtotal().multiply(TAX_RATE).setScale(2, RoundingMode.HALF_UP));
+        sale.calculateTotal();
+        sale.setUpdatedAt(LocalDateTime.now());
+        
+        Sale savedSale = saleRepository.save(sale);
+        
+        // Save new sale items
+        for (SaleItem item : newItems) {
+            saleItemRepository.save(item);
+        }
+        
+        activityLogService.logActivity(
+            sale.getProcessedBy().getId().toString(),
+            sale.getProcessedBy().getUsername(),
+            "SALE_ITEMS_ADDED",
+            "Sale",
+            "Added " + itemRequests.size() + " items to sale: " + sale.getReceiptNumber()
+        );
+        
+        return savedSale;
+    }
+    
+    public List<Sale> searchReceipts(Long userId, LocalDateTime startDate, LocalDateTime endDate,
+                                   String customerName, String customerEmail, String receiptNumber, String status) {
+        List<Sale> allSales = getAllSales();
+        List<Sale> filteredSales = new ArrayList<>();
+        
+        for (Sale sale : allSales) {
+            // Filter by user (unless admin)
+            if (userId != null && !sale.getProcessedBy().getId().equals(userId)) {
+                continue;
+            }
+            
+            // Filter by date range
+            if (startDate != null && sale.getCreatedAt().isBefore(startDate)) {
+                continue;
+            }
+            if (endDate != null && sale.getCreatedAt().isAfter(endDate)) {
+                continue;
+            }
+            
+            // Filter by customer name
+            if (customerName != null && !customerName.isEmpty() && 
+                (sale.getCustomerName() == null || !sale.getCustomerName().toLowerCase().contains(customerName.toLowerCase()))) {
+                continue;
+            }
+            
+            // Filter by customer email
+            if (customerEmail != null && !customerEmail.isEmpty() && 
+                (sale.getCustomerEmail() == null || !sale.getCustomerEmail().toLowerCase().contains(customerEmail.toLowerCase()))) {
+                continue;
+            }
+            
+            // Filter by receipt number
+            if (receiptNumber != null && !receiptNumber.isEmpty() && 
+                !sale.getReceiptNumber().toLowerCase().contains(receiptNumber.toLowerCase())) {
+                continue;
+            }
+            
+            // Filter by status
+            if (status != null && !status.isEmpty() && 
+                !sale.getStatus().name().equalsIgnoreCase(status)) {
+                continue;
+            }
+            
+            filteredSales.add(sale);
+        }
+        
+        return filteredSales;
+    }
+    
     // Inner class for dashboard summary
     public static class SaleSummary {
         private final BigDecimal todayRevenue;
