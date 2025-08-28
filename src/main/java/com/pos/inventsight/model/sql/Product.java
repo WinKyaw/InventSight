@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,8 +34,21 @@ public class Product {
     @DecimalMin("0.0")
     private BigDecimal price;
     
+    @DecimalMin("0.0")
+    private BigDecimal costPrice;
+
     @NotNull
     private Integer quantity;
+    
+    private Integer maxQuantity;
+    
+    @Size(max = 50)
+    private String unit;
+    
+    @Size(max = 200)
+    private String location;
+    
+    private LocalDate expiryDate;
     
     @Size(max = 100)
     private String category;
@@ -59,6 +73,9 @@ public class Product {
     
     @Column(name = "created_by")
     private String createdBy;
+    
+    @Column(name = "updated_by")
+    private String updatedBy;
     
     // Constructors
     public Product() {}
@@ -86,8 +103,23 @@ public class Product {
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
     
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
+
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    
+    public Integer getMaxQuantity() { return maxQuantity; }
+    public void setMaxQuantity(Integer maxQuantity) { this.maxQuantity = maxQuantity; }
+    
+    public String getUnit() { return unit; }
+    public void setUnit(String unit) { this.unit = unit; }
+    
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+    
+    public LocalDate getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
     
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
@@ -116,6 +148,9 @@ public class Product {
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
     
+    public String getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+    
     // Business Logic Methods
     public boolean isLowStock() {
         return lowStockThreshold != null && quantity <= lowStockThreshold;
@@ -131,5 +166,20 @@ public class Product {
     
     public BigDecimal getTotalValue() {
         return price.multiply(new BigDecimal(quantity));
+    }
+    
+    public boolean isNearExpiry(int days) {
+        if (expiryDate == null) return false;
+        return expiryDate.isBefore(LocalDate.now().plusDays(days));
+    }
+    
+    public boolean isExpired() {
+        if (expiryDate == null) return false;
+        return expiryDate.isBefore(LocalDate.now());
+    }
+    
+    public BigDecimal getProfitMargin() {
+        if (costPrice == null || costPrice.equals(BigDecimal.ZERO)) return BigDecimal.ZERO;
+        return price.subtract(costPrice).divide(costPrice, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal(100));
     }
 }

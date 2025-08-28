@@ -73,14 +73,32 @@ public class ProductService {
         if (productUpdates.getPrice() != null) {
             existingProduct.setPrice(productUpdates.getPrice());
         }
+        if (productUpdates.getCostPrice() != null) {
+            existingProduct.setCostPrice(productUpdates.getCostPrice());
+        }
         if (productUpdates.getQuantity() != null) {
             existingProduct.setQuantity(productUpdates.getQuantity());
+        }
+        if (productUpdates.getMaxQuantity() != null) {
+            existingProduct.setMaxQuantity(productUpdates.getMaxQuantity());
+        }
+        if (productUpdates.getUnit() != null) {
+            existingProduct.setUnit(productUpdates.getUnit());
+        }
+        if (productUpdates.getLocation() != null) {
+            existingProduct.setLocation(productUpdates.getLocation());
+        }
+        if (productUpdates.getExpiryDate() != null) {
+            existingProduct.setExpiryDate(productUpdates.getExpiryDate());
         }
         if (productUpdates.getCategory() != null) {
             existingProduct.setCategory(productUpdates.getCategory());
         }
         if (productUpdates.getSupplier() != null) {
             existingProduct.setSupplier(productUpdates.getSupplier());
+        }
+        if (productUpdates.getBarcode() != null) {
+            existingProduct.setBarcode(productUpdates.getBarcode());
         }
         if (productUpdates.getLowStockThreshold() != null) {
             existingProduct.setLowStockThreshold(productUpdates.getLowStockThreshold());
@@ -90,6 +108,7 @@ public class ProductService {
         }
         
         existingProduct.setUpdatedAt(LocalDateTime.now());
+        existingProduct.setUpdatedBy(updatedBy != null ? updatedBy : "WinKyaw");
         
         Product updatedProduct = productRepository.save(existingProduct);
         
