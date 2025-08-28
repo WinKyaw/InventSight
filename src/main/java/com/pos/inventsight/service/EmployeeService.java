@@ -2,6 +2,8 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.Employee;
 import com.pos.inventsight.model.sql.EmployeeStatus;
+import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.repository.sql.EmployeeRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -21,6 +23,9 @@ public class EmployeeService {
     
     @Autowired
     private ActivityLogService activityLogService;
+    
+    @Autowired
+    private UserService userService;
     
     // CRUD Operations
     public Employee createEmployee(Employee employee) {
@@ -193,5 +198,59 @@ public class EmployeeService {
             "EMPLOYEE",
             "Employee deactivated: " + employee.getFullName()
         );
+    }
+    
+    // Update employee with entity parameter
+    public Employee updateEmployee(Employee employee) {
+        employee.setUpdatedAt(LocalDateTime.now());
+        Employee updatedEmployee = employeeRepository.save(employee);
+        
+        // Log activity
+        activityLogService.logActivity(
+            employee.getId().toString(),
+            "WinKyaw",
+            "EMPLOYEE_UPDATED",
+            "EMPLOYEE",
+            "Employee updated: " + employee.getFullName()
+        );
+        
+        return updatedEmployee;
+    }
+    
+    // Update employee role
+    public Employee updateEmployeeRole(Long employeeId, String newRole) {
+        Employee employee = getEmployeeById(employeeId);
+        
+        // If employee has associated user, update user role
+        if (employee.getUser() != null) {
+            User user = employee.getUser();
+            try {
+                UserRole role = UserRole.valueOf(newRole.toUpperCase());
+                user.setRole(role);
+                userService.updateUser(user.getId(), user);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid role: " + newRole);
+            }
+        }
+        
+        employee.setUpdatedAt(LocalDateTime.now());
+        Employee updatedEmployee = employeeRepository.save(employee);
+        
+        // Log activity
+        activityLogService.logActivity(
+            employeeId.toString(),
+            "WinKyaw",
+            "EMPLOYEE_ROLE_UPDATED",
+            "EMPLOYEE",
+            "Employee role updated: " + employee.getFullName() + " -> " + newRole
+        );
+        
+        return updatedEmployee;
+    }
+    
+    // Get employee by user ID
+    public Employee getEmployeeByUserId(Long userId) {
+        return employeeRepository.findByUserId(userId)
+                .orElse(null);
     }
 }
