@@ -51,8 +51,8 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("SELECT COUNT(e) FROM Event e WHERE (e.createdBy.id = :userId OR :userId IN (SELECT a.id FROM e.attendees a)) AND e.status = 'ACTIVE'")
     long countActiveEventsByUser(@Param("userId") Long userId);
     
-    // Find today's events
-    @Query("SELECT e FROM Event e WHERE DATE(e.startDateTime) = CURRENT_DATE AND (e.createdBy.id = :userId OR :userId IN (SELECT a.id FROM e.attendees a)) AND e.status = 'ACTIVE' ORDER BY e.startDateTime ASC")
+    // Find today's events - using date function to get start of day and end of day
+    @Query("SELECT e FROM Event e WHERE e.startDateTime >= CURRENT_DATE AND e.startDateTime < FUNCTION('DATE_ADD', CURRENT_DATE, 1, 'DAY') AND (e.createdBy.id = :userId OR :userId IN (SELECT a.id FROM e.attendees a)) AND e.status = 'ACTIVE' ORDER BY e.startDateTime ASC")
     List<Event> findTodaysEventsByUser(@Param("userId") Long userId);
     
     // Search events by title or description
