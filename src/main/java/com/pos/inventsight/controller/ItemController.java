@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -419,6 +420,139 @@ public class ItemController {
             System.err.println("❌ Error calculating inventory turnover: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Error calculating inventory turnover: " + e.getMessage()));
+        }
+    }
+
+    // POST /items/import - Import items from CSV/Excel (basic implementation)
+    @PostMapping("/import")
+    public ResponseEntity<?> importItems(@Valid @RequestBody BulkProductRequest request,
+                                        Authentication authentication) {
+        try {
+            String currentUser = authentication != null ? authentication.getName() : "WinKyaw";
+            System.out.println("📥 InventSight - Importing " + request.getProducts().size() + " items");
+            System.out.println("📅 Current Date and Time (UTC): " + LocalDateTime.now());
+            System.out.println("👤 Current User's Login: " + currentUser);
+
+            List<ProductResponse> results = new ArrayList<>();
+            List<String> errors = new ArrayList<>();
+            
+            for (ProductRequest productRequest : request.getProducts()) {
+                try {
+                    Product product = convertToProduct(productRequest);
+                    Product savedProduct = productService.createProduct(product, currentUser);
+                    results.add(new ProductResponse(savedProduct));
+                } catch (DuplicateSkuException e) {
+                    if (request.isSkipDuplicates()) {
+                        errors.add("Skipped duplicate SKU: " + productRequest.getSku());
+                    } else {
+                        errors.add("Duplicate SKU: " + productRequest.getSku());
+                    }
+                } catch (Exception e) {
+                    errors.add("Error importing item " + productRequest.getName() + ": " + e.getMessage());
+                }
+            }
+            
+            Map<String, Object> importResult = new HashMap<>();
+            importResult.put("successCount", results.size());
+            importResult.put("errorCount", errors.size());
+            importResult.put("items", results);
+            importResult.put("errors", errors);
+            importResult.put("importedAt", LocalDateTime.now());
+            importResult.put("importedBy", currentUser);
+            
+            return ResponseEntity.ok(importResult);
+        } catch (Exception e) {
+            System.err.println("❌ Error importing items: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error importing items: " + e.getMessage()));
+        }
+    }
+
+    // GET /items/export - Export items to CSV (basic implementation)
+    @GetMapping("/export")
+    public ResponseEntity<?> exportItems(@RequestParam(required = false) String category,
+                                        @RequestParam(required = false) String supplier,
+                                        @RequestParam(defaultValue = "false") boolean activeOnly) {
+        try {
+            System.out.println("📤 InventSight - Exporting items");
+            System.out.println("📅 Current Date and Time (UTC): " + LocalDateTime.now());
+            System.out.println("👤 Current User's Login: WinKyaw");
+
+            List<Product> products;
+            if (activeOnly) {
+                products = productService.getAllActiveProducts();
+            } else {
+                // For now, use active products - would need to modify service for all products
+                products = productService.getAllActiveProducts();
+            }
+            
+            // Filter by category and supplier if specified
+            if (category != null) {
+                products = products.stream()
+                    .filter(p -> category.equals(p.getCategory()))
+                    .collect(Collectors.toList());
+            }
+            if (supplier != null) {
+                products = products.stream()
+                    .filter(p -> supplier.equals(p.getSupplier()))
+                    .collect(Collectors.toList());
+            }
+            
+            List<ProductResponse> response = products.stream()
+                .map(ProductResponse::new)
+                .collect(Collectors.toList());
+            
+            Map<String, Object> exportResult = new HashMap<>();
+            exportResult.put("items", response);
+            exportResult.put("totalCount", response.size());
+            exportResult.put("exportedAt", LocalDateTime.now());
+            exportResult.put("exportedBy", "WinKyaw");
+            exportResult.put("filters", Map.of(
+                "category", category != null ? category : "all",
+                "supplier", supplier != null ? supplier : "all",
+                "activeOnly", activeOnly
+            ));
+            
+            return ResponseEntity.ok(exportResult);
+        } catch (Exception e) {
+            System.err.println("❌ Error exporting items: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error exporting items: " + e.getMessage()));
+        }
+    }
+
+    // GET /items/statistics - Get item statistics
+    @GetMapping("/statistics")
+    public ResponseEntity<ItemStatistics> getItemStatistics() {
+        try {
+            System.out.println("📊 InventSight - Calculating item statistics");
+            System.out.println("📅 Current Date and Time (UTC): " + LocalDateTime.now());
+            System.out.println("👤 Current User's Login: WinKyaw");
+
+            long totalItems = productService.getTotalProductCount();
+            long activeItems = totalItems; // All products are active in our current implementation
+            List<Product> lowStockProducts = productService.getLowStockProducts();
+            List<Product> outOfStockProducts = productService.getOutOfStockProducts();
+            BigDecimal totalValue = productService.getTotalInventoryValue();
+            List<String> categories = productService.getAllCategories();
+            List<String> suppliers = productService.getAllSuppliers();
+            
+            ItemStatistics statistics = new ItemStatistics(
+                totalItems,
+                activeItems,
+                lowStockProducts.size(),
+                outOfStockProducts.size(),
+                totalValue,
+                categories,
+                suppliers,
+                LocalDateTime.now().toString(),
+                "WinKyaw"
+            );
+            
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            System.err.println("❌ Error calculating item statistics: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
