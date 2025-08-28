@@ -58,4 +58,8 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     // Search events by title or description
     @Query("SELECT e FROM Event e WHERE (LOWER(e.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(e.description) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) AND (e.createdBy.id = :userId OR :userId IN (SELECT a.id FROM e.attendees a)) AND e.status = 'ACTIVE' ORDER BY e.startDateTime ASC")
     List<Event> searchEventsByUser(@Param("searchTerm") String searchTerm, @Param("userId") Long userId);
+    
+    // Find events in date range (for calendar service)
+    @Query("SELECT e FROM Event e WHERE e.startDateTime >= :startDate AND e.endDateTime <= :endDate AND e.status = 'ACTIVE' ORDER BY e.startDateTime ASC")
+    List<Event> findEventsInDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 }
