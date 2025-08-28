@@ -25,7 +25,7 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
     @Query("SELECT r FROM Reminder r WHERE r.reminderDateTime < :now AND r.isCompleted = false AND r.isActive = true")
     List<Reminder> findPastDueReminders(@Param("now") LocalDateTime now);
     
-    @Query("SELECT r FROM Reminder r WHERE DATE(r.reminderDateTime) = CURRENT_DATE AND r.isActive = true")
+    @Query("SELECT r FROM Reminder r WHERE YEAR(r.reminderDateTime) = YEAR(CURRENT_DATE) AND MONTH(r.reminderDateTime) = MONTH(CURRENT_DATE) AND DAY(r.reminderDateTime) = DAY(CURRENT_DATE) AND r.isActive = true")
     List<Reminder> findTodaysReminders();
     
     @Query("SELECT r FROM Reminder r WHERE r.reminderDateTime BETWEEN :now AND :tomorrow AND r.isCompleted = false AND r.isActive = true")
