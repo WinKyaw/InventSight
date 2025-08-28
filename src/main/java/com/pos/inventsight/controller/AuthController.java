@@ -3,10 +3,13 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.AuthResponse;
 import com.pos.inventsight.dto.LoginRequest;
 import com.pos.inventsight.dto.RegisterRequest;
+import com.pos.inventsight.dto.EmailVerificationRequest;
+import com.pos.inventsight.dto.ResendVerificationRequest;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.ActivityLogService;
+import com.pos.inventsight.service.EmailVerificationService;
 import com.pos.inventsight.config.JwtUtils;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -46,6 +49,9 @@ public class AuthController {
     
     @Autowired
     private ActivityLogService activityLogService;
+    
+    @Autowired
+    private EmailVerificationService emailVerificationService;
     
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private Long jwtExpirationMs;
@@ -178,6 +184,113 @@ public class AuthController {
             System.out.println("❌ Registration error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new AuthResponse("Registration service temporarily unavailable"));
+        }
+    }
+    
+    // GET /auth/check-email - Check if email already exists
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmailAvailability(@RequestParam("email") String email) {
+        System.out.println("📧 InventSight - Checking email availability for: " + email);
+        
+        try {
+            boolean emailExists = userService.emailExists(email);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("email", email);
+            response.put("exists", emailExists);
+            response.put("available", !emailExists);
+            response.put("timestamp", LocalDateTime.now());
+            response.put("system", "InventSight");
+            
+            System.out.println("✅ Email availability checked: " + email + " (exists: " + emailExists + ")");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.out.println("❌ Email check error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Email availability check service temporarily unavailable"));
+        }
+    }
+    
+    // POST /auth/verify-email - Email verification endpoint
+    @PostMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@Valid @RequestBody EmailVerificationRequest verificationRequest) {
+        System.out.println("📧 InventSight - Processing email verification for: " + verificationRequest.getEmail());
+        
+        try {
+            boolean isVerified = emailVerificationService.verifyEmail(
+                verificationRequest.getToken(), 
+                verificationRequest.getEmail()
+            );
+            
+            if (isVerified) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("message", "Email verified successfully");
+                response.put("email", verificationRequest.getEmail());
+                response.put("timestamp", LocalDateTime.now());
+                response.put("system", "InventSight");
+                
+                System.out.println("✅ Email verified successfully: " + verificationRequest.getEmail());
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AuthResponse("Invalid or expired verification token"));
+            }
+            
+        } catch (Exception e) {
+            System.out.println("❌ Email verification error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Email verification service temporarily unavailable"));
+        }
+    }
+    
+    // POST /auth/resend-verification - Resend verification email
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resendVerification(@Valid @RequestBody ResendVerificationRequest resendRequest) {
+        System.out.println("📧 InventSight - Resending verification email for: " + resendRequest.getEmail());
+        
+        try {
+            // Check if user exists
+            if (!userService.emailExists(resendRequest.getEmail())) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AuthResponse("User not found with this email address"));
+            }
+            
+            // Check if user is already verified
+            User user = userService.getUserByEmail(resendRequest.getEmail());
+            if (user.getEmailVerified()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AuthResponse("Email is already verified"));
+            }
+            
+            // Check if there's already a valid token
+            if (emailVerificationService.hasValidToken(resendRequest.getEmail())) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new AuthResponse("A verification email was already sent recently. Please check your inbox."));
+            }
+            
+            // Generate new token and send email
+            String token = emailVerificationService.generateVerificationToken(resendRequest.getEmail());
+            emailVerificationService.sendVerificationEmail(resendRequest.getEmail(), token);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Verification email sent successfully");
+            response.put("email", resendRequest.getEmail());
+            response.put("timestamp", LocalDateTime.now());
+            response.put("system", "InventSight");
+            
+            System.out.println("✅ Verification email resent successfully: " + resendRequest.getEmail());
+            return ResponseEntity.ok(response);
+            
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new AuthResponse("User not found with this email address"));
+        } catch (Exception e) {
+            System.out.println("❌ Resend verification error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Verification email service temporarily unavailable"));
         }
     }
     
