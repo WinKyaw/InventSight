@@ -2,24 +2,32 @@ package com.pos.inventsight.controller;
 
 import com.pos.inventsight.model.sql.Employee;
 import com.pos.inventsight.service.EmployeeService;
+import com.pos.inventsight.service.UserService;
+import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.EmployeeRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
-@RequestMapping("/employees")
+@RequestMapping("/api/employees")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class EmployeeController {
     
     @Autowired
     private EmployeeService employeeService;
+    
+    @Autowired
+    private UserService userService;
     
     // Get all active employees
     @GetMapping
@@ -160,6 +168,137 @@ public class EmployeeController {
         
         System.out.println("✅ InventSight employee statistics generated: " + activeEmployees + " active, " + checkedInEmployees + " checked in");
         return ResponseEntity.ok(stats);
+    }
+    
+    // PUT /api/employees/{id} - Update employee information
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateEmployee(@PathVariable Long id, 
+                                          @Valid @RequestBody EmployeeRequest employeeRequest,
+                                          Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            System.out.println("✏️ InventSight - Updating employee ID: " + id + " by user: " + username);
+            
+            Employee existingEmployee = employeeService.getEmployeeById(id);
+            
+            // Check if user can update this employee (admin or self)
+            if (!currentUser.getRole().name().equals("ADMIN") && 
+                existingEmployee.getUser() != null && 
+                !existingEmployee.getUser().getId().equals(currentUser.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Access denied: You can only update your own profile or admin required"));
+            }
+            
+            // Update employee fields
+            existingEmployee.setFirstName(employeeRequest.getFirstName());
+            existingEmployee.setLastName(employeeRequest.getLastName());
+            existingEmployee.setEmail(employeeRequest.getEmail());
+            existingEmployee.setTitle(employeeRequest.getTitle());
+            existingEmployee.setHourlyRate(employeeRequest.getHourlyRate());
+            existingEmployee.setPhoneNumber(employeeRequest.getPhoneNumber());
+            existingEmployee.setDepartment(employeeRequest.getDepartment());
+            
+            if (employeeRequest.getBonus() != null) {
+                existingEmployee.setBonus(employeeRequest.getBonus());
+            }
+            
+            Employee updatedEmployee = employeeService.updateEmployee(existingEmployee);
+            
+            System.out.println("✅ InventSight employee updated: " + updatedEmployee.getFullName());
+            return ResponseEntity.ok(updatedEmployee);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error updating employee: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, "Error updating employee: " + e.getMessage()));
+        }
+    }
+    
+    // DELETE /api/employees/{id} - Deactivate employee (admin only)
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deactivateEmployee(@PathVariable Long id, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("🗑️ InventSight - Deactivating employee ID: " + id + " by admin: " + username);
+            
+            Employee employee = employeeService.getEmployeeById(id);
+            employeeService.deactivateEmployee(id);
+            
+            System.out.println("✅ InventSight employee deactivated: " + employee.getFullName());
+            return ResponseEntity.ok(new ApiResponse(true, "Employee deactivated successfully"));
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error deactivating employee: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, "Employee not found with ID: " + id));
+        }
+    }
+    
+    // PUT /api/employees/{id}/role - Update employee role (admin only)
+    @PutMapping("/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updateEmployeeRole(@PathVariable Long id, 
+                                              @RequestBody Map<String, String> roleRequest,
+                                              Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            String newRole = roleRequest.get("role");
+            
+            System.out.println("👑 InventSight - Updating employee role ID: " + id + " to: " + newRole + " by admin: " + username);
+            
+            if (newRole == null || newRole.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Role is required"));
+            }
+            
+            Employee employee = employeeService.getEmployeeById(id);
+            Employee updatedEmployee = employeeService.updateEmployeeRole(id, newRole);
+            
+            System.out.println("✅ InventSight employee role updated: " + employee.getFullName() + " -> " + newRole);
+            return ResponseEntity.ok(updatedEmployee);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error updating employee role: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, "Error updating employee role: " + e.getMessage()));
+        }
+    }
+    
+    // GET /api/employees/me - Get current employee profile
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentEmployeeProfile(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            System.out.println("👤 InventSight - Fetching current employee profile for user: " + username);
+            
+            Employee employee = employeeService.getEmployeeByUserId(currentUser.getId());
+            
+            if (employee == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(false, "Employee profile not found for current user"));
+            }
+            
+            // Create enhanced employee profile response
+            Map<String, Object> profileResponse = new HashMap<>();
+            profileResponse.put("employee", employee);
+            profileResponse.put("user", currentUser);
+            profileResponse.put("permissions", List.of(currentUser.getRole().name()));
+            profileResponse.put("isAdmin", currentUser.getRole().name().equals("ADMIN"));
+            profileResponse.put("isManager", currentUser.getRole().name().equals("MANAGER"));
+            
+            System.out.println("✅ InventSight current employee profile retrieved: " + employee.getFullName());
+            return ResponseEntity.ok(profileResponse);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching current employee profile: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error fetching employee profile: " + e.getMessage()));
+        }
     }
     
     // Employee Statistics DTO
