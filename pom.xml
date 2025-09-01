@@ -73,11 +73,11 @@
             <scope>runtime</scope>
         </dependency>
         
-        <!-- H2 Database for Testing -->
+        <!-- H2 Database for Testing and Development -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
         
         <!-- JWT Authentication -->
