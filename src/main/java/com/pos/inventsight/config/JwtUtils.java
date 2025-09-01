@@ -18,6 +18,9 @@ public class JwtUtils {
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private int jwtExpirationMs;
     
+    @Value("${inventsight.security.jwt.refresh-expiration:604800000}")
+    private int jwtRefreshExpirationMs; // 7 days
+    
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
@@ -35,10 +38,39 @@ public class JwtUtils {
                 .claim("role", user.getRole().name())
                 .claim("system", "InventSight")
                 .claim("createdBy", "WinKyaw")
+                .claim("tokenType", "access")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(getSigningKey())
                 .compact();
+    }
+    
+    public String generateRefreshToken(User user) {
+        System.out.println("🔄 InventSight - Generating refresh token for user: " + user.getEmail());
+        
+        return Jwts.builder()
+                .setSubject(user.getEmail())
+                .claim("userId", user.getId())
+                .claim("username", user.getUsername())
+                .claim("system", "InventSight")
+                .claim("tokenType", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + jwtRefreshExpirationMs))
+                .signWith(getSigningKey())
+                .compact();
+    }
+    
+    public boolean isRefreshToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return "refresh".equals(claims.get("tokenType"));
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     public String getUsernameFromJwtToken(String token) {
@@ -113,5 +145,14 @@ public class JwtUtils {
     public boolean isTokenExpired(String token) {
         Date expiration = getExpirationDateFromJwtToken(token);
         return expiration.before(new Date());
+    }
+    
+    // Getter methods for expiration times
+    public int getJwtExpirationMs() {
+        return jwtExpirationMs;
+    }
+    
+    public int getJwtRefreshExpirationMs() {
+        return jwtRefreshExpirationMs;
     }
 }

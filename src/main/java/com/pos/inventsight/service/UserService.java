@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -31,8 +32,26 @@ public class UserService implements UserDetailsService {
     // Authentication Methods
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Support both username and email for authentication
+        // First try username, then try email if username lookup fails
+        Optional<User> user = userRepository.findByUsername(username);
+        if (user.isEmpty()) {
+            user = userRepository.findByEmail(username);
+        }
+        
+        return user.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+    }
+    
+    // Method to get user by email specifically
+    public User getUserByEmail(String email) throws ResourceNotFoundException {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+    }
+    
+    // Method to get user by username specifically  
+    public User getUserByUsername(String username) throws ResourceNotFoundException {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
     
     public User createUser(User user) {
@@ -119,16 +138,6 @@ public class UserService implements UserDetailsService {
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
-    }
-    
-    public User getUserByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-    }
-    
-    public User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
     }
     
     public List<User> getAllActiveUsers() {
