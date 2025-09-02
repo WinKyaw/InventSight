@@ -71,7 +71,7 @@ public class UserService implements UserDetailsService {
         // Encode password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setCreatedAt(LocalDateTime.now());
-        user.setCreatedBy("WinKyaw");
+        user.setCreatedBy(user.getUsername());
         
         // Set email verification status (default to false for new registrations)
         if (user.getEmailVerified() == null) {
@@ -83,7 +83,7 @@ public class UserService implements UserDetailsService {
         // Log activity
         activityLogService.logActivity(
             null, 
-            "WinKyaw", 
+            user.getUsername(), 
             "USER_CREATED", 
             "USER", 
             "New user registered: " + user.getEmail()

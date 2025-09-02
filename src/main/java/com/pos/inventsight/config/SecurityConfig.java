@@ -17,6 +17,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
 
@@ -97,5 +99,31 @@ public class SecurityConfig {
         
         System.out.println("✅ InventSight CORS configuration completed for all origins");
         return source;
+    }
+
+    // @Bean
+    // public WebMvcConfigurer corsConfigurer() {
+    // return new WebMvcConfigurer() {
+    //     @Override
+    //     public void addCorsMappings(CorsRegistry registry) {
+    //         registry.addMapping("/api/**")
+    //                 .allowedOrigins("http://localhost:8080") // or the origin of your frontend
+    //                 .allowedMethods("*")
+    //                 .allowedHeaders("*");
+    //     }
+    //     };
+    // }
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+    return new WebMvcConfigurer() {
+        @Override
+        public void addCorsMappings(CorsRegistry registry) {
+            registry.addMapping("/api/**")
+                    .allowedOrigins("http://localhost:8080") // or the origin of your frontend
+                    .allowedMethods("*")
+                    .allowedHeaders("*");
+        }
+        };
     }
 }
