@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 @RestController
-@RequestMapping("/api/receipts")
+@RequestMapping("/receipts")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class ReceiptController {
     
@@ -36,7 +36,7 @@ public class ReceiptController {
     @Autowired
     private UserService userService;
     
-    // GET /api/receipts - Get all receipts for authenticated user
+    // GET /receipts - Get all receipts for authenticated user
     @GetMapping
     public ResponseEntity<?> getAllReceipts(
             @RequestParam(defaultValue = "0") int page,
@@ -72,7 +72,7 @@ public class ReceiptController {
         }
     }
     
-    // GET /api/receipts/{id} - Get specific receipt by ID
+    // GET /receipts/{id} - Get specific receipt by ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getReceiptById(@PathVariable Long id, Authentication authentication) {
         try {
@@ -99,7 +99,7 @@ public class ReceiptController {
         }
     }
     
-    // POST /api/receipts - Create new receipt
+    // POST /receipts - Create new receipt
     @PostMapping
     public ResponseEntity<?> createReceipt(@Valid @RequestBody SaleRequest request, 
                                          Authentication authentication) {
@@ -122,7 +122,7 @@ public class ReceiptController {
         }
     }
     
-    // PUT /api/receipts/{id} - Update existing receipt
+    // PUT /receipts/{id} - Update existing receipt
     @PutMapping("/{id}")
     public ResponseEntity<?> updateReceipt(@PathVariable Long id, 
                                          @Valid @RequestBody SaleRequest request,
@@ -154,7 +154,7 @@ public class ReceiptController {
         }
     }
     
-    // DELETE /api/receipts/{id} - Delete receipt
+    // DELETE /receipts/{id} - Delete receipt
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @saleService.getSaleById(#id).processedBy.username == authentication.name")
     public ResponseEntity<?> deleteReceipt(@PathVariable Long id, Authentication authentication) {
@@ -175,7 +175,7 @@ public class ReceiptController {
         }
     }
     
-    // POST /api/receipts/{id}/items - Add items to receipt
+    // POST /receipts/{id}/items - Add items to receipt
     @PostMapping("/{id}/items")
     public ResponseEntity<?> addItemsToReceipt(@PathVariable Long id,
                                              @Valid @RequestBody List<SaleRequest.ItemRequest> items,
@@ -207,7 +207,7 @@ public class ReceiptController {
         }
     }
     
-    // GET /api/receipts/search - Search receipts by date range, vendor, etc.
+    // GET /receipts/search - Search receipts by date range, vendor, etc.
     @GetMapping("/search")
     public ResponseEntity<?> searchReceipts(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,

@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 @RestController
-@RequestMapping("/api/employees")
+@RequestMapping("/employees")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class EmployeeController {
     
@@ -170,7 +170,7 @@ public class EmployeeController {
         return ResponseEntity.ok(stats);
     }
     
-    // PUT /api/employees/{id} - Update employee information
+    // PUT /employees/{id} - Update employee information
     @PutMapping("/{id}")
     public ResponseEntity<?> updateEmployee(@PathVariable Long id, 
                                           @Valid @RequestBody EmployeeRequest employeeRequest,
@@ -216,7 +216,7 @@ public class EmployeeController {
         }
     }
     
-    // DELETE /api/employees/{id} - Deactivate employee (admin only)
+    // DELETE /employees/{id} - Deactivate employee (admin only)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deactivateEmployee(@PathVariable Long id, Authentication authentication) {
@@ -237,7 +237,7 @@ public class EmployeeController {
         }
     }
     
-    // PUT /api/employees/{id}/role - Update employee role (admin only)
+    // PUT /employees/{id}/role - Update employee role (admin only)
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateEmployeeRole(@PathVariable Long id, 
@@ -267,7 +267,7 @@ public class EmployeeController {
         }
     }
     
-    // GET /api/employees/me - Get current employee profile
+    // GET /employees/me - Get current employee profile
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentEmployeeProfile(Authentication authentication) {
         try {

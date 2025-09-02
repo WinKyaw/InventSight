@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/categories")
+@RequestMapping("/categories")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class CategoryController {
     

@@ -25,14 +25,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping("/products")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class ProductController {
     
     @Autowired
     private ProductService productService;
     
-    // GET /api/products - Get all products with pagination
+    // GET /products - Get all products with pagination
     @GetMapping
     public ResponseEntity<?> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
@@ -89,7 +89,7 @@ public class ProductController {
         }
     }
     
-    // GET /api/products/count - Get total products count
+    // GET /products/count - Get total products count
     @GetMapping("/count")
     public ResponseEntity<?> getProductsCount(Authentication authentication) {
         try {
@@ -113,7 +113,7 @@ public class ProductController {
         }
     }
     
-    // GET /api/products/low-stock - Get low stock products
+    // GET /products/low-stock - Get low stock products
     @GetMapping("/low-stock")
     public ResponseEntity<?> getLowStockProducts(Authentication authentication) {
         try {
@@ -141,7 +141,7 @@ public class ProductController {
         }
     }
     
-    // GET /api/products/{id} - Get product by ID
+    // GET /products/{id} - Get product by ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getProductById(@PathVariable Long id, Authentication authentication) {
         try {
@@ -166,7 +166,7 @@ public class ProductController {
         }
     }
     
-    // POST /api/products - Create new product
+    // POST /products - Create new product
     @PostMapping
     public ResponseEntity<?> createProduct(@Valid @RequestBody ProductRequest productRequest, 
                                          Authentication authentication) {
@@ -195,7 +195,7 @@ public class ProductController {
         }
     }
     
-    // PUT /api/products/{id} - Update product
+    // PUT /products/{id} - Update product
     @PutMapping("/{id}")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, 
                                          @Valid @RequestBody ProductRequest productRequest, 
@@ -224,7 +224,7 @@ public class ProductController {
         }
     }
     
-    // DELETE /api/products/{id} - Delete product
+    // DELETE /products/{id} - Delete product
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id, Authentication authentication) {
         try {
@@ -250,7 +250,7 @@ public class ProductController {
         }
     }
     
-    // PUT /api/products/{id}/stock - Update product stock
+    // PUT /products/{id}/stock - Update product stock
     @PutMapping("/{id}/stock")
     public ResponseEntity<?> updateProductStock(@PathVariable Long id, 
                                               @Valid @RequestBody StockUpdateRequest stockRequest, 
@@ -280,7 +280,7 @@ public class ProductController {
         }
     }
     
-    // GET /api/products/search - Search products
+    // GET /products/search - Search products
     @GetMapping("/search")
     public ResponseEntity<?> searchProducts(
             @RequestParam String q,
@@ -319,7 +319,7 @@ public class ProductController {
         }
     }
     
-    // GET /api/products/category/{categoryName} - Get products by category
+    // GET /products/category/{categoryName} - Get products by category
     @GetMapping("/category/{categoryName}")
     public ResponseEntity<?> getProductsByCategory(@PathVariable String categoryName, 
                                                  Authentication authentication) {

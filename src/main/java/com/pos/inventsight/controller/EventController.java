@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/events")
+@RequestMapping("/events")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class EventController {
     
@@ -31,7 +31,7 @@ public class EventController {
     @Autowired
     private UserService userService;
     
-    // GET /api/events - Get all events for authenticated user
+    // GET /events - Get all events for authenticated user
     @GetMapping
     public ResponseEntity<?> getAllEvents(Authentication authentication) {
         try {
@@ -63,7 +63,7 @@ public class EventController {
         }
     }
     
-    // GET /api/events/{id} - Get specific event
+    // GET /events/{id} - Get specific event
     @GetMapping("/{id}")
     public ResponseEntity<?> getEventById(@PathVariable Long id, Authentication authentication) {
         try {
@@ -96,7 +96,7 @@ public class EventController {
         }
     }
     
-    // POST /api/events - Create new event
+    // POST /events - Create new event
     @PostMapping
     public ResponseEntity<?> createEvent(@Valid @RequestBody EventRequest eventRequest, 
                                        Authentication authentication) {
@@ -120,7 +120,7 @@ public class EventController {
         }
     }
     
-    // PUT /api/events/{id} - Update existing event
+    // PUT /events/{id} - Update existing event
     @PutMapping("/{id}")
     public ResponseEntity<?> updateEvent(@PathVariable Long id, 
                                        @Valid @RequestBody EventRequest eventRequest,
@@ -144,7 +144,7 @@ public class EventController {
         }
     }
     
-    // DELETE /api/events/{id} - Delete event
+    // DELETE /events/{id} - Delete event
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteEvent(@PathVariable Long id, Authentication authentication) {
         try {
@@ -166,7 +166,7 @@ public class EventController {
         }
     }
     
-    // GET /api/events/calendar/{year}/{month} - Get events for specific month
+    // GET /events/calendar/{year}/{month} - Get events for specific month
     @GetMapping("/calendar/{year}/{month}")
     public ResponseEntity<?> getEventsForMonth(@PathVariable int year, 
                                              @PathVariable int month,
@@ -203,7 +203,7 @@ public class EventController {
         }
     }
     
-    // POST /api/events/{id}/attendees - Add attendees to event
+    // POST /events/{id}/attendees - Add attendees to event
     @PostMapping("/{id}/attendees")
     public ResponseEntity<?> addAttendeesToEvent(@PathVariable Long id,
                                                @RequestBody Map<String, List<Long>> attendeeRequest,
@@ -235,7 +235,7 @@ public class EventController {
     
     // Additional utility endpoints
     
-    // GET /api/events/upcoming - Get upcoming events for user
+    // GET /events/upcoming - Get upcoming events for user
     @GetMapping("/upcoming")
     public ResponseEntity<?> getUpcomingEvents(Authentication authentication) {
         try {
@@ -259,7 +259,7 @@ public class EventController {
         }
     }
     
-    // GET /api/events/today - Get today's events for user
+    // GET /events/today - Get today's events for user
     @GetMapping("/today")
     public ResponseEntity<?> getTodaysEvents(Authentication authentication) {
         try {
@@ -283,7 +283,7 @@ public class EventController {
         }
     }
     
-    // GET /api/events/search - Search events
+    // GET /events/search - Search events
     @GetMapping("/search")
     public ResponseEntity<?> searchEvents(@RequestParam String query, Authentication authentication) {
         try {

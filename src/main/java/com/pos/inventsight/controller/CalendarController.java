@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/calendar")
+@RequestMapping("/calendar")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class CalendarController {
     

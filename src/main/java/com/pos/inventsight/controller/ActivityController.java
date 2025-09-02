@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/activities")
+@RequestMapping("/activities")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class ActivityController {
     

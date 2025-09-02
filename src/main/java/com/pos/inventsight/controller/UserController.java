@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class UserController {
     
@@ -50,7 +50,7 @@ public class UserController {
     @Value("${app.upload.dir:${user.dir}/uploads}")
     private String uploadDir;
     
-    // GET /api/users/profile - Get detailed user profile
+    // GET /users/profile - Get detailed user profile
     @GetMapping("/profile")
     public ResponseEntity<?> getUserProfile(Authentication authentication) {
         try {
@@ -84,7 +84,7 @@ public class UserController {
         }
     }
     
-    // PUT /api/users/profile - Update user profile
+    // PUT /users/profile - Update user profile
     @PutMapping("/profile")
     public ResponseEntity<?> updateUserProfile(@Valid @RequestBody UserProfileRequest profileRequest,
                                              Authentication authentication) {
@@ -163,7 +163,7 @@ public class UserController {
         }
     }
     
-    // POST /api/users/profile/avatar - Upload profile picture
+    // POST /users/profile/avatar - Upload profile picture
     @PostMapping("/profile/avatar")
     public ResponseEntity<?> uploadAvatar(@RequestParam("file") MultipartFile file,
                                         Authentication authentication) {
@@ -243,7 +243,7 @@ public class UserController {
         }
     }
     
-    // GET /api/users/settings - Get user settings
+    // GET/users/settings - Get user settings
     @GetMapping("/settings")
     public ResponseEntity<?> getUserSettings(Authentication authentication) {
         try {
@@ -265,7 +265,7 @@ public class UserController {
         }
     }
     
-    // PUT /api/users/settings - Update user preferences/settings
+    // PUT /users/settings - Update user preferences/settings
     @PutMapping("/settings")
     public ResponseEntity<?> updateUserSettings(@Valid @RequestBody UserSettingsRequest settingsRequest,
                                               Authentication authentication) {
