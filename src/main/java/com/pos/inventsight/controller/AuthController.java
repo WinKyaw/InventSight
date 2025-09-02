@@ -5,6 +5,9 @@ import com.pos.inventsight.dto.LoginRequest;
 import com.pos.inventsight.dto.RegisterRequest;
 import com.pos.inventsight.dto.EmailVerificationRequest;
 import com.pos.inventsight.dto.ResendVerificationRequest;
+import com.pos.inventsight.dto.StructuredAuthResponse;
+import com.pos.inventsight.dto.UserResponse;
+import com.pos.inventsight.dto.TokenResponse;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.service.UserService;
@@ -137,6 +140,91 @@ public class AuthController {
         }
     }
     
+    // POST /auth/login/v2 - User login with structured response (frontend compatibility)
+    @PostMapping("/login/v2")
+    public ResponseEntity<?> authenticateUserStructured(@Valid @RequestBody LoginRequest loginRequest) {
+        System.out.println("🔐 InventSight - Processing structured login request for: " + loginRequest.getEmail());
+        System.out.println("📅 Current DateTime (UTC): 2025-08-27 10:27:11");
+        System.out.println("👤 Current User: WinKyaw");
+        
+        try {
+            // Authenticate the user
+            Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+            );
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            // Get user details
+            User user = (User) authentication.getPrincipal();
+            String accessToken = jwtUtils.generateJwtToken(user);
+            String refreshToken = jwtUtils.generateRefreshToken(user);
+            
+            // Update last login
+            userService.updateLastLogin(user.getId());
+            
+            // Log authentication activity
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("loginTime", LocalDateTime.now());
+            metadata.put("userAgent", "InventSight API");
+            metadata.put("ipAddress", "system");
+            
+            activityLogService.logActivityWithMetadata(
+                user.getId().toString(),
+                user.getUsername(),
+                "USER_LOGIN_V2",
+                "AUTHENTICATION",
+                "User successfully logged in (structured): " + user.getEmail(),
+                metadata
+            );
+            
+            // Create structured response
+            UserResponse userResponse = new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getUsername(),
+                user.getRole().name()
+            );
+            
+            TokenResponse tokenResponse = new TokenResponse(
+                accessToken,
+                refreshToken,
+                (long) jwtUtils.getJwtExpirationMs(),
+                (long) jwtUtils.getJwtRefreshExpirationMs()
+            );
+            
+            StructuredAuthResponse authResponse = new StructuredAuthResponse(
+                userResponse,
+                tokenResponse,
+                "Login successful"
+            );
+            
+            System.out.println("✅ User authenticated successfully (structured): " + user.getEmail());
+            return ResponseEntity.ok(authResponse);
+            
+        } catch (AuthenticationException e) {
+            System.out.println("❌ Authentication failed for: " + loginRequest.getEmail());
+            
+            // Log failed authentication attempt
+            activityLogService.logActivity(
+                null,
+                "WinKyaw",
+                "USER_LOGIN_FAILED_V2",
+                "AUTHENTICATION",
+                "Failed login attempt for email (structured): " + loginRequest.getEmail()
+            );
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new StructuredAuthResponse("Invalid email or password", false));
+        } catch (Exception e) {
+            System.out.println("❌ Login error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new StructuredAuthResponse("Authentication service temporarily unavailable", false));
+        }
+    }
+    
     // POST /auth/register - User registration
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest, 
@@ -232,6 +320,106 @@ public class AuthController {
             System.out.println("❌ Registration error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new AuthResponse("Registration service temporarily unavailable"));
+        }
+    }
+    
+    // POST /auth/signup - User signup endpoint (frontend compatibility alias for register)
+    @PostMapping("/signup")
+    public ResponseEntity<?> signupUser(@Valid @RequestBody RegisterRequest signupRequest, 
+                                       HttpServletRequest request) {
+        System.out.println("🔐 InventSight - Processing signup request for: " + signupRequest.getEmail());
+        System.out.println("📅 Current DateTime (UTC): 2025-08-27 10:27:11");
+        System.out.println("👤 Current User: WinKyaw");
+        
+        String clientIp = getClientIpAddress(request);
+        
+        try {
+            // Check rate limiting
+            if (!rateLimitingService.isRegistrationAllowed(clientIp, signupRequest.getEmail())) {
+                RateLimitingService.RateLimitStatus rateLimitStatus = 
+                    rateLimitingService.getRateLimitStatus(clientIp, signupRequest.getEmail(), "registration");
+                
+                StructuredAuthResponse errorResponse = new StructuredAuthResponse(
+                    "Too many signup attempts. Please try again later.", false);
+                
+                System.out.println("❌ Signup rate limited for: " + signupRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+            }
+            
+            // Record registration attempt
+            rateLimitingService.recordRegistrationAttempt(clientIp, signupRequest.getEmail());
+            
+            // Validate password strength
+            PasswordValidationService.PasswordValidationResult passwordValidation = 
+                passwordValidationService.validatePassword(signupRequest.getPassword());
+            
+            if (!passwordValidation.isValid()) {
+                StructuredAuthResponse errorResponse = new StructuredAuthResponse(
+                    "Password does not meet security requirements", false);
+                
+                System.out.println("❌ Signup failed - weak password for: " + signupRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            // Create new user
+            User user = new User();
+            user.setUsername(signupRequest.getUsername());
+            user.setEmail(signupRequest.getEmail());
+            user.setPassword(signupRequest.getPassword());
+            user.setFirstName(signupRequest.getFirstName());
+            user.setLastName(signupRequest.getLastName());
+            user.setRole(UserRole.USER); // Default role
+            
+            User savedUser = userService.createUser(user);
+            
+            // Generate JWT tokens
+            String accessToken = jwtUtils.generateJwtToken(savedUser);
+            String refreshToken = jwtUtils.generateRefreshToken(savedUser);
+            
+            // Log registration activity
+            activityLogService.logActivity(
+                savedUser.getId().toString(),
+                savedUser.getUsername(),
+                "USER_SIGNUP",
+                "AUTHENTICATION",
+                "New user signed up and authenticated: " + savedUser.getEmail()
+            );
+            
+            // Create structured response
+            UserResponse userResponse = new UserResponse(
+                savedUser.getId(),
+                savedUser.getEmail(),
+                savedUser.getFirstName(),
+                savedUser.getLastName(),
+                savedUser.getUsername(),
+                savedUser.getRole().name()
+            );
+            
+            TokenResponse tokenResponse = new TokenResponse(
+                accessToken,
+                refreshToken,
+                (long) jwtUtils.getJwtExpirationMs(),
+                (long) jwtUtils.getJwtRefreshExpirationMs()
+            );
+            
+            StructuredAuthResponse authResponse = new StructuredAuthResponse(
+                userResponse,
+                tokenResponse,
+                "Signup successful"
+            );
+            
+            System.out.println("✅ User signed up successfully: " + savedUser.getEmail());
+            return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+            
+        } catch (DuplicateResourceException e) {
+            System.out.println("❌ Signup failed - duplicate resource: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new StructuredAuthResponse(e.getMessage(), false));
+                
+        } catch (Exception e) {
+            System.out.println("❌ Signup error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new StructuredAuthResponse("Signup service temporarily unavailable", false));
         }
     }
     
