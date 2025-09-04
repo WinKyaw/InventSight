@@ -20,6 +20,7 @@ import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -410,7 +411,12 @@ public class ProductController {
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), list.size());
         
-        List<T> pageContent = list.subList(start, end);
+        List<T> pageContent;
+        if (start >= list.size()) {
+            pageContent = new ArrayList<>();
+        } else {
+            pageContent = list.subList(start, end);
+        }
         return new org.springframework.data.domain.PageImpl<>(pageContent, pageable, list.size());
     }
 }
