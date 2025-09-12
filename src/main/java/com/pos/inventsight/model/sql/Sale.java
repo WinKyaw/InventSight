@@ -42,6 +42,12 @@ public class Sale {
     @Enumerated(EnumType.STRING)
     private SaleStatus status = SaleStatus.COMPLETED;
     
+    // Multi-tenancy support
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod;
@@ -119,6 +125,9 @@ public class Sale {
     
     public SaleStatus getStatus() { return status; }
     public void setStatus(SaleStatus status) { this.status = status; }
+    
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
     
     public PaymentMethod getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }

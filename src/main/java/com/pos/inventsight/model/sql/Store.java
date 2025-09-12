@@ -1,0 +1,156 @@
+package com.pos.inventsight.model.sql;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "stores")
+public class Store {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @NotBlank
+    @Size(max = 200)
+    @Column(name = "store_name")
+    private String storeName;
+    
+    @Size(max = 1000)
+    private String description;
+    
+    @Size(max = 200)
+    private String address;
+    
+    @Size(max = 100)
+    private String city;
+    
+    @Size(max = 100)
+    private String state;
+    
+    @Size(max = 20)
+    @Column(name = "postal_code")
+    private String postalCode;
+    
+    @Size(max = 100)
+    private String country;
+    
+    @Size(max = 20)
+    private String phone;
+    
+    @Email
+    @Size(max = 100)
+    private String email;
+    
+    @Size(max = 200)
+    private String website;
+    
+    @Column(name = "tax_id")
+    @Size(max = 50)
+    private String taxId;
+    
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @Column(name = "created_by")
+    private String createdBy;
+    
+    @Column(name = "updated_by")
+    private String updatedBy;
+    
+    // Constructors
+    public Store() {}
+    
+    public Store(String storeName, String address, String city, String state, String country) {
+        this.storeName = storeName;
+        this.address = address;
+        this.city = city;
+        this.state = state;
+        this.country = country;
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getStoreName() { return storeName; }
+    public void setStoreName(String storeName) { this.storeName = storeName; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+    
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
+    
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getWebsite() { return website; }
+    public void setWebsite(String website) { this.website = website; }
+    
+    public String getTaxId() { return taxId; }
+    public void setTaxId(String taxId) { this.taxId = taxId; }
+    
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    
+    public String getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+    
+    // Business methods
+    public String getFullAddress() {
+        StringBuilder sb = new StringBuilder();
+        if (address != null) sb.append(address);
+        if (city != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(city);
+        }
+        if (state != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(state);
+        }
+        if (postalCode != null) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(postalCode);
+        }
+        if (country != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(country);
+        }
+        return sb.toString();
+    }
+}

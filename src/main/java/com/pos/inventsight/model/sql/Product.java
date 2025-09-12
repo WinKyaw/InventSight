@@ -30,7 +30,29 @@ public class Product {
     @Column(unique = true)
     private String sku;
     
+    // Multi-tenancy support
     @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+    
+    // Tiered pricing structure
+    @NotNull
+    @DecimalMin("0.0")
+    @Column(name = "original_price", precision = 10, scale = 2)
+    private BigDecimal originalPrice;
+    
+    @NotNull
+    @DecimalMin("0.0")
+    @Column(name = "owner_set_sell_price", precision = 10, scale = 2)
+    private BigDecimal ownerSetSellPrice;
+    
+    @NotNull
+    @DecimalMin("0.0")
+    @Column(name = "retail_price", precision = 10, scale = 2)
+    private BigDecimal retailPrice;
+    
+    // Legacy price field for backward compatibility
     @DecimalMin("0.0")
     private BigDecimal price;
     
@@ -80,11 +102,16 @@ public class Product {
     // Constructors
     public Product() {}
     
-    public Product(String name, String sku, BigDecimal price, Integer quantity) {
+    public Product(String name, String sku, BigDecimal originalPrice, BigDecimal ownerSetSellPrice, 
+                   BigDecimal retailPrice, Integer quantity, Store store) {
         this.name = name;
         this.sku = sku;
-        this.price = price;
+        this.originalPrice = originalPrice;
+        this.ownerSetSellPrice = ownerSetSellPrice;
+        this.retailPrice = retailPrice;
+        this.price = retailPrice; // Set legacy price to retail price for backward compatibility
         this.quantity = quantity;
+        this.store = store;
     }
     
     // Getters and Setters
@@ -100,8 +127,36 @@ public class Product {
     public String getSku() { return sku; }
     public void setSku(String sku) { this.sku = sku; }
     
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
+    
+    public BigDecimal getOriginalPrice() { return originalPrice; }
+    public void setOriginalPrice(BigDecimal originalPrice) { 
+        this.originalPrice = originalPrice; 
+        // Update legacy price for backward compatibility
+        if (this.price == null) {
+            this.price = originalPrice;
+        }
+    }
+    
+    public BigDecimal getOwnerSetSellPrice() { return ownerSetSellPrice; }
+    public void setOwnerSetSellPrice(BigDecimal ownerSetSellPrice) { this.ownerSetSellPrice = ownerSetSellPrice; }
+    
+    public BigDecimal getRetailPrice() { return retailPrice; }
+    public void setRetailPrice(BigDecimal retailPrice) { 
+        this.retailPrice = retailPrice;
+        // Update legacy price for backward compatibility
+        this.price = retailPrice;
+    }
+    
     public BigDecimal getPrice() { return price; }
-    public void setPrice(BigDecimal price) { this.price = price; }
+    public void setPrice(BigDecimal price) { 
+        this.price = price;
+        // If retail price is not set, set it to the legacy price
+        if (this.retailPrice == null) {
+            this.retailPrice = price;
+        }
+    }
     
     public BigDecimal getCostPrice() { return costPrice; }
     public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
@@ -181,5 +236,42 @@ public class Product {
     public BigDecimal getProfitMargin() {
         if (costPrice == null || costPrice.equals(BigDecimal.ZERO)) return BigDecimal.ZERO;
         return price.subtract(costPrice).divide(costPrice, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal(100));
+    }
+    
+    // Tiered pricing business methods
+    public BigDecimal getPriceForRole(UserRole role) {
+        switch (role) {
+            case OWNER:
+            case CO_OWNER:
+                return originalPrice;
+            case MANAGER:
+                return ownerSetSellPrice;
+            case EMPLOYEE:
+            case CUSTOMER:
+            default:
+                return retailPrice;
+        }
+    }
+    
+    public boolean canViewOriginalPrice(UserRole role) {
+        return role == UserRole.OWNER || role == UserRole.CO_OWNER;
+    }
+    
+    public BigDecimal getOwnerProfit() {
+        if (originalPrice == null || costPrice == null) return BigDecimal.ZERO;
+        return originalPrice.subtract(costPrice);
+    }
+    
+    public BigDecimal getRetailProfit() {
+        if (retailPrice == null || costPrice == null) return BigDecimal.ZERO;
+        return retailPrice.subtract(costPrice);
+    }
+    
+    public BigDecimal getOwnerSetProfitMargin() {
+        if (ownerSetSellPrice == null || costPrice == null || costPrice.equals(BigDecimal.ZERO)) 
+            return BigDecimal.ZERO;
+        return ownerSetSellPrice.subtract(costPrice)
+               .divide(costPrice, 4, BigDecimal.ROUND_HALF_UP)
+               .multiply(new BigDecimal(100));
     }
 }

@@ -51,6 +51,12 @@ public class Employee {
     @Enumerated(EnumType.STRING)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
     
+    // Multi-tenancy support
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+    
     @Column(name = "check_in_time")
     private LocalDateTime checkInTime;
     
@@ -158,6 +164,9 @@ public class Employee {
     
     public EmployeeStatus getStatus() { return status; }
     public void setStatus(EmployeeStatus status) { this.status = status; }
+    
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
     
     public LocalDateTime getCheckInTime() { return checkInTime; }
     public void setCheckInTime(LocalDateTime checkInTime) { this.checkInTime = checkInTime; }

@@ -55,6 +55,12 @@ public class Event {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
     
+    // Multi-tenancy support
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+    
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "event_attendees",
@@ -143,6 +149,9 @@ public class Event {
     
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
+    
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
     
     public List<User> getAttendees() { return attendees; }
     public void setAttendees(List<User> attendees) { this.attendees = attendees; }
