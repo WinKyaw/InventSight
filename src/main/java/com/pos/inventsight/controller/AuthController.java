@@ -38,6 +38,20 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Authentication Controller
+ * 
+ * Handles all authentication-related endpoints for the InventSight application.
+ * This includes user login, registration, email verification, and token management.
+ * All endpoints are prefixed with /auth and become /api/auth due to the context path.
+ * 
+ * Key endpoints:
+ * - POST /auth/register - User registration with immediate authentication
+ * - POST /auth/signup - Alternative registration endpoint for frontend compatibility
+ * - POST /auth/login - User authentication with JWT token generation
+ * - POST /auth/verify-email - Email verification for new accounts
+ * - GET /auth/check-email - Check email availability for registration
+ */
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -225,7 +239,17 @@ public class AuthController {
         }
     }
     
-    // POST /auth/register - User registration
+    /**
+     * Authentication-specific user registration endpoint
+     * 
+     * Handles POST requests to /auth/register (which becomes /api/auth/register due to context path).
+     * This is the primary authentication endpoint for user registration with full security features
+     * including rate limiting, password validation, and immediate JWT token generation.
+     * 
+     * @param registerRequest JSON request body containing user registration data (username, email, password, firstName, lastName)
+     * @param request HTTP request for extracting client information for rate limiting
+     * @return ResponseEntity with authentication response or error details
+     */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest, 
                                          HttpServletRequest request) {
@@ -323,7 +347,17 @@ public class AuthController {
         }
     }
     
-    // POST /auth/signup - User signup endpoint (frontend compatibility alias for register)
+    /**
+     * User signup endpoint (frontend compatibility alias for registration)
+     * 
+     * Handles POST requests to /auth/signup providing an alternative endpoint name
+     * for frontend applications that prefer "signup" terminology over "register".
+     * Provides the same functionality as the main registration endpoint.
+     * 
+     * @param signupRequest JSON request body containing user registration data
+     * @param request HTTP request for extracting client information
+     * @return ResponseEntity with structured authentication response or error details
+     */
     @PostMapping("/signup")
     public ResponseEntity<?> signupUser(@Valid @RequestBody RegisterRequest signupRequest, 
                                        HttpServletRequest request) {
