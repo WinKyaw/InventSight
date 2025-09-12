@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -205,7 +206,14 @@ public class UserService implements UserDetailsService {
         }
         
         // Find user by UUID (tenant ID)
-        User user = userRepository.findByUuid(tenantId)
+        UUID tenantUuid;
+        try {
+            tenantUuid = UUID.fromString(tenantId);
+        } catch (IllegalArgumentException e) {
+            throw new ResourceNotFoundException("Invalid UUID format for tenant: " + tenantId);
+        }
+        
+        User user = userRepository.findByUuid(tenantUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for tenant: " + tenantId));
         
         // Get user's primary store role
@@ -219,9 +227,23 @@ public class UserService implements UserDetailsService {
     }
     
     /**
-     * Get user by UUID
+     * Get user by UUID string (for compatibility with external APIs)
      */
     public User getUserByUuid(String uuid) {
+        UUID userUuid;
+        try {
+            userUuid = UUID.fromString(uuid);
+        } catch (IllegalArgumentException e) {
+            throw new ResourceNotFoundException("Invalid UUID format: " + uuid);
+        }
+        return userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with UUID: " + uuid));
+    }
+    
+    /**
+     * Get user by UUID object (for internal use)
+     */
+    public User getUserByUuid(UUID uuid) {
         return userRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with UUID: " + uuid));
     }
