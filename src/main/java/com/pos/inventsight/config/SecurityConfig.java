@@ -65,7 +65,15 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
-                auth.requestMatchers("/auth/**").permitAll()
+                auth
+                    // Authentication endpoints - PUBLIC ACCESS (no JWT required)
+                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/api/register").permitAll()      // Direct /api/register endpoint
+                    .requestMatchers("/api/auth/register").permitAll() // Full context path registration
+                    .requestMatchers("/api/auth/signup").permitAll()   // Signup alias endpoint
+                    .requestMatchers("/register").permitAll()          // Alternative register route
+                    
+                    // Other public endpoints
                     .requestMatchers("/dashboard/live-data").permitAll() // Allow live sync for React Native
                     .requestMatchers("/health/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
