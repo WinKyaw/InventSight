@@ -1,7 +1,11 @@
 package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.repository.sql.UserRepository;
+import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
+import com.pos.inventsight.tenant.TenantContext;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +26,9 @@ public class UserService implements UserDetailsService {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private UserStoreRoleRepository userStoreRoleRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -181,5 +188,41 @@ public class UserService implements UserDetailsService {
     
     public boolean usernameExists(String username) {
         return userRepository.existsByUsername(username);
+    }
+    
+    // Tenant-related methods
+    
+    /**
+     * Get the current user's primary store based on tenant context
+     * The tenant ID should correspond to a user's UUID
+     */
+    public Store getCurrentUserStore() {
+        String tenantId = TenantContext.getCurrentTenant();
+        
+        // If using default tenant, return null (no specific store)
+        if (TenantContext.DEFAULT_TENANT.equals(tenantId)) {
+            return null;
+        }
+        
+        // Find user by UUID (tenant ID)
+        User user = userRepository.findByUuid(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for tenant: " + tenantId));
+        
+        // Get user's primary store role
+        List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(user);
+        if (userStoreRoles.isEmpty()) {
+            throw new ResourceNotFoundException("No active store found for user: " + user.getUsername());
+        }
+        
+        // Return the first active store (in a real implementation, you might want better logic)
+        return userStoreRoles.get(0).getStore();
+    }
+    
+    /**
+     * Get user by UUID
+     */
+    public User getUserByUuid(String uuid) {
+        return userRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with UUID: " + uuid));
     }
 }

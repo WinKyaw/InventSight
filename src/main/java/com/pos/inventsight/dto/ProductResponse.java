@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public class ProductResponse {
     private Long id;
+    private String uuid;
     private String name;
     private String description;
     private String sku;
@@ -41,6 +42,7 @@ public class ProductResponse {
 
     public ProductResponse(Product product) {
         this.id = product.getId();
+        this.uuid = product.getUuid();
         this.name = product.getName();
         this.description = product.getDescription();
         this.sku = product.getSku();
@@ -75,6 +77,9 @@ public class ProductResponse {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public String getUuid() { return uuid; }
+    public void setUuid(String uuid) { this.uuid = uuid; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

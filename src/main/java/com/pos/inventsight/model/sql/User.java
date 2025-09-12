@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -19,6 +20,9 @@ public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    
+    @Column(name = "uuid", unique = true, nullable = false)
+    private String uuid;
     
     @NotBlank
     @Size(max = 50)
@@ -66,10 +70,18 @@ public class User implements UserDetails {
     @Column(name = "created_by")
     private String createdBy;
     
+    // Tenant ID - using user's UUID as tenant identifier for schema-based isolation
+    @Column(name = "tenant_id")
+    private String tenantId;
+    
     // Constructors
-    public User() {}
+    public User() {
+        this.uuid = UUID.randomUUID().toString();
+        this.tenantId = this.uuid; // Use UUID as tenant ID
+    }
     
     public User(String username, String email, String password, String firstName, String lastName) {
+        this(); // Call default constructor to initialize UUID and tenantId
         this.username = username;
         this.email = email;
         this.password = password;
@@ -106,6 +118,16 @@ public class User implements UserDetails {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    
+    public String getUuid() { return uuid; }
+    public void setUuid(String uuid) { 
+        this.uuid = uuid; 
+        // Update tenant ID when UUID changes
+        this.tenantId = uuid;
+    }
+    
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
@@ -149,5 +171,19 @@ public class User implements UserDetails {
     // Utility methods
     public String getFullName() {
         return firstName + " " + lastName;
+    }
+    
+    /**
+     * Ensures UUID is set for existing users that might not have one
+     */
+    @PrePersist
+    @PreUpdate
+    public void ensureUuid() {
+        if (this.uuid == null || this.uuid.trim().isEmpty()) {
+            this.uuid = UUID.randomUUID().toString();
+        }
+        if (this.tenantId == null || this.tenantId.trim().isEmpty()) {
+            this.tenantId = this.uuid;
+        }
     }
 }

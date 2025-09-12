@@ -1,6 +1,7 @@
 package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.InsufficientStockException;
@@ -22,6 +23,9 @@ public class ProductService {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private UserService userService;
     
     @Autowired
     private ActivityLogService activityLogService;
@@ -137,23 +141,53 @@ public class ProductService {
     }
     
     public List<Product> getAllActiveProducts() {
-        return productRepository.findByIsActiveTrue();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            // Fallback to global query for default tenant
+            return productRepository.findByIsActiveTrue();
+        }
+        // Use tenant-aware query
+        return productRepository.findByStoreAndIsActiveTrue(currentStore);
     }
     
     public Page<Product> searchProducts(String searchTerm, Pageable pageable) {
-        return productRepository.searchProducts(searchTerm, pageable);
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            // Fallback to global query for default tenant
+            return productRepository.searchProducts(searchTerm, pageable);
+        }
+        // Use tenant-aware query
+        return productRepository.searchProductsByStore(currentStore, searchTerm, pageable);
     }
     
     public List<Product> getProductsByCategory(String category) {
-        return productRepository.findByCategory(category);
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            // Fallback to global query for default tenant
+            return productRepository.findByCategory(category);
+        }
+        // Use tenant-aware query
+        return productRepository.findByStoreAndCategory(currentStore, category);
     }
     
     public List<String> getAllCategories() {
-        return productRepository.findAllCategories();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            // Fallback to global query for default tenant
+            return productRepository.findAllCategories();
+        }
+        // Use tenant-aware query
+        return productRepository.findAllCategoriesByStore(currentStore);
     }
     
     public List<String> getAllSuppliers() {
-        return productRepository.findAllSuppliers();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            // Fallback to global query for default tenant
+            return productRepository.findAllSuppliers();
+        }
+        // Use tenant-aware query
+        return productRepository.findAllSuppliersByStore(currentStore);
     }
     
     // Inventory Management
@@ -205,24 +239,44 @@ public class ProductService {
     
     // Stock Alerts and Analytics
     public List<Product> getLowStockProducts() {
-        return productRepository.findLowStockProducts();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            return productRepository.findLowStockProducts();
+        }
+        return productRepository.findLowStockProductsByStore(currentStore);
     }
     
     public List<Product> getOutOfStockProducts() {
-        return productRepository.findOutOfStockProducts();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            return productRepository.findOutOfStockProducts();
+        }
+        return productRepository.findOutOfStockProductsByStore(currentStore);
     }
     
     public List<Product> getProductsNeedingReorder() {
-        return productRepository.findProductsNeedingReorder();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            return productRepository.findProductsNeedingReorder();
+        }
+        return productRepository.findProductsNeedingReorderByStore(currentStore);
     }
     
     // Analytics
     public long getTotalProductCount() {
-        return productRepository.countActiveProducts();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            return productRepository.countActiveProducts();
+        }
+        return productRepository.countActiveProductsByStore(currentStore);
     }
     
     public BigDecimal getTotalInventoryValue() {
-        return productRepository.getTotalInventoryValue();
+        Store currentStore = userService.getCurrentUserStore();
+        if (currentStore == null) {
+            return productRepository.getTotalInventoryValue();
+        }
+        return productRepository.getTotalInventoryValueByStore(currentStore);
     }
     
     public Map<String, Long> getCategoryDistribution() {
