@@ -27,7 +27,7 @@ public class TenantContext {
      */
     public static String getCurrentTenant() {
         String tenant = currentTenant.get();
-        return tenant != null ? tenant : DEFAULT_TENANT;
+        return (tenant != null && !tenant.trim().isEmpty()) ? tenant : DEFAULT_TENANT;
     }
     
     /**
@@ -42,6 +42,7 @@ public class TenantContext {
      * @return true if a tenant is set, false otherwise
      */
     public static boolean isSet() {
-        return currentTenant.get() != null;
+        String tenant = currentTenant.get();
+        return tenant != null && !tenant.trim().isEmpty();
     }
 }

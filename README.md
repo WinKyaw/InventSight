@@ -169,7 +169,97 @@ ResponseEntity<String> response = restTemplate.exchange(
 );
 ```
 
-### Important Notes
+### Example Usage
+
+Here's how to use the multi-tenancy feature in your application:
+
+#### Client Applications
+
+**JavaScript/TypeScript (React, Angular, etc.)**
+```javascript
+// Set up API client with tenant header
+const apiClient = axios.create({
+  baseURL: 'http://localhost:8080/api',
+  headers: {
+    'X-Tenant-ID': 'company_abc' // Replace with actual tenant ID
+  }
+});
+
+// All requests will now use the 'company_abc' schema
+const response = await apiClient.get('/users');
+```
+
+**Java Client**
+```java
+// Spring RestTemplate example
+RestTemplate restTemplate = new RestTemplate();
+HttpHeaders headers = new HttpHeaders();
+headers.set("X-Tenant-ID", "company_xyz");
+HttpEntity<String> entity = new HttpEntity<>(headers);
+
+ResponseEntity<String> response = restTemplate.exchange(
+    "http://localhost:8080/api/users",
+    HttpMethod.GET,
+    entity,
+    String.class
+);
+```
+
+**cURL Examples**
+```bash
+# Request with tenant header
+curl -H "X-Tenant-ID: company_abc" \
+     -H "Authorization: Bearer your-jwt-token" \
+     http://localhost:8080/api/users
+
+# Request without tenant header (uses public schema)
+curl -H "Authorization: Bearer your-jwt-token" \
+     http://localhost:8080/api/users
+```
+
+#### Server-Side Usage
+
+**In Controllers or Services**
+```java
+@RestController
+@RequestMapping("/api/tenant-info")
+public class TenantInfoController {
+    
+    @GetMapping("/current")
+    public ResponseEntity<Map<String, String>> getCurrentTenant() {
+        String currentTenant = TenantContext.getCurrentTenant();
+        boolean isSet = TenantContext.isSet();
+        
+        Map<String, String> info = Map.of(
+            "tenant", currentTenant,
+            "isSet", String.valueOf(isSet)
+        );
+        
+        return ResponseEntity.ok(info);
+    }
+}
+```
+
+**Programmatic Tenant Setting (for background jobs, etc.)**
+```java
+@Service
+public class BackgroundJobService {
+    
+    public void processDataForTenant(String tenantId) {
+        try {
+            // Set tenant context for this operation
+            TenantContext.setCurrentTenant(tenantId);
+            
+            // All database operations will now use the tenant's schema
+            userService.updateAllUsers();
+            productService.generateReports();
+            
+        } finally {
+            // Always clean up the tenant context
+            TenantContext.clear();
+        }
+    }
+}
 
 1. **Schema Naming**: Use lowercase, alphanumeric characters, underscores, and dashes only
 2. **Security**: The application validates tenant names to prevent SQL injection
