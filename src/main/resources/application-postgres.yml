@@ -1,0 +1,10 @@
+# PostgreSQL production/development profile with multi-tenancy enabled
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        # Enable schema-based multi-tenancy for PostgreSQL
+        multiTenancy: SCHEMA
+        tenant_identifier_resolver: com.pos.inventsight.tenant.TenantIdentifierResolver
+        multi_tenant_connection_provider: com.pos.inventsight.tenant.SchemaBasedMultiTenantConnectionProvider

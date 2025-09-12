@@ -22,6 +22,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # Multi-tenancy configuration - only enabled for PostgreSQL profiles
+        # Will be overridden by profile-specific configurations
         
   # MongoDB Configuration (Analytics & Logs)
   data:
