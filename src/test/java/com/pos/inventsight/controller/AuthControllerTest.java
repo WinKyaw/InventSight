@@ -140,6 +140,76 @@ public class AuthControllerTest {
     }
 
     @Test
+    public void testLoginWithUnverifiedEmail() throws Exception {
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("unverified@inventsight.com");
+        loginRequest.setPassword("password123");
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("unverified@inventsight.com");
+        mockUser.setUsername("unverifieduser");
+        mockUser.setFirstName("Unverified");
+        mockUser.setLastName("User");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(false); // Email not verified
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Email not verified. Please verify your email before logging in."));
+
+        // Verify email verification failure was logged
+        verify(activityLogService).logActivity(eq("1"), eq("unverifieduser"), 
+                eq("USER_LOGIN_EMAIL_UNVERIFIED"), eq("AUTHENTICATION"), anyString());
+        
+        // Verify that last login was NOT updated for unverified users
+        verify(userService, never()).updateLastLogin(anyLong());
+    }
+
+    @Test
+    public void testLoginV2WithUnverifiedEmail() throws Exception {
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("unverified@inventsight.com");
+        loginRequest.setPassword("password123");
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("unverified@inventsight.com");
+        mockUser.setUsername("unverifieduser");
+        mockUser.setFirstName("Unverified");
+        mockUser.setLastName("User");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(false); // Email not verified
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+
+        // When & Then
+        mockMvc.perform(post("/auth/login/v2")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Email not verified. Please verify your email before logging in."))
+                .andExpect(jsonPath("$.success").value(false));
+
+        // Verify email verification failure was logged
+        verify(activityLogService).logActivity(eq("1"), eq("unverifieduser"), 
+                eq("USER_LOGIN_V2_EMAIL_UNVERIFIED"), eq("AUTHENTICATION"), anyString());
+    }
+
+    @Test
     public void testLogoutSuccess() throws Exception {
         // Given
         User mockUser = new User();
