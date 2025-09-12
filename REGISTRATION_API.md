@@ -188,6 +188,17 @@ Validate password strength for frontend real-time feedback.
 
 ## Security Features
 
+### Public Access Configuration
+- Registration endpoints are **publicly accessible** (no authentication required)
+- The following endpoints are configured in Spring Security to permitAll():
+  - `/auth/**` - All authentication endpoints
+  - `/api/register` - Direct registration endpoint  
+  - `/api/auth/register` - Full context path registration
+  - `/api/auth/signup` - Signup alias endpoint
+  - `/register` - Alternative register route
+- JWT authentication filters **do not block** registration requests
+- CORS is properly configured for cross-origin registration requests
+
 ### Password Requirements
 - Minimum 8 characters, maximum 128 characters
 - At least one lowercase letter (a-z)
