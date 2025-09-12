@@ -36,8 +36,8 @@ public class UuidMigrationService {
         int updatedCount = 0;
         
         for (User user : users) {
-            if (user.getUuid() == null || user.getUuid().trim().isEmpty()) {
-                String newUuid = UUID.randomUUID().toString();
+            if (user.getUuid() == null) {
+                UUID newUuid = UUID.randomUUID();
                 user.setUuid(newUuid);
                 user.setTenantId(newUuid); // Use UUID as tenant ID
                 
@@ -124,11 +124,11 @@ public class UuidMigrationService {
         boolean allValid = true;
         
         for (User user : users) {
-            if (user.getUuid() == null || user.getUuid().trim().isEmpty()) {
+            if (user.getUuid() == null) {
                 System.err.println("❌ User missing UUID: " + user.getUsername());
                 allValid = false;
             }
-            if (user.getTenantId() == null || user.getTenantId().trim().isEmpty()) {
+            if (user.getTenantId() == null) {
                 System.err.println("❌ User missing tenant ID: " + user.getUsername());
                 allValid = false;
             }

@@ -26,7 +26,7 @@ class UuidEntityTest {
         assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID");
         
         // Test UUID format is valid
-        assertTrue(isValidUUID(user.getUuid()), "UUID should be valid format");
+        assertTrue(isValidUUID(user.getUuid().toString()), "UUID should be valid format");
     }
     
     @Test
@@ -52,8 +52,8 @@ class UuidEntityTest {
     @Test
     void testUserUuidSetter() {
         User user = new User();
-        String oldUuid = user.getUuid();
-        String newUuid = UUID.randomUUID().toString();
+        UUID oldUuid = user.getUuid();
+        UUID newUuid = UUID.randomUUID();
         
         user.setUuid(newUuid);
         
@@ -132,7 +132,7 @@ class UuidEntityTest {
     @Test
     void testUserPrePersistDoesNotOverwriteExistingUuid() {
         User user = new User();
-        String originalUuid = user.getUuid();
+        UUID originalUuid = user.getUuid();
         
         // Call ensureUuid when UUID already exists
         user.ensureUuid();

@@ -22,7 +22,7 @@ public class User implements UserDetails {
     private Long id;
     
     @Column(name = "uuid", unique = true, nullable = false)
-    private String uuid;
+    private UUID uuid;
     
     @NotBlank
     @Size(max = 50)
@@ -71,12 +71,13 @@ public class User implements UserDetails {
     private String createdBy;
     
     // Tenant ID - using user's UUID as tenant identifier for schema-based isolation
+    // Note: Maps to native PostgreSQL UUID type, not varchar. JPA handles conversion automatically.
     @Column(name = "tenant_id")
-    private String tenantId;
+    private UUID tenantId;
     
     // Constructors
     public User() {
-        this.uuid = UUID.randomUUID().toString();
+        this.uuid = UUID.randomUUID();
         this.tenantId = this.uuid; // Use UUID as tenant ID
     }
     
@@ -119,15 +120,15 @@ public class User implements UserDetails {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     
-    public String getUuid() { return uuid; }
-    public void setUuid(String uuid) { 
+    public UUID getUuid() { return uuid; }
+    public void setUuid(UUID uuid) { 
         this.uuid = uuid; 
         // Update tenant ID when UUID changes
         this.tenantId = uuid;
     }
     
-    public String getTenantId() { return tenantId; }
-    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+    public UUID getTenantId() { return tenantId; }
+    public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
     
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
@@ -175,14 +176,15 @@ public class User implements UserDetails {
     
     /**
      * Ensures UUID is set for existing users that might not have one
+     * Note: This handles the transition from String-based UUIDs to native UUID objects
      */
     @PrePersist
     @PreUpdate
     public void ensureUuid() {
-        if (this.uuid == null || this.uuid.trim().isEmpty()) {
-            this.uuid = UUID.randomUUID().toString();
+        if (this.uuid == null) {
+            this.uuid = UUID.randomUUID();
         }
-        if (this.tenantId == null || this.tenantId.trim().isEmpty()) {
+        if (this.tenantId == null) {
             this.tenantId = this.uuid;
         }
     }

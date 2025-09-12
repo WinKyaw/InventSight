@@ -42,7 +42,7 @@ public class ProductResponse {
 
     public ProductResponse(Product product) {
         this.id = product.getId();
-        this.uuid = product.getUuid();
+        this.uuid = product.getUuid(); // Product.getUuid() returns String for external compatibility
         this.name = product.getName();
         this.description = product.getDescription();
         this.sku = product.getSku();

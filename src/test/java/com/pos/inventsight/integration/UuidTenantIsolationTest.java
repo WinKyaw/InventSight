@@ -103,8 +103,8 @@ class UuidTenantIsolationTest {
         assertEquals(userB.getUuid(), userB.getTenantId(), "Tenant ID should match UUID for User B");
         
         // Test UUID format
-        assertTrue(isValidUUID(userA.getUuid()), "User A UUID should be valid format");
-        assertTrue(isValidUUID(userB.getUuid()), "User B UUID should be valid format");
+        assertTrue(isValidUUID(userA.getUuid().toString()), "User A UUID should be valid format");
+        assertTrue(isValidUUID(userB.getUuid().toString()), "User B UUID should be valid format");
     }
     
     @Test
@@ -128,7 +128,7 @@ class UuidTenantIsolationTest {
         assertEquals(userA.getId(), foundUserA.getId(), "Should find correct user by UUID");
         
         // Simulate tenant context for User A
-        TenantContext.setCurrentTenant(userA.getUuid());
+        TenantContext.setCurrentTenant(userA.getUuid().toString());
         try {
             Store currentStore = userService.getCurrentUserStore();
             assertNotNull(currentStore, "Should find store for current user");
@@ -138,7 +138,7 @@ class UuidTenantIsolationTest {
         }
         
         // Simulate tenant context for User B
-        TenantContext.setCurrentTenant(userB.getUuid());
+        TenantContext.setCurrentTenant(userB.getUuid().toString());
         try {
             Store currentStore = userService.getCurrentUserStore();
             assertNotNull(currentStore, "Should find store for current user");
@@ -160,7 +160,7 @@ class UuidTenantIsolationTest {
         }
         
         // With User A's tenant context
-        TenantContext.setCurrentTenant(userA.getUuid());
+        TenantContext.setCurrentTenant(userA.getUuid().toString());
         try {
             List<Product> userAProducts = productService.getAllActiveProducts();
             // In a real multi-tenant environment, this would filter by store
@@ -171,7 +171,7 @@ class UuidTenantIsolationTest {
         }
         
         // With User B's tenant context
-        TenantContext.setCurrentTenant(userB.getUuid());
+        TenantContext.setCurrentTenant(userB.getUuid().toString());
         try {
             List<Product> userBProducts = productService.getAllActiveProducts();
             // In a real multi-tenant environment, this would filter by store
