@@ -354,6 +354,7 @@ public class ProductController {
     private ProductResponse convertToResponse(Product product) {
         ProductResponse response = new ProductResponse();
         response.setId(product.getId());
+        response.setUuid(product.getUuid());
         response.setName(product.getName());
         response.setDescription(product.getDescription());
         response.setSku(product.getSku());
