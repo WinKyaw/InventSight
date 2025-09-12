@@ -98,6 +98,26 @@ public class AuthController {
             
             // Get user details
             User user = (User) authentication.getPrincipal();
+            
+            // Check email verification status after successful authentication
+            // This provides better UX for existing users while maintaining security
+            // by not exposing which emails are registered (credentials are validated first)
+            if (user.getEmailVerified() == null || !user.getEmailVerified()) {
+                System.out.println("❌ Login blocked - email not verified for: " + loginRequest.getEmail());
+                
+                // Log failed authentication attempt due to unverified email
+                activityLogService.logActivity(
+                    user.getId().toString(),
+                    user.getUsername(),
+                    "USER_LOGIN_EMAIL_UNVERIFIED",
+                    "AUTHENTICATION",
+                    "Login attempt with unverified email: " + loginRequest.getEmail()
+                );
+                
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse("Email not verified. Please verify your email before logging in."));
+            }
+            
             String jwt = jwtUtils.generateJwtToken(user);
             
             // Update last login
@@ -171,6 +191,26 @@ public class AuthController {
             
             // Get user details
             User user = (User) authentication.getPrincipal();
+            
+            // Check email verification status after successful authentication
+            // This provides better UX for existing users while maintaining security
+            // by not exposing which emails are registered (credentials are validated first)
+            if (user.getEmailVerified() == null || !user.getEmailVerified()) {
+                System.out.println("❌ Login blocked - email not verified for: " + loginRequest.getEmail());
+                
+                // Log failed authentication attempt due to unverified email
+                activityLogService.logActivity(
+                    user.getId().toString(),
+                    user.getUsername(),
+                    "USER_LOGIN_V2_EMAIL_UNVERIFIED",
+                    "AUTHENTICATION",
+                    "Login attempt with unverified email (structured): " + loginRequest.getEmail()
+                );
+                
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new StructuredAuthResponse("Email not verified. Please verify your email before logging in.", false));
+            }
+            
             String accessToken = jwtUtils.generateJwtToken(user);
             String refreshToken = jwtUtils.generateRefreshToken(user);
             
