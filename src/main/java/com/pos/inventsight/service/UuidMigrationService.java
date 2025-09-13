@@ -63,34 +63,30 @@ public class UuidMigrationService {
     
     /**
      * Assign UUIDs to all products that don't have them
-     * This method is idempotent - it won't overwrite existing UUIDs
+     * Note: With the new UUID primary key system, this is mainly for validation
      */
     public int assignUuidsToProducts() {
         List<Product> products = productRepository.findAll();
         int updatedCount = 0;
         
         for (Product product : products) {
-            if (product.getUuid() == null || product.getUuid().trim().isEmpty()) {
-                String newUuid = UUID.randomUUID().toString();
-                product.setUuid(newUuid);
-                
-                productRepository.save(product);
-                updatedCount++;
-                
-                System.out.println("✅ Assigned UUID to product: " + product.getName() + " -> " + newUuid);
+            if (product.getId() == null) {
+                // This shouldn't happen with the new UUID primary key system
+                // but just in case, we'll log it
+                System.out.println("⚠️ Found product without UUID ID: " + product.getName());
                 
                 // Log the activity
                 activityLogService.logActivity(
                     null,
                     "SYSTEM_MIGRATION",
-                    "UUID_ASSIGNED",
+                    "UUID_MISSING",
                     "PRODUCT",
-                    "UUID assigned to product: " + product.getName()
+                    "Product found without UUID ID: " + product.getName()
                 );
             }
         }
         
-        System.out.println("📊 UUID assignment completed. Updated " + updatedCount + " products.");
+        System.out.println("📊 UUID validation completed. Checked " + products.size() + " products.");
         return updatedCount;
     }
     
@@ -149,14 +145,14 @@ public class UuidMigrationService {
         boolean allValid = true;
         
         for (Product product : products) {
-            if (product.getUuid() == null || product.getUuid().trim().isEmpty()) {
-                System.err.println("❌ Product missing UUID: " + product.getName());
+            if (product.getId() == null) {
+                System.err.println("❌ Product missing UUID ID: " + product.getName());
                 allValid = false;
             }
         }
         
         if (allValid) {
-            System.out.println("✅ All products have valid UUIDs");
+            System.out.println("✅ All products have valid UUID IDs");
         }
         
         return allValid;

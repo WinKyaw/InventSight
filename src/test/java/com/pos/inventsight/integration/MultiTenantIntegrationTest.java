@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,10 +25,10 @@ class MultiTenantIntegrationTest {
     void setUp() {
         // Create stores
         store1 = new Store("Coffee Shop Alpha", "123 Main St", "Downtown", "NY", "USA");
-        store1.setId(1L);
+        store1.setId(UUID.randomUUID());
         
         store2 = new Store("Coffee Shop Beta", "456 Oak Ave", "Uptown", "NY", "USA");
-        store2.setId(2L);
+        store2.setId(UUID.randomUUID());
         
         // Create users
         owner = new User("owner", "owner@alpha.com", "password", "John", "Owner");
@@ -41,7 +42,7 @@ class MultiTenantIntegrationTest {
         
         // Create product with tiered pricing
         product = new Product();
-        product.setId(1L);
+        product.setId(UUID.randomUUID());
         product.setName("Premium Coffee");
         product.setSku("COFFEE-001");
         product.setStore(store1);

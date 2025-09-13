@@ -109,16 +109,16 @@ class UuidTenantIsolationTest {
     
     @Test
     void testProductUuidGeneration() {
-        // Test that UUIDs are generated for products
-        assertNotNull(productA.getUuid(), "Product A should have a UUID");
-        assertNotNull(productB.getUuid(), "Product B should have a UUID");
+        // Test that UUID IDs are generated for products
+        assertNotNull(productA.getId(), "Product A should have a UUID ID");
+        assertNotNull(productB.getId(), "Product B should have a UUID ID");
         
-        // Test that UUIDs are unique
-        assertNotEquals(productA.getUuid(), productB.getUuid(), "Product UUIDs should be unique");
+        // Test that UUID IDs are unique
+        assertNotEquals(productA.getId(), productB.getId(), "Product UUID IDs should be unique");
         
         // Test UUID format
-        assertTrue(isValidUUID(productA.getUuid()), "Product A UUID should be valid format");
-        assertTrue(isValidUUID(productB.getUuid()), "Product B UUID should be valid format");
+        assertTrue(isValidUUID(productA.getId().toString()), "Product A UUID ID should be valid format");
+        assertTrue(isValidUUID(productB.getId().toString()), "Product B UUID ID should be valid format");
     }
     
     @Test
@@ -207,10 +207,10 @@ class UuidTenantIsolationTest {
     
     @Test
     void testBackwardCompatibilityWithLongIds() {
-        // Ensure Long IDs still work alongside UUIDs
+        // Ensure UUID IDs work as primary keys
         Product foundById = productRepository.findById(productA.getId()).orElse(null);
-        assertNotNull(foundById, "Should find product by Long ID");
-        assertEquals(productA.getUuid(), foundById.getUuid(), "UUID should be preserved");
+        assertNotNull(foundById, "Should find product by UUID ID");
+        assertEquals(productA.getId(), foundById.getId(), "UUID ID should be preserved");
         
         User foundUserById = userRepository.findById(userA.getId()).orElse(null);
         assertNotNull(foundUserById, "Should find user by Long ID");

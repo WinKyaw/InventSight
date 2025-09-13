@@ -23,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -84,7 +85,7 @@ public class ItemController {
 
     // GET /items/{id} - Get item by ID
     @GetMapping("/{id}")
-    public ResponseEntity<?> getItemById(@PathVariable Long id) {
+    public ResponseEntity<?> getItemById(@PathVariable UUID id) {
         try {
             System.out.println("🔍 InventSight - Fetching item with ID: " + id);
             System.out.println("📅 Current Date and Time (UTC): " + LocalDateTime.now());
@@ -131,7 +132,7 @@ public class ItemController {
 
     // PUT /items/{id} - Update existing item
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateItem(@PathVariable Long id, 
+    public ResponseEntity<?> updateItem(@PathVariable UUID id, 
                                        @Valid @RequestBody ProductRequest request, 
                                        Authentication authentication) {
         try {
@@ -160,7 +161,7 @@ public class ItemController {
 
     // DELETE /items/{id} - Soft delete item
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteItem(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> deleteItem(@PathVariable UUID id, Authentication authentication) {
         try {
             String currentUser = authentication != null ? authentication.getName() : "WinKyaw";
             System.out.println("🗑️ InventSight - Soft deleting item with ID: " + id);
@@ -282,7 +283,7 @@ public class ItemController {
 
     // POST /items/{id}/stock/add - Add stock quantity
     @PostMapping("/{id}/stock/add")
-    public ResponseEntity<?> addStock(@PathVariable Long id, 
+    public ResponseEntity<?> addStock(@PathVariable UUID id, 
                                      @Valid @RequestBody StockUpdateRequest request,
                                      Authentication authentication) {
         try {
@@ -310,7 +311,7 @@ public class ItemController {
 
     // POST /items/{id}/stock/reduce - Reduce stock quantity
     @PostMapping("/{id}/stock/reduce")
-    public ResponseEntity<?> reduceStock(@PathVariable Long id, 
+    public ResponseEntity<?> reduceStock(@PathVariable UUID id, 
                                         @Valid @RequestBody StockUpdateRequest request,
                                         Authentication authentication) {
         try {
@@ -341,7 +342,7 @@ public class ItemController {
 
     // PUT /items/{id}/stock - Update stock quantity directly
     @PutMapping("/{id}/stock")
-    public ResponseEntity<?> updateStock(@PathVariable Long id, 
+    public ResponseEntity<?> updateStock(@PathVariable UUID id, 
                                         @Valid @RequestBody StockUpdateRequest request,
                                         Authentication authentication) {
         try {
