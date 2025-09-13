@@ -1,14 +1,11 @@
--- InventSight - Intelligent Inventory & POS System Database Schema
--- Generated: 2025-09-13 (Updated for UUID primary keys)
--- Current User's Login: WinKyaw
-
--- Enable UUID extension if not already enabled (PostgreSQL)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- H2 Test Database Schema for InventSight
+-- This schema is compatible with H2 database for testing
+-- Uses UUID functions that work with H2
 
 -- Users table (uses BIGINT id + UUID column)
 CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY,
-    uuid UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    uuid UUID NOT NULL,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -25,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Stores table (UUID primary key)
 CREATE TABLE IF NOT EXISTS stores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY,
     store_name VARCHAR(200) NOT NULL,
     description VARCHAR(1000),
     address VARCHAR(200),
@@ -46,11 +43,11 @@ CREATE TABLE IF NOT EXISTS stores (
 
 -- Products table (UUID primary key)
 CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     description VARCHAR(1000),
     sku VARCHAR(50) UNIQUE NOT NULL,
-    store_id UUID NOT NULL REFERENCES stores(id),
+    store_id UUID NOT NULL,
     original_price DECIMAL(10,2) NOT NULL CHECK (original_price >= 0),
     owner_set_sell_price DECIMAL(10,2) NOT NULL CHECK (owner_set_sell_price >= 0),
     retail_price DECIMAL(10,2) NOT NULL CHECK (retail_price >= 0),
@@ -70,12 +67,13 @@ CREATE TABLE IF NOT EXISTS products (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'WinKyaw',
-    updated_by VARCHAR(100)
+    updated_by VARCHAR(100),
+    FOREIGN KEY (store_id) REFERENCES stores(id)
 );
 
 -- Employees table  
 CREATE TABLE IF NOT EXISTS employees (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(100) UNIQUE,
@@ -93,13 +91,15 @@ CREATE TABLE IF NOT EXISTS employees (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'WinKyaw',
-    user_id BIGINT REFERENCES users(id),
-    store_id UUID REFERENCES stores(id)
+    user_id BIGINT,
+    store_id UUID,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (store_id) REFERENCES stores(id)
 );
 
 -- Sales table
 CREATE TABLE IF NOT EXISTS sales (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     receipt_number VARCHAR(100) UNIQUE NOT NULL,
     subtotal DECIMAL(10,2) NOT NULL CHECK (subtotal >= 0),
     tax_amount DECIMAL(10,2) NOT NULL CHECK (tax_amount >= 0),
@@ -110,39 +110,46 @@ CREATE TABLE IF NOT EXISTS sales (
     customer_name VARCHAR(255),
     customer_email VARCHAR(100),
     customer_phone VARCHAR(20),
-    user_id BIGINT REFERENCES users(id),
+    user_id BIGINT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    store_id UUID REFERENCES stores(id)
+    store_id UUID,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (store_id) REFERENCES stores(id)
 );
 
 -- Sale items table (UUID foreign key to products)
 CREATE TABLE IF NOT EXISTS sale_items (
-    id BIGSERIAL PRIMARY KEY,
-    sale_id BIGINT NOT NULL REFERENCES sales(id),
-    product_id UUID NOT NULL REFERENCES products(id),
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sale_id BIGINT NOT NULL,
+    product_id UUID NOT NULL,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
     total_price DECIMAL(10,2) NOT NULL CHECK (total_price >= 0),
     product_name VARCHAR(255),
-    product_sku VARCHAR(100)
+    product_sku VARCHAR(100),
+    FOREIGN KEY (sale_id) REFERENCES sales(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
 -- Discount audit log table (UUID foreign keys)
 CREATE TABLE IF NOT EXISTS discount_audit_log (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id),
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
     role VARCHAR(20) NOT NULL,
-    store_id UUID NOT NULL REFERENCES stores(id),
-    product_id UUID NOT NULL REFERENCES products(id),
+    store_id UUID NOT NULL,
+    product_id UUID NOT NULL,
     attempted_price DECIMAL(10,2) NOT NULL CHECK (attempted_price >= 0),
     original_price DECIMAL(10,2) NOT NULL CHECK (original_price >= 0),
     result VARCHAR(20) NOT NULL,
     reason VARCHAR(255),
     approved_by VARCHAR(100),
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    session_id VARCHAR(100)
+    session_id VARCHAR(100),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (store_id) REFERENCES stores(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
 -- Create indexes for performance
@@ -180,6 +187,3 @@ CREATE INDEX IF NOT EXISTS idx_discount_audit_log_user ON discount_audit_log(use
 CREATE INDEX IF NOT EXISTS idx_discount_audit_log_store ON discount_audit_log(store_id);
 CREATE INDEX IF NOT EXISTS idx_discount_audit_log_product ON discount_audit_log(product_id);
 CREATE INDEX IF NOT EXISTS idx_discount_audit_log_timestamp ON discount_audit_log(timestamp);
-
--- Log schema initialization
-SELECT 'InventSight Database Schema with UUID primary keys initialized successfully' as initialization_status;
