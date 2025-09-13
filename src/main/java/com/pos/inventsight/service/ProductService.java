@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -59,7 +60,7 @@ public class ProductService {
         return savedProduct;
     }
     
-    public Product updateProduct(Long productId, Product productUpdates, String updatedBy) {
+    public Product updateProduct(UUID productId, Product productUpdates, String updatedBy) {
         Product existingProduct = getProductById(productId);
         
         // Store old values for logging
@@ -130,7 +131,7 @@ public class ProductService {
         return updatedProduct;
     }
     
-    public Product getProductById(Long productId) {
+    public Product getProductById(UUID productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + productId));
     }
@@ -191,7 +192,7 @@ public class ProductService {
     }
     
     // Inventory Management
-    public void updateStock(Long productId, Integer newQuantity, String updatedBy, String reason) {
+    public void updateStock(UUID productId, Integer newQuantity, String updatedBy, String reason) {
         Product product = getProductById(productId);
         Integer oldQuantity = product.getQuantity();
         
@@ -219,7 +220,7 @@ public class ProductService {
         }
     }
     
-    public void reduceStock(Long productId, Integer quantity, String reason) {
+    public void reduceStock(UUID productId, Integer quantity, String reason) {
         Product product = getProductById(productId);
         
         if (product.getQuantity() < quantity) {
@@ -232,7 +233,7 @@ public class ProductService {
         updateStock(productId, product.getQuantity() - quantity, "SYSTEM", reason);
     }
     
-    public void increaseStock(Long productId, Integer quantity, String reason) {
+    public void increaseStock(UUID productId, Integer quantity, String reason) {
         Product product = getProductById(productId);
         updateStock(productId, product.getQuantity() + quantity, "SYSTEM", reason);
     }
@@ -291,7 +292,7 @@ public class ProductService {
     }
     
     // Business Logic
-    public void deleteProduct(Long productId, String deletedBy) {
+    public void deleteProduct(UUID productId, String deletedBy) {
         Product product = getProductById(productId);
         product.setIsActive(false);
         product.setUpdatedAt(LocalDateTime.now());

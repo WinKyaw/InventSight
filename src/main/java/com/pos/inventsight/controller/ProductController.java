@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -144,7 +145,7 @@ public class ProductController {
     
     // GET /products/{id} - Get product by ID
     @GetMapping("/{id}")
-    public ResponseEntity<?> getProductById(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> getProductById(@PathVariable UUID id, Authentication authentication) {
         try {
             String username = authentication.getName();
             System.out.println("🔍 InventSight - Fetching product ID: " + id + " for user: " + username);
@@ -198,7 +199,7 @@ public class ProductController {
     
     // PUT /products/{id} - Update product
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, 
+    public ResponseEntity<?> updateProduct(@PathVariable UUID id, 
                                          @Valid @RequestBody ProductRequest productRequest, 
                                          Authentication authentication) {
         try {
@@ -227,7 +228,7 @@ public class ProductController {
     
     // DELETE /products/{id} - Delete product
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> deleteProduct(@PathVariable UUID id, Authentication authentication) {
         try {
             String username = authentication.getName();
             System.out.println("🗑️ InventSight - Soft deleting product ID: " + id + " for user: " + username);
@@ -253,7 +254,7 @@ public class ProductController {
     
     // PUT /products/{id}/stock - Update product stock
     @PutMapping("/{id}/stock")
-    public ResponseEntity<?> updateProductStock(@PathVariable Long id, 
+    public ResponseEntity<?> updateProductStock(@PathVariable UUID id, 
                                               @Valid @RequestBody StockUpdateRequest stockRequest, 
                                               Authentication authentication) {
         try {
@@ -354,7 +355,6 @@ public class ProductController {
     private ProductResponse convertToResponse(Product product) {
         ProductResponse response = new ProductResponse();
         response.setId(product.getId());
-        response.setUuid(product.getUuid());
         response.setName(product.getName());
         response.setDescription(product.getDescription());
         response.setSku(product.getSku());

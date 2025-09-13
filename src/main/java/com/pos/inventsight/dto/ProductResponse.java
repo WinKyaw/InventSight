@@ -4,10 +4,10 @@ import com.pos.inventsight.model.sql.Product;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class ProductResponse {
-    private Long id;
-    private String uuid;
+    private UUID id;
     private String name;
     private String description;
     private String sku;
@@ -42,7 +42,6 @@ public class ProductResponse {
 
     public ProductResponse(Product product) {
         this.id = product.getId();
-        this.uuid = product.getUuid(); // Product.getUuid() returns String for external compatibility
         this.name = product.getName();
         this.description = product.getDescription();
         this.sku = product.getSku();
@@ -75,11 +74,8 @@ public class ProductResponse {
     }
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getUuid() { return uuid; }
-    public void setUuid(String uuid) { this.uuid = uuid; }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

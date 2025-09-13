@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public class SaleRequest {
     @NotNull(message = "Items are required")
@@ -26,15 +27,15 @@ public class SaleRequest {
     // Nested class for item requests
     public static class ItemRequest {
         @NotNull(message = "Product ID is required")
-        private Long productId;
+        private UUID productId;
         
         @NotNull(message = "Quantity is required")
         @Min(value = 1, message = "Quantity must be at least 1")
         private Integer quantity;
         
         // Getters and Setters
-        public Long getProductId() { return productId; }
-        public void setProductId(Long productId) { this.productId = productId; }
+        public UUID getProductId() { return productId; }
+        public void setProductId(UUID productId) { this.productId = productId; }
         
         public Integer getQuantity() { return quantity; }
         public void setQuantity(Integer quantity) { this.quantity = quantity; }
