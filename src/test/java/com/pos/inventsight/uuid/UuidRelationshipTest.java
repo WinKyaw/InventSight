@@ -26,6 +26,10 @@ public class UuidRelationshipTest {
                 BigDecimal.valueOf(10.00), BigDecimal.valueOf(12.00), 
                 BigDecimal.valueOf(15.00), 100, store);
         
+        // Simulate what Hibernate would do
+        store.setId(UUID.randomUUID());
+        product.setId(UUID.randomUUID());
+        
         // Verify UUIDs are generated
         assertNotNull(store.getId());
         assertNotNull(product.getId());
@@ -44,6 +48,10 @@ public class UuidRelationshipTest {
         Product product = new Product("Sale Test Product", "SALE-001", 
                 BigDecimal.valueOf(20.00), BigDecimal.valueOf(25.00), 
                 BigDecimal.valueOf(30.00), 50, store);
+        
+        // Simulate what Hibernate would do
+        store.setId(UUID.randomUUID());
+        product.setId(UUID.randomUUID());
         
         // Create sale
         Sale sale = new Sale();
@@ -81,6 +89,10 @@ public class UuidRelationshipTest {
                 BigDecimal.valueOf(5.00), BigDecimal.valueOf(7.00), 
                 BigDecimal.valueOf(10.00), 200, store);
         
+        // Simulate what Hibernate would do
+        store.setId(UUID.randomUUID());
+        product.setId(UUID.randomUUID());
+        
         // Test UUID string conversion
         String storeUuidString = store.getId().toString();
         String productUuidString = product.getId().toString();
@@ -108,7 +120,10 @@ public class UuidRelationshipTest {
         product.setRetailPrice(BigDecimal.valueOf(3.00));
         product.setQuantity(10);
         
-        // Verify UUID is still generated
+        // Simulate what Hibernate would do
+        product.setId(UUID.randomUUID());
+        
+        // Verify UUID is generated after simulated persistence
         assertNotNull(product.getId());
         assertTrue(product.getId() instanceof UUID);
         
@@ -117,6 +132,7 @@ public class UuidRelationshipTest {
         
         // Add store later
         Store store = new Store("Later Added Store", "999 Later St", "Later City", "LC", "Later Country");
+        store.setId(UUID.randomUUID()); // Simulate persisted state
         product.setStore(store);
         
         // Verify relationship

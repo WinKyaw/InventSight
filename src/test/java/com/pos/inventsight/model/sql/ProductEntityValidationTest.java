@@ -12,17 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProductEntityValidationTest {
 
     @Test
-    @DisplayName("Product should generate UUID and handle business operations correctly")
+    @DisplayName("Product should handle business operations correctly with UUID")
     void testProductUuidAndBusinessLogic() {
-        // Create store
+        // Create store and simulate persisted state
         Store store = new Store();
         store.setStoreName("Test Store");
         store.setAddress("123 Test St");
         store.setCity("Test City");
         store.setState("Test State");
         store.setCountry("Test Country");
+        store.setId(UUID.randomUUID()); // Simulate what Hibernate would do
         
-        // Verify store has UUID
+        // Verify store has UUID after simulated persistence
         assertNotNull(store.getId());
         assertTrue(store.getId() instanceof UUID);
         
@@ -39,7 +40,13 @@ class ProductEntityValidationTest {
         product.setReorderLevel(5);
         product.setStore(store);
         
-        // Verify product has UUID
+        // UUID should be null before persistence
+        assertNull(product.getId(), "Product UUID should be null before persistence");
+        
+        // Simulate what Hibernate would do
+        product.setId(UUID.randomUUID());
+        
+        // Verify product has UUID after simulated persistence
         assertNotNull(product.getId());
         assertTrue(product.getId() instanceof UUID);
         
@@ -80,6 +87,12 @@ class ProductEntityValidationTest {
         Product product1 = new Product();
         Product product2 = new Product();
         
+        // Simulate what Hibernate would do - generate unique UUIDs
+        store1.setId(UUID.randomUUID());
+        store2.setId(UUID.randomUUID());
+        product1.setId(UUID.randomUUID());
+        product2.setId(UUID.randomUUID());
+        
         // All UUIDs should be unique
         assertNotEquals(store1.getId(), store2.getId());
         assertNotEquals(product1.getId(), product2.getId());
@@ -93,6 +106,7 @@ class ProductEntityValidationTest {
         // Create store and product
         Store store = new Store();
         store.setStoreName("Test Store");
+        store.setId(UUID.randomUUID()); // Simulate persisted state
         
         Product product = new Product();
         product.setName("Test Product");
@@ -102,6 +116,7 @@ class ProductEntityValidationTest {
         product.setRetailPrice(new BigDecimal("20.00"));
         product.setQuantity(50);
         product.setStore(store);
+        product.setId(UUID.randomUUID()); // Simulate persisted state
         
         // Create sale
         Sale sale = new Sale();
@@ -140,6 +155,7 @@ class ProductEntityValidationTest {
         // Create store and product
         Store store = new Store();
         store.setStoreName("Test Store");
+        store.setId(UUID.randomUUID()); // Simulate persisted state
         
         Product product = new Product();
         product.setName("Test Product");
@@ -149,6 +165,7 @@ class ProductEntityValidationTest {
         product.setRetailPrice(new BigDecimal("20.00"));
         product.setQuantity(50);
         product.setStore(store);
+        product.setId(UUID.randomUUID()); // Simulate persisted state
         
         // Create discount audit log
         DiscountAuditLog auditLog = new DiscountAuditLog();

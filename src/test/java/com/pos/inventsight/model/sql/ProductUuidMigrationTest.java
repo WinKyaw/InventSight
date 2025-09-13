@@ -20,17 +20,18 @@ class ProductUuidMigrationTest {
 
     @BeforeEach
     void setUp() {
-        // Create a store with UUID
+        // Create a store with UUID (simulate persisted state)
         store = new Store();
         store.setStoreName("Test Store");
         store.setAddress("123 Test St");
         store.setCity("Test City");
         store.setState("Test State");
         store.setCountry("Test Country");
+        store.setId(UUID.randomUUID()); // Simulate what Hibernate would do
         assertNotNull(store.getId(), "Store should have a UUID id");
         assertTrue(store.getId() instanceof UUID, "Store id should be UUID type");
 
-        // Create a product with UUID
+        // Create a product with UUID (simulate persisted state)
         product = new Product();
         product.setName("Test Product");
         product.setSku("TEST-001");
@@ -39,6 +40,7 @@ class ProductUuidMigrationTest {
         product.setRetailPrice(new BigDecimal("20.00"));
         product.setQuantity(100);
         product.setStore(store);
+        product.setId(UUID.randomUUID()); // Simulate what Hibernate would do
         assertNotNull(product.getId(), "Product should have a UUID id");
         assertTrue(product.getId() instanceof UUID, "Product id should be UUID type");
 
@@ -131,13 +133,18 @@ class ProductUuidMigrationTest {
     }
 
     @Test
-    @DisplayName("Product constructor should generate UUID automatically")
+    @DisplayName("Product constructor should allow UUID to be set by Hibernate")
     void testProductUuidGeneration() {
         Product newProduct = new Product();
+        // UUID should be null before persistence
+        assertNull(newProduct.getId(), "UUID should be null before persistence");
+        
+        // Simulate what Hibernate would do
+        newProduct.setId(UUID.randomUUID());
         assertNotNull(newProduct.getId());
         assertTrue(newProduct.getId() instanceof UUID);
         
-        // Test parameterized constructor also generates UUID
+        // Test parameterized constructor also allows UUID to be set
         Product constructedProduct = new Product(
             "New Product", 
             "NEW-001", 
@@ -147,6 +154,11 @@ class ProductUuidMigrationTest {
             50, 
             store
         );
+        // UUID should be null before persistence
+        assertNull(constructedProduct.getId(), "UUID should be null before persistence");
+        
+        // Simulate what Hibernate would do
+        constructedProduct.setId(UUID.randomUUID());
         assertNotNull(constructedProduct.getId());
         assertTrue(constructedProduct.getId() instanceof UUID);
         assertNotEquals(newProduct.getId(), constructedProduct.getId());
@@ -158,6 +170,11 @@ class ProductUuidMigrationTest {
         Product product1 = new Product();
         Product product2 = new Product();
         Product product3 = new Product();
+        
+        // Simulate what Hibernate would do - generate unique UUIDs
+        product1.setId(UUID.randomUUID());
+        product2.setId(UUID.randomUUID());
+        product3.setId(UUID.randomUUID());
         
         assertNotEquals(product1.getId(), product2.getId());
         assertNotEquals(product2.getId(), product3.getId());
