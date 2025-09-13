@@ -1,10 +1,14 @@
 -- InventSight - Intelligent Inventory & POS System Database Schema
--- Generated: 2025-08-26 09:12:40
+-- Generated: 2025-09-13 (Updated for UUID primary keys)
 -- Current User's Login: WinKyaw
 
--- Users table
+-- Enable UUID extension if not already enabled (PostgreSQL)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Users table (uses BIGINT id + UUID column)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
+    uuid UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -15,26 +19,58 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP,
-    created_by VARCHAR(100) DEFAULT 'WinKyaw'
+    created_by VARCHAR(100) DEFAULT 'WinKyaw',
+    tenant_id UUID
 );
 
--- Products table
-CREATE TABLE IF NOT EXISTS products (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
-    quantity INTEGER NOT NULL CHECK (quantity >= 0),
-    category VARCHAR(100) NOT NULL,
-    sku VARCHAR(100) UNIQUE,
-    barcode VARCHAR(100),
-    supplier VARCHAR(255),
+-- Stores table (UUID primary key)
+CREATE TABLE IF NOT EXISTS stores (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    store_name VARCHAR(200) NOT NULL,
+    description VARCHAR(1000),
+    address VARCHAR(200),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    website VARCHAR(200),
+    tax_id VARCHAR(50),
     is_active BOOLEAN DEFAULT true,
-    low_stock_threshold INTEGER DEFAULT 10,
-    reorder_level INTEGER DEFAULT 5,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100) DEFAULT 'WinKyaw'
+    created_by VARCHAR(100) DEFAULT 'WinKyaw',
+    updated_by VARCHAR(100)
+);
+
+-- Products table (UUID primary key)
+CREATE TABLE IF NOT EXISTS products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(200) NOT NULL,
+    description VARCHAR(1000),
+    sku VARCHAR(50) UNIQUE NOT NULL,
+    store_id UUID NOT NULL REFERENCES stores(id),
+    original_price DECIMAL(10,2) NOT NULL CHECK (original_price >= 0),
+    owner_set_sell_price DECIMAL(10,2) NOT NULL CHECK (owner_set_sell_price >= 0),
+    retail_price DECIMAL(10,2) NOT NULL CHECK (retail_price >= 0),
+    price DECIMAL(10,2) CHECK (price >= 0), -- Legacy price field
+    cost_price DECIMAL(10,2) CHECK (cost_price >= 0),
+    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+    max_quantity INTEGER,
+    unit VARCHAR(50),
+    location VARCHAR(200),
+    expiry_date DATE,
+    category VARCHAR(100),
+    supplier VARCHAR(100),
+    barcode VARCHAR(50),
+    low_stock_threshold INTEGER,
+    reorder_level INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100) DEFAULT 'WinKyaw',
+    updated_by VARCHAR(100)
 );
 
 -- Employees table  
@@ -57,7 +93,8 @@ CREATE TABLE IF NOT EXISTS employees (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'WinKyaw',
-    user_id BIGINT REFERENCES users(id)
+    user_id BIGINT REFERENCES users(id),
+    store_id UUID REFERENCES stores(id)
 );
 
 -- Sales table
@@ -76,14 +113,15 @@ CREATE TABLE IF NOT EXISTS sales (
     user_id BIGINT REFERENCES users(id),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    store_id UUID REFERENCES stores(id)
 );
 
--- Sale items table
+-- Sale items table (UUID foreign key to products)
 CREATE TABLE IF NOT EXISTS sale_items (
     id BIGSERIAL PRIMARY KEY,
     sale_id BIGINT NOT NULL REFERENCES sales(id),
-    product_id BIGINT NOT NULL REFERENCES products(id),
+    product_id UUID NOT NULL REFERENCES products(id),
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
     total_price DECIMAL(10,2) NOT NULL CHECK (total_price >= 0),
@@ -91,58 +129,57 @@ CREATE TABLE IF NOT EXISTS sale_items (
     product_sku VARCHAR(100)
 );
 
+-- Discount audit log table (UUID foreign keys)
+CREATE TABLE IF NOT EXISTS discount_audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    role VARCHAR(20) NOT NULL,
+    store_id UUID NOT NULL REFERENCES stores(id),
+    product_id UUID NOT NULL REFERENCES products(id),
+    attempted_price DECIMAL(10,2) NOT NULL CHECK (attempted_price >= 0),
+    original_price DECIMAL(10,2) NOT NULL CHECK (original_price >= 0),
+    result VARCHAR(20) NOT NULL,
+    reason VARCHAR(255),
+    approved_by VARCHAR(100),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    session_id VARCHAR(100)
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_uuid ON users(uuid);
+
+CREATE INDEX IF NOT EXISTS idx_stores_name ON stores(store_name);
+CREATE INDEX IF NOT EXISTS idx_stores_active ON stores(is_active);
 
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
 CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
 CREATE INDEX IF NOT EXISTS idx_products_supplier ON products(supplier);
+CREATE INDEX IF NOT EXISTS idx_products_store ON products(store_id);
 
 CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 CREATE INDEX IF NOT EXISTS idx_employees_status ON employees(status);
 CREATE INDEX IF NOT EXISTS idx_employees_title ON employees(title);
 CREATE INDEX IF NOT EXISTS idx_employees_department ON employees(department);
+CREATE INDEX IF NOT EXISTS idx_employees_store ON employees(store_id);
 
 CREATE INDEX IF NOT EXISTS idx_sales_receipt ON sales(receipt_number);
 CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
 CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status);
 CREATE INDEX IF NOT EXISTS idx_sales_user ON sales(user_id);
+CREATE INDEX IF NOT EXISTS idx_sales_store ON sales(store_id);
 
 CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id);
 
--- Insert initial data for InventSight system
-INSERT INTO users (username, email, password, first_name, last_name, role, created_by) 
-VALUES ('winkyaw', 'winkyaw@inventsight.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Win', 'Kyaw', 'ADMIN', 'WinKyaw')
-ON CONFLICT (email) DO NOTHING;
+CREATE INDEX IF NOT EXISTS idx_discount_audit_log_user ON discount_audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_discount_audit_log_store ON discount_audit_log(store_id);
+CREATE INDEX IF NOT EXISTS idx_discount_audit_log_product ON discount_audit_log(product_id);
+CREATE INDEX IF NOT EXISTS idx_discount_audit_log_timestamp ON discount_audit_log(timestamp);
 
--- Sample products data for InventSight
-INSERT INTO products (name, description, price, quantity, category, sku, supplier, created_by) VALUES
-('Premium Coffee Blend', 'High-quality Arabica coffee beans', 4.50, 25, 'Beverages', 'INV-COF-001', 'Coffee Co.', 'WinKyaw'),
-('Gourmet Sandwich', 'Fresh sandwich with premium ingredients', 8.99, 15, 'Food', 'INV-SAN-001', 'Fresh Foods Ltd.', 'WinKyaw'),
-('Artisan Croissant', 'Buttery flaky French croissant', 3.75, 20, 'Bakery', 'INV-CRO-001', 'Bakery Plus', 'WinKyaw'),
-('Organic Tea Collection', 'Premium organic tea selection', 3.25, 30, 'Beverages', 'INV-TEA-001', 'Tea Masters', 'WinKyaw'),
-('Fresh Baked Muffin', 'Daily fresh baked muffins', 2.99, 12, 'Bakery', 'INV-MUF-001', 'Bakery Plus', 'WinKyaw'),
-('Garden Fresh Salad', 'Crisp garden salad with dressing', 6.50, 8, 'Food', 'INV-SAL-001', 'Green Gardens', 'WinKyaw'),
-('Energy Drink', 'Natural energy boost drink', 2.75, 35, 'Beverages', 'INV-ENE-001', 'Drink Co.', 'WinKyaw'),
-('Protein Bar', 'High-protein nutrition bar', 3.99, 22, 'Snacks', 'INV-PRO-001', 'Nutrition Inc.', 'WinKyaw')
-ON CONFLICT (sku) DO NOTHING;
-
--- Sample employees data for InventSight
-INSERT INTO employees (first_name, last_name, email, phone_number, title, hourly_rate, bonus, department, created_by) VALUES
-('John', 'Doe', 'john.doe@inventsight.com', '(555) 123-4567', 'Senior Barista', 18.50, 1200, 'Operations', 'WinKyaw'),
-('Sarah', 'Johnson', 'sarah.johnson@inventsight.com', '(555) 987-6543', 'Shift Supervisor', 22.00, 2500, 'Management', 'WinKyaw'),
-('Mike', 'Chen', 'mike.chen@inventsight.com', '(555) 456-7890', 'Sales Associate', 16.75, 500, 'Sales', 'WinKyaw'),
-('Emma', 'Williams', 'emma.williams@inventsight.com', '(555) 321-0987', 'Assistant Manager', 25.00, 3500, 'Management', 'WinKyaw'),
-('David', 'Rodriguez', 'david.rodriguez@inventsight.com', '(555) 654-3210', 'Inventory Specialist', 19.25, 800, 'Operations', 'WinKyaw'),
-('Lisa', 'Thompson', 'lisa.thompson@inventsight.com', '(555) 789-0123', 'Customer Service Lead', 17.50, 1000, 'Customer Service', 'WinKyaw')
-ON CONFLICT (email) DO NOTHING;
-
-COMMIT;
-
--- Log initialization
-SELECT 'InventSight Database Schema initialized successfully at 2025-08-26 09:12:40 by WinKyaw' as initialization_status;
+-- Log schema initialization
+SELECT 'InventSight Database Schema with UUID primary keys initialized successfully' as initialization_status;
