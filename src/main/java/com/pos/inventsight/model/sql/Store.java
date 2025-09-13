@@ -73,7 +73,10 @@ public class Store {
     private String updatedBy;
     
     // Constructors
-    public Store() {}
+    public Store() {
+        // Generate UUID immediately for consistency with User entity behavior
+        this.id = UUID.randomUUID();
+    }
     
     public Store(String storeName, String address, String city, String state, String country) {
         this.storeName = storeName;
