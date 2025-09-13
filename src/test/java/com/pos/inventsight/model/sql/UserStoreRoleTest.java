@@ -3,6 +3,8 @@ package com.pos.inventsight.model.sql;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class UserStoreRoleTest {
@@ -19,7 +21,7 @@ class UserStoreRoleTest {
         user.setEmail("test@example.com");
         
         store = new Store();
-        store.setId(1L);
+        store.setId(UUID.randomUUID());
         store.setStoreName("Test Store");
         
         userStoreRole = new UserStoreRole(user, store, UserRole.MANAGER);

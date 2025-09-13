@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -21,11 +22,11 @@ class DiscountAuditLogTest {
         user.setUsername("testuser");
         
         store = new Store();
-        store.setId(1L);
+        store.setId(UUID.randomUUID());
         store.setStoreName("Test Store");
         
         product = new Product();
-        product.setId(1L);
+        product.setId(UUID.randomUUID());
         product.setName("Test Product");
         product.setRetailPrice(new BigDecimal("20.00"));
         

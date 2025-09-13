@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,7 +16,7 @@ class ProductTieredPricingTest {
     @BeforeEach
     void setUp() {
         store = new Store();
-        store.setId(1L);
+        store.setId(UUID.randomUUID());
         store.setStoreName("Test Store");
         
         product = new Product();
