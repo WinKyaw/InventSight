@@ -79,6 +79,7 @@ public class Store {
     }
     
     public Store(String storeName, String address, String city, String state, String country) {
+        this(); // Call default constructor to generate UUID
         this.storeName = storeName;
         this.address = address;
         this.city = city;
