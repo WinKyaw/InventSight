@@ -284,3 +284,127 @@ public class BackgroundJobService {
 - Ensure multi-tenant configuration is properly loaded
 
 For more details on the technical implementation, see the classes in the `com.pos.inventsight.tenant` package.
+
+## Database Migration: UUID Primary Keys
+
+InventSight has migrated from auto-increment `BIGINT` primary keys to `UUID` primary keys for enhanced security, scalability, and distributed system compatibility.
+
+### Running the UUID Migration
+
+If you're upgrading from a version that used `BIGINT` primary keys, you need to run the UUID migration script:
+
+#### Prerequisites
+1. **Backup your database** before running any migration
+2. Ensure you have administrative access to your PostgreSQL database
+3. Stop the application during migration to prevent data inconsistencies
+
+#### Migration Steps
+
+**1. Create a full database backup:**
+```bash
+pg_dump -h localhost -U your_username -d your_database_name > backup_before_uuid_migration.sql
+```
+
+**2. Run the UUID migration script:**
+```bash
+# For the main/public schema
+psql -h localhost -U your_username -d your_database_name -f src/main/resources/migration-uuid-products-final.sql
+
+# For tenant-specific schemas (run for each tenant)
+psql -h localhost -U your_username -d your_database_name -c "SET search_path TO tenant_schema_name" -f src/main/resources/migration-uuid-products-final.sql
+```
+
+**3. Verify the migration:**
+```sql
+-- Check that products.id is now UUID
+SELECT data_type 
+FROM information_schema.columns 
+WHERE table_name = 'products' AND column_name = 'id';
+
+-- Should return: uuid
+
+-- Check foreign key references are also UUID
+SELECT table_name, column_name, data_type 
+FROM information_schema.columns 
+WHERE column_name = 'product_id' 
+AND table_name IN ('sale_items', 'discount_audit_log');
+
+-- Should return UUID for all product_id columns
+```
+
+**4. Start the application and test functionality:**
+```bash
+# Test basic product operations
+curl -X GET "http://localhost:8080/api/products" \
+     -H "X-Tenant-ID: your_tenant" \
+     -H "Authorization: Bearer your_token"
+```
+
+**5. Clean up backup tables (after confirming everything works):**
+```sql
+DROP TABLE IF EXISTS products_backup_uuid_final, 
+                     sale_items_backup_uuid_final, 
+                     discount_audit_log_backup_uuid_final;
+```
+
+#### Migration Features
+
+The migration script includes:
+- **Automatic constraint discovery**: Finds and drops foreign key constraints dynamically
+- **Rollback capability**: Creates backup tables for emergency recovery
+- **Multi-tenant support**: Works with any PostgreSQL schema
+- **Comprehensive validation**: Verifies data integrity after migration
+- **Idempotent execution**: Safe to run multiple times
+
+#### Troubleshooting Migration Issues
+
+**Issue: Foreign key constraint errors**
+```
+ERROR: constraint "some_constraint_name" of relation "table_name" does not exist
+```
+**Solution**: The migration script dynamically discovers constraints, but if you encounter this:
+```sql
+-- Manually check and drop specific constraints
+SELECT constraint_name, table_name 
+FROM information_schema.table_constraints 
+WHERE constraint_type = 'FOREIGN KEY' 
+AND table_name IN ('sale_items', 'discount_audit_log');
+
+-- Drop manually if needed
+ALTER TABLE table_name DROP CONSTRAINT constraint_name;
+```
+
+**Issue: Column already exists errors**
+```
+ERROR: column "new_id" of relation "products" already exists
+```
+**Solution**: This indicates a previous partial migration. The script handles this automatically.
+
+**Issue: Permission denied**
+```
+ERROR: permission denied for table products
+```
+**Solution**: Ensure your database user has necessary privileges:
+```sql
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA schema_name TO your_username;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA schema_name TO your_username;
+```
+
+#### What the Migration Changes
+
+**Before Migration:**
+- `products.id`: `BIGINT` (auto-increment)
+- `sale_items.product_id`: `BIGINT` (foreign key)
+- `discount_audit_log.product_id`: `BIGINT` (foreign key)
+
+**After Migration:**
+- `products.id`: `UUID` (primary key)
+- `sale_items.product_id`: `UUID` (foreign key)
+- `discount_audit_log.product_id`: `UUID` (foreign key)
+
+**Application Impact:**
+- Java entities already use `UUID` types
+- API endpoints accept/return UUIDs as strings
+- No breaking changes to API contracts
+- Enhanced security (non-predictable IDs)
+- Better performance in distributed systems
