@@ -8,13 +8,14 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
 public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
     
     List<SaleItem> findBySaleId(Long saleId);
     
-    List<SaleItem> findByProductId(Long productId);
+    List<SaleItem> findByProductId(UUID productId);
     
     @Query("SELECT si FROM SaleItem si WHERE si.sale.createdAt >= :startDate AND si.sale.createdAt <= :endDate")
     List<SaleItem> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
@@ -23,7 +24,7 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
     List<Object[]> findTopSellingProducts();
     
     @Query("SELECT SUM(si.quantity) FROM SaleItem si WHERE si.product.id = :productId AND si.sale.status = 'COMPLETED'")
-    Integer getTotalQuantitySoldForProduct(@Param("productId") Long productId);
+    Integer getTotalQuantitySoldForProduct(@Param("productId") UUID productId);
     
     @Query("SELECT COUNT(si) FROM SaleItem si WHERE si.sale.createdAt >= :startDate AND si.sale.createdAt <= :endDate")
     long countItemsSoldInDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
