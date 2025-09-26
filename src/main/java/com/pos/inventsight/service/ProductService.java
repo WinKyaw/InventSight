@@ -37,6 +37,16 @@ public class ProductService {
         System.out.println("📅 Current DateTime (UTC): 2025-08-26 08:47:36");
         System.out.println("👤 Created by: " + (createdBy != null ? createdBy : "WinKyaw"));
         
+        // Ensure product is associated with current user's store
+        if (product.getStore() == null) {
+            Store currentStore = userService.getCurrentUserStore();
+            if (currentStore == null) {
+                throw new IllegalStateException("Cannot create product: No active store found for current user");
+            }
+            product.setStore(currentStore);
+            System.out.println("🏪 Associated product with store: " + currentStore.getStoreName());
+        }
+        
         // Generate SKU if not provided
         if (product.getSku() == null || product.getSku().isEmpty()) {
             product.setSku(generateSku(product.getName()));

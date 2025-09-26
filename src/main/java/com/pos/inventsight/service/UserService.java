@@ -3,8 +3,10 @@ package com.pos.inventsight.service;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.UserStoreRole;
+import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
+import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.tenant.TenantContext;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -30,6 +32,9 @@ public class UserService implements UserDetailsService {
     
     @Autowired
     private UserStoreRoleRepository userStoreRoleRepository;
+    
+    @Autowired
+    private StoreRepository storeRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -87,6 +92,20 @@ public class UserService implements UserDetailsService {
         }
         
         User savedUser = userRepository.save(user);
+        
+        // Auto-create default store for new user
+        Store defaultStore = new Store();
+        defaultStore.setStoreName("My Store");
+        defaultStore.setDescription("Default store for " + savedUser.getFirstName() + " " + savedUser.getLastName());
+        defaultStore.setCreatedBy(savedUser.getUsername());
+        defaultStore.setCreatedAt(LocalDateTime.now());
+        Store savedStore = storeRepository.save(defaultStore);
+        
+        // Create user-store role mapping as OWNER
+        UserStoreRole userStoreRole = new UserStoreRole(savedUser, savedStore, UserRole.OWNER, savedUser.getUsername());
+        userStoreRoleRepository.save(userStoreRole);
+        
+        System.out.println("🏪 Default store created: " + savedStore.getStoreName() + " (ID: " + savedStore.getId() + ")");
         
         // Log activity
         activityLogService.logActivity(
