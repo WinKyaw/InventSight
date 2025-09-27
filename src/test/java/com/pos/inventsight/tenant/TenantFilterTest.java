@@ -4,14 +4,21 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.pos.inventsight.model.sql.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -37,11 +44,14 @@ class TenantFilterTest {
     void setUp() {
         tenantFilter = new TenantFilter();
         TenantContext.clear();
+        // Clear SecurityContext
+        SecurityContextHolder.clearContext();
     }
 
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -124,6 +134,78 @@ class TenantFilterTest {
         });
 
         // Then context should still be cleared even after exception
+        assertEquals(TenantContext.DEFAULT_TENANT, TenantContext.getCurrentTenant());
+        assertFalse(TenantContext.isSet());
+    }
+
+    @Test
+    void testFilterWithAuthenticatedUser() throws ServletException, IOException {
+        // Given an authenticated user
+        UUID userUuid = UUID.randomUUID();
+        User user = new User();
+        user.setUuid(userUuid);
+        
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user, null);
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
+        // And no tenant header
+        when(request.getHeader(TenantFilter.TENANT_HEADER_NAME)).thenReturn(null);
+
+        // When processing the filter
+        tenantFilter.doFilter(request, response, filterChain);
+
+        // Then verify filter chain was called
+        verify(filterChain).doFilter(request, response);
+        
+        // Context should be cleared after filter execution
+        assertEquals(TenantContext.DEFAULT_TENANT, TenantContext.getCurrentTenant());
+        assertFalse(TenantContext.isSet());
+    }
+
+    @Test
+    void testFilterPrefersAuthenticatedUserOverHeader() throws ServletException, IOException {
+        // Given an authenticated user
+        UUID userUuid = UUID.randomUUID();
+        User user = new User();
+        user.setUuid(userUuid);
+        
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user, null);
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
+        // And a different tenant header
+        when(request.getHeader(TenantFilter.TENANT_HEADER_NAME)).thenReturn("different_tenant");
+
+        // When processing the filter
+        tenantFilter.doFilter(request, response, filterChain);
+
+        // Then verify filter chain was called  
+        verify(filterChain).doFilter(request, response);
+        
+        // Context should be cleared after filter execution  
+        assertEquals(TenantContext.DEFAULT_TENANT, TenantContext.getCurrentTenant());
+        assertFalse(TenantContext.isSet());
+    }
+
+    @Test
+    void testFilterWithUnauthenticatedUser() throws ServletException, IOException {
+        // Given no authentication (null or anonymous)
+        SecurityContextHolder.clearContext();
+
+        // And a tenant header
+        String tenantId = "header_tenant";
+        when(request.getHeader(TenantFilter.TENANT_HEADER_NAME)).thenReturn(tenantId);
+
+        // When processing the filter
+        tenantFilter.doFilter(request, response, filterChain);
+
+        // Then verify filter chain was called and header tenant was used
+        verify(filterChain).doFilter(request, response);
+        
+        // Context should be cleared after filter execution
         assertEquals(TenantContext.DEFAULT_TENANT, TenantContext.getCurrentTenant());
         assertFalse(TenantContext.isSet());
     }
