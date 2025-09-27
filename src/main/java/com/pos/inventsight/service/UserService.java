@@ -100,6 +100,8 @@ public class UserService implements UserDetailsService {
         defaultStore.setDescription("Default store for " + savedUser.getFirstName() + " " + savedUser.getLastName());
         defaultStore.setCreatedBy(savedUser.getUsername());
         defaultStore.setCreatedAt(LocalDateTime.now());
+        defaultStore.setUpdatedAt(LocalDateTime.now());
+        defaultStore.setIsActive(true);
         Store savedStore = storeRepository.save(defaultStore);
         
         // Create user-store role mapping as OWNER
@@ -107,6 +109,11 @@ public class UserService implements UserDetailsService {
         userStoreRoleRepository.save(userStoreRole);
         
         System.out.println("🏪 Default store created: " + savedStore.getStoreName() + " (ID: " + savedStore.getId() + ")");
+        
+        // Set tenant context for the new user to ensure proper association
+        TenantContext.setCurrentTenant(savedUser.getUuid().toString());
+        System.out.println("🎯 Tenant context initialized for new user: " + savedUser.getUsername() + 
+                         " (UUID: " + savedUser.getUuid() + ")");
         
         // Log activity
         activityLogService.logActivity(
