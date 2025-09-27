@@ -11,6 +11,7 @@ import com.pos.inventsight.tenant.TenantContext;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -99,6 +100,8 @@ public class UserService implements UserDetailsService {
         defaultStore.setDescription("Default store for " + savedUser.getFirstName() + " " + savedUser.getLastName());
         defaultStore.setCreatedBy(savedUser.getUsername());
         defaultStore.setCreatedAt(LocalDateTime.now());
+        defaultStore.setUpdatedAt(LocalDateTime.now());
+        defaultStore.setIsActive(true);
         Store savedStore = storeRepository.save(defaultStore);
         
         // Create user-store role mapping as OWNER
@@ -106,6 +109,11 @@ public class UserService implements UserDetailsService {
         userStoreRoleRepository.save(userStoreRole);
         
         System.out.println("🏪 Default store created: " + savedStore.getStoreName() + " (ID: " + savedStore.getId() + ")");
+        
+        // Set tenant context for the new user to ensure proper association
+        TenantContext.setCurrentTenant(savedUser.getUuid().toString());
+        System.out.println("🎯 Tenant context initialized for new user: " + savedUser.getUsername() + 
+                         " (UUID: " + savedUser.getUuid() + ")");
         
         // Log activity
         activityLogService.logActivity(
@@ -265,5 +273,60 @@ public class UserService implements UserDetailsService {
     public User getUserByUuid(UUID uuid) {
         return userRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with UUID: " + uuid));
+    }
+    
+    /**
+     * Set tenant context for authenticated user
+     * This helps ensure that tenant context is properly initialized
+     */
+    public void setTenantContextForUser(String username) {
+        User user = getUserByUsername(username);
+        
+        // Set tenant context to user's UUID
+        TenantContext.setCurrentTenant(user.getUuid().toString());
+        
+        System.out.println("🎯 Tenant context set for user: " + username + " (UUID: " + user.getUuid() + ")");
+    }
+    
+    /**
+     * Ensure user has proper tenant context and active store
+     */
+    public Store ensureUserTenantContext(Authentication authentication) {
+        if (authentication == null) {
+            throw new IllegalArgumentException("Authentication is required");
+        }
+        
+        String username = authentication.getName();
+        User user = getUserByUsername(username);
+        
+        // Set tenant context
+        setTenantContextForUser(username);
+        
+        // Ensure user has at least one active store
+        List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(user);
+        if (userStoreRoles.isEmpty()) {
+            // Auto-create default store if none exists
+            Store defaultStore = new Store();
+            defaultStore.setStoreName("My Store");
+            defaultStore.setDescription("Default store for " + user.getFirstName() + " " + user.getLastName());
+            defaultStore.setCreatedBy(user.getUsername());
+            defaultStore.setCreatedAt(LocalDateTime.now());
+            defaultStore.setUpdatedAt(LocalDateTime.now());
+            defaultStore.setIsActive(true);
+            
+            Store savedStore = storeRepository.save(defaultStore);
+            
+            // Create user-store role mapping as OWNER
+            UserStoreRole userStoreRole = new UserStoreRole(user, savedStore, UserRole.OWNER, user.getUsername());
+            userStoreRoleRepository.save(userStoreRole);
+            
+            System.out.println("🏪 Auto-created default store for tenant context: " + savedStore.getStoreName() + 
+                             " (ID: " + savedStore.getId() + ") for user: " + username);
+            
+            return savedStore;
+        }
+        
+        // Return the first active store
+        return userStoreRoles.get(0).getStore();
     }
 }
