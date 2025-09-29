@@ -72,9 +72,9 @@ public interface WarehouseInventoryAdditionRepository extends JpaRepository<Ware
     List<WarehouseInventoryAddition> findByStatus(WarehouseInventoryAddition.TransactionStatus status);
 
     /**
-     * Find completed additions
+     * Find completed additions by status and warehouse
      */
-    List<WarehouseInventoryAddition> findByStatus(WarehouseInventoryAddition.TransactionStatus status, UUID warehouseId);
+    List<WarehouseInventoryAddition> findByStatusAndWarehouseId(WarehouseInventoryAddition.TransactionStatus status, UUID warehouseId);
 
     /**
      * Find additions by supplier
