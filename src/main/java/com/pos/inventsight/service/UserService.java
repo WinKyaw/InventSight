@@ -4,9 +4,14 @@ import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.model.sql.UserRole;
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
+import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
+import com.pos.inventsight.repository.sql.CompanyRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.tenant.TenantContext;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -36,6 +41,12 @@ public class UserService implements UserDetailsService {
     
     @Autowired
     private StoreRepository storeRepository;
+    
+    @Autowired
+    private CompanyRepository companyRepository;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -94,7 +105,18 @@ public class UserService implements UserDetailsService {
         
         User savedUser = userRepository.save(user);
         
-        // Auto-create default store for new user
+        // Auto-create company for new user with founder role
+        Company company = new Company();
+        company.setName(savedUser.getFirstName() + "'s Company");
+        company.setDescription("Default company for " + savedUser.getFirstName() + " " + savedUser.getLastName());
+        company.setEmail(savedUser.getEmail()); // Use user's email as company email
+        company.setCreatedBy(savedUser.getUsername());
+        company.setCreatedAt(LocalDateTime.now());
+        company.setUpdatedAt(LocalDateTime.now());
+        company.setIsActive(true);
+        Company savedCompany = companyRepository.save(company);
+        
+        // Auto-create default store for the company
         Store defaultStore = new Store();
         defaultStore.setStoreName("My Store");
         defaultStore.setDescription("Default store for " + savedUser.getFirstName() + " " + savedUser.getLastName());
@@ -102,13 +124,20 @@ public class UserService implements UserDetailsService {
         defaultStore.setCreatedAt(LocalDateTime.now());
         defaultStore.setUpdatedAt(LocalDateTime.now());
         defaultStore.setIsActive(true);
+        defaultStore.setCompany(savedCompany); // Link store to company
         Store savedStore = storeRepository.save(defaultStore);
         
-        // Create user-store role mapping as OWNER
+        // Create company-user relationship with founder role
+        CompanyStoreUser companyStoreUser = new CompanyStoreUser(savedCompany, savedUser, CompanyRole.FOUNDER, savedUser.getUsername());
+        companyStoreUserRepository.save(companyStoreUser);
+        
+        // Create legacy user-store role mapping for backward compatibility
         UserStoreRole userStoreRole = new UserStoreRole(savedUser, savedStore, UserRole.OWNER, savedUser.getUsername());
         userStoreRoleRepository.save(userStoreRole);
         
+        System.out.println("🏢 Company created: " + savedCompany.getName() + " (ID: " + savedCompany.getId() + ")");
         System.out.println("🏪 Default store created: " + savedStore.getStoreName() + " (ID: " + savedStore.getId() + ")");
+        System.out.println("👑 User assigned as FOUNDER with company-level access");
         
         // Set tenant context for the new user to ensure proper association
         TenantContext.setCurrentTenant(savedUser.getUuid().toString());
