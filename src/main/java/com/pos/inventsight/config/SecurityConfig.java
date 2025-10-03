@@ -1,6 +1,7 @@
 package com.pos.inventsight.config;
 
 import com.pos.inventsight.service.UserService;
+import com.pos.inventsight.tenant.CompanyTenantFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +36,9 @@ public class SecurityConfig {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private CompanyTenantFilter companyTenantFilter;
     
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -85,9 +89,11 @@ public class SecurityConfig {
             );
         
         http.authenticationProvider(authenticationProvider());
+        // Add CompanyTenantFilter before JWT filter to ensure tenant context is set early
+        http.addFilterBefore(companyTenantFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
         
-        System.out.println("✅ InventSight Spring Security Configuration completed");
+        System.out.println("✅ InventSight Spring Security Configuration completed with CompanyTenantFilter");
         return http.build();
     }
     
