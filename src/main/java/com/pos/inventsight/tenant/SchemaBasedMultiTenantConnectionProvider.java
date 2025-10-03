@@ -45,9 +45,17 @@ public class SchemaBasedMultiTenantConnectionProvider implements MultiTenantConn
         try {
             // Validate tenant name to prevent SQL injection
             if (isValidSchemaName(tenantId)) {
-                String sql = "SET search_path TO " + tenantId + ", public";
+                // For company schemas (company_*), set search_path WITHOUT public fallback
+                // For other schemas, include public for backward compatibility
+                String sql;
+                if (tenantId.startsWith("company_")) {
+                    sql = "SET search_path TO " + tenantId;
+                    logger.debug("Setting company schema search_path (no public): {}", sql);
+                } else {
+                    sql = "SET search_path TO " + tenantId + ", public";
+                    logger.debug("Setting schema search_path with public fallback: {}", sql);
+                }
                 connection.createStatement().execute(sql);
-                logger.debug("Set search_path to: {}", sql);
             } else {
                 logger.warn("Invalid schema name: {}, using default", tenantId);
                 connection.createStatement().execute("SET search_path TO public");
