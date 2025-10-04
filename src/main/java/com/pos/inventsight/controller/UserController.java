@@ -47,6 +47,9 @@ public class UserController {
     @Autowired
     private ActivityLogService activityLogService;
     
+    @Autowired
+    private com.pos.inventsight.service.SubscriptionService subscriptionService;
+    
     @Value("${app.upload.dir:${user.dir}/uploads}")
     private String uploadDir;
     
@@ -378,6 +381,40 @@ public class UserController {
             System.err.println("❌ Error updating user settings: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse(false, "Error updating user settings: " + e.getMessage()));
+        }
+    }
+    
+    // PUT /users/{userId}/subscription - Update user's subscription level (Admin only)
+    @PutMapping("/{userId}/subscription")
+    public ResponseEntity<?> updateUserSubscription(@PathVariable Long userId,
+                                                    @Valid @RequestBody com.pos.inventsight.dto.UpdateSubscriptionRequest request,
+                                                    Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            // Only admins can update subscriptions
+            if (!currentUser.getRole().name().equals("ADMIN")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Only administrators can update subscriptions"));
+            }
+            
+            System.out.println("🔄 InventSight - Admin " + username + " updating subscription for user ID: " + userId);
+            
+            User updatedUser = subscriptionService.updateSubscription(userId, request.getSubscriptionLevel());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("userId", updatedUser.getId());
+            response.put("username", updatedUser.getUsername());
+            response.put("subscriptionLevel", updatedUser.getSubscriptionLevel().name());
+            
+            System.out.println("✅ Subscription updated for user: " + updatedUser.getUsername());
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error updating subscription: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, "Error updating subscription: " + e.getMessage()));
         }
     }
     

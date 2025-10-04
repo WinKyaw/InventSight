@@ -212,6 +212,10 @@ public class UserService implements UserDetailsService {
         return userRepository.searchUsers(searchTerm);
     }
     
+    public User saveUser(User user) {
+        return userRepository.save(user);
+    }
+    
     public void deactivateUser(Long userId) {
         User user = getUserById(userId);
         user.setIsActive(false);
