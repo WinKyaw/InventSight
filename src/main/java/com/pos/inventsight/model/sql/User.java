@@ -53,6 +53,10 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private UserRole role = UserRole.USER;
     
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subscription_level")
+    private SubscriptionLevel subscriptionLevel = SubscriptionLevel.FREE;
+    
     private Boolean isActive = true;
     
     @Column(name = "email_verified")
@@ -150,6 +154,9 @@ public class User implements UserDetails {
     
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }
+    
+    public SubscriptionLevel getSubscriptionLevel() { return subscriptionLevel; }
+    public void setSubscriptionLevel(SubscriptionLevel subscriptionLevel) { this.subscriptionLevel = subscriptionLevel; }
     
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
