@@ -69,6 +69,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDetails);
     }
     
+    @ExceptionHandler(PlanLimitExceededException.class)
+    public ResponseEntity<?> handlePlanLimitExceededException(PlanLimitExceededException ex, WebRequest request) {
+        System.out.println("🚫 InventSight - Plan limit exceeded: " + ex.getMessage());
+        System.out.println("📅 Error time: 2025-08-26 09:04:35");
+        System.out.println("👤 Current User's Login: WinKyaw");
+        
+        ErrorDetails errorDetails = new ErrorDetails(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false),
+            "PLAN_LIMIT_EXCEEDED",
+            "InventSight System"
+        );
+        
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorDetails);
+    }
+    
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<?> handleBadCredentialsException(BadCredentialsException ex, WebRequest request) {
         System.out.println("🔐 InventSight - Authentication failed: Invalid credentials");

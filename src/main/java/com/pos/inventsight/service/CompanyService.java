@@ -1,6 +1,7 @@
 package com.pos.inventsight.service;
 
 import com.pos.inventsight.exception.DuplicateResourceException;
+import com.pos.inventsight.exception.PlanLimitExceededException;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyRepository;
@@ -38,6 +39,9 @@ public class CompanyService {
     public Company createCompany(String name, String description, String email, Authentication authentication) {
         String username = authentication.getName();
         User user = userService.getUserByUsername(username);
+        
+        // Check subscription limits
+        checkSubscriptionLimit(user);
         
         // Check if company name already exists
         if (companyRepository.existsByNameIgnoreCase(name)) {
@@ -255,5 +259,31 @@ public class CompanyService {
         }
         
         return companyStoreUserRepository.findByStoreAndIsActiveTrue(store);
+    }
+    
+    /**
+     * Check if user has reached their subscription limit for company creation
+     */
+    private void checkSubscriptionLimit(User user) {
+        SubscriptionLevel subscriptionLevel = user.getSubscriptionLevel();
+        if (subscriptionLevel == null) {
+            subscriptionLevel = SubscriptionLevel.FREE;
+        }
+        
+        // Skip check for unlimited plans
+        if (subscriptionLevel.isUnlimited()) {
+            return;
+        }
+        
+        long currentCompanyCount = companyStoreUserRepository.countCompaniesByFounder(user);
+        int maxCompanies = subscriptionLevel.getMaxCompanies();
+        
+        if (currentCompanyCount >= maxCompanies) {
+            throw new PlanLimitExceededException(
+                String.format("You have reached the maximum number of companies (%d) allowed for your %s plan. " +
+                    "Please upgrade your subscription to create more companies.", 
+                    maxCompanies, subscriptionLevel.getDisplayName())
+            );
+        }
     }
 }

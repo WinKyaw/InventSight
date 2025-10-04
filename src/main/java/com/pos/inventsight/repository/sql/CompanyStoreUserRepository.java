@@ -115,4 +115,10 @@ public interface CompanyStoreUserRepository extends JpaRepository<CompanyStoreUs
      */
     @Query("SELECT COUNT(csu) > 0 FROM CompanyStoreUser csu WHERE csu.user = :user AND csu.role = 'FOUNDER' AND csu.isActive = true")
     boolean isFounder(@Param("user") User user);
+    
+    /**
+     * Count active companies where user is founder
+     */
+    @Query("SELECT COUNT(DISTINCT csu.company) FROM CompanyStoreUser csu WHERE csu.user = :user AND csu.role = 'FOUNDER' AND csu.isActive = true")
+    long countCompaniesByFounder(@Param("user") User user);
 }
