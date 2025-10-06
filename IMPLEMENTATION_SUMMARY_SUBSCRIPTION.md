@@ -89,10 +89,11 @@ Successfully implemented a subscription-based quota system for company creation 
 
 #### UserController Updates
 - **File**: `src/main/java/com/pos/inventsight/controller/UserController.java`
-- **Added Endpoint**: `PUT /users/{userId}/subscription`
+- **Added Endpoint**: `PUT /api/users/{userId}/subscription`
 - **Purpose**: Update user's subscription level (Admin only)
 - **Security**: Only ADMIN role can access
 - **Request Body**: `UpdateSubscriptionRequest` with subscriptionLevel field
+- **Note**: Base path changed from `/users` to `/api/users` for consistency
 
 #### CompanyController
 - **File**: `src/main/java/com/pos/inventsight/controller/CompanyController.java`
@@ -177,14 +178,16 @@ Successfully implemented a subscription-based quota system for company creation 
 - **Build Status**: Clean compilation with no errors ✅
 - **Coverage**: Core functionality fully tested
 
-## Database Schema Change Required
+## Database Schema Change
 
-**Note**: Database migration was explicitly excluded per requirements.
+**Flyway Migration**: Automated database migration has been added.
 
-Manual schema update needed:
-```sql
-ALTER TABLE users ADD COLUMN subscription_level VARCHAR(20) DEFAULT 'FREE';
-```
+The migration file `V1__add_subscription_level_to_users.sql` will automatically:
+- Add `subscription_level` column to `users` table if it doesn't exist
+- Set default value to 'FREE'
+- Update existing rows to have FREE subscription level
+
+Flyway dependencies have been added to `pom.xml` for automatic migration management.
 
 ## Security Considerations
 

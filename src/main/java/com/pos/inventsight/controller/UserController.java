@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class UserController {
     
