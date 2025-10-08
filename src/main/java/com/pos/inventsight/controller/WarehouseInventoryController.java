@@ -10,16 +10,18 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST Controller for warehouse inventory management
+ * REST Controller for warehouse inventory management with RBAC
  */
 @RestController
 @RequestMapping("/api/warehouse-inventory")
@@ -32,8 +34,10 @@ public class WarehouseInventoryController {
     /**
      * Create or update warehouse inventory
      * POST /api/warehouse-inventory
+     * RBAC: FOUNDER, GENERAL_MANAGER only
      */
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER')")
     public ResponseEntity<?> createOrUpdateInventory(@Valid @RequestBody WarehouseInventoryRequest request,
                                                    Authentication authentication) {
         try {
@@ -60,8 +64,10 @@ public class WarehouseInventoryController {
     /**
      * Add inventory to warehouse
      * POST /api/warehouse-inventory/add
+     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
      */
     @PostMapping("/add")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
     public ResponseEntity<?> addInventory(@Valid @RequestBody WarehouseInventoryAdditionRequest request,
                                         Authentication authentication) {
         try {
@@ -82,8 +88,10 @@ public class WarehouseInventoryController {
     /**
      * Withdraw inventory from warehouse
      * POST /api/warehouse-inventory/withdraw
+     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
      */
     @PostMapping("/withdraw")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
     public ResponseEntity<?> withdrawInventory(@Valid @RequestBody WarehouseInventoryWithdrawalRequest request,
                                              Authentication authentication) {
         try {
@@ -104,8 +112,10 @@ public class WarehouseInventoryController {
     /**
      * Reserve inventory
      * POST /api/warehouse-inventory/reserve
+     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
      */
     @PostMapping("/reserve")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
     public ResponseEntity<?> reserveInventory(@RequestParam UUID warehouseId,
                                             @RequestParam UUID productId,
                                             @RequestParam Integer quantity,
@@ -128,8 +138,10 @@ public class WarehouseInventoryController {
     /**
      * Release inventory reservation
      * POST /api/warehouse-inventory/release
+     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
      */
     @PostMapping("/release")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
     public ResponseEntity<?> releaseReservation(@RequestParam UUID warehouseId,
                                                @RequestParam UUID productId,
                                                @RequestParam Integer quantity,
@@ -152,8 +164,10 @@ public class WarehouseInventoryController {
     /**
      * Get inventory for a warehouse
      * GET /api/warehouse-inventory/warehouse/{warehouseId}
+     * RBAC: All authenticated users can view
      */
     @GetMapping("/warehouse/{warehouseId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getWarehouseInventory(@PathVariable UUID warehouseId) {
         try {
             List<WarehouseInventoryResponse> inventory = warehouseInventoryService.getWarehouseInventory(warehouseId);
@@ -258,6 +272,7 @@ public class WarehouseInventoryController {
      * GET /api/warehouse-inventory/warehouse/{warehouseId}/value
      */
     @GetMapping("/warehouse/{warehouseId}/value")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getInventoryValue(@PathVariable UUID warehouseId) {
         try {
             Double totalValue = warehouseInventoryService.getTotalInventoryValue(warehouseId);
@@ -273,6 +288,114 @@ public class WarehouseInventoryController {
             System.err.println("❌ Error fetching inventory value: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Error fetching inventory value: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Edit inventory addition (same-day only)
+     * PUT /api/warehouse-inventory/additions/{additionId}
+     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
+     */
+    @PutMapping("/additions/{additionId}")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+    public ResponseEntity<?> editAddition(@PathVariable UUID additionId,
+                                         @Valid @RequestBody WarehouseInventoryAdditionRequest request,
+                                         Authentication authentication) {
+        try {
+            warehouseInventoryService.editAdditionSameDay(additionId, request, authentication);
+            
+            return ResponseEntity.ok(new ApiResponse(true, "Inventory addition updated successfully"));
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Error editing addition: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error editing addition: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Edit inventory withdrawal (same-day only)
+     * PUT /api/warehouse-inventory/withdrawals/{withdrawalId}
+     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
+     */
+    @PutMapping("/withdrawals/{withdrawalId}")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+    public ResponseEntity<?> editWithdrawal(@PathVariable UUID withdrawalId,
+                                           @Valid @RequestBody WarehouseInventoryWithdrawalRequest request,
+                                           Authentication authentication) {
+        try {
+            warehouseInventoryService.editWithdrawalSameDay(withdrawalId, request, authentication);
+            
+            return ResponseEntity.ok(new ApiResponse(true, "Inventory withdrawal updated successfully"));
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Error editing withdrawal: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error editing withdrawal: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * List inventory additions with filters
+     * GET /api/warehouse-inventory/warehouse/{warehouseId}/additions
+     * RBAC: All authenticated users can view
+     */
+    @GetMapping("/warehouse/{warehouseId}/additions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> listAdditions(@PathVariable UUID warehouseId,
+                                          @RequestParam(required = false) LocalDate startDate,
+                                          @RequestParam(required = false) LocalDate endDate,
+                                          @RequestParam(required = false) String transactionType) {
+        try {
+            List<?> additions = warehouseInventoryService.listAdditions(warehouseId, startDate, endDate, transactionType);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("additions", additions);
+            response.put("count", additions.size());
+            response.put("warehouseId", warehouseId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error listing additions: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error listing additions: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * List inventory withdrawals with filters
+     * GET /api/warehouse-inventory/warehouse/{warehouseId}/withdrawals
+     * RBAC: All authenticated users can view
+     */
+    @GetMapping("/warehouse/{warehouseId}/withdrawals")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> listWithdrawals(@PathVariable UUID warehouseId,
+                                            @RequestParam(required = false) LocalDate startDate,
+                                            @RequestParam(required = false) LocalDate endDate,
+                                            @RequestParam(required = false) String transactionType) {
+        try {
+            List<?> withdrawals = warehouseInventoryService.listWithdrawals(warehouseId, startDate, endDate, transactionType);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("withdrawals", withdrawals);
+            response.put("count", withdrawals.size());
+            response.put("warehouseId", warehouseId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error listing withdrawals: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error listing withdrawals: " + e.getMessage()));
         }
     }
 }

@@ -3,7 +3,9 @@ package com.pos.inventsight.repository.sql;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventory;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,6 +29,20 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
      * Find inventory by warehouse ID and product ID
      */
     Optional<WarehouseInventory> findByWarehouseIdAndProductId(UUID warehouseId, UUID productId);
+
+    /**
+     * Find inventory by warehouse and product with pessimistic write lock for concurrency control
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT wi FROM WarehouseInventory wi WHERE wi.warehouse = :warehouse AND wi.product = :product")
+    Optional<WarehouseInventory> findByWarehouseAndProductWithLock(@Param("warehouse") Warehouse warehouse, @Param("product") Product product);
+
+    /**
+     * Find inventory by warehouse ID and product ID with pessimistic write lock
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT wi FROM WarehouseInventory wi WHERE wi.warehouse.id = :warehouseId AND wi.product.id = :productId")
+    Optional<WarehouseInventory> findByWarehouseIdAndProductIdWithLock(@Param("warehouseId") UUID warehouseId, @Param("productId") UUID productId);
 
     /**
      * Find all inventory for a specific warehouse
