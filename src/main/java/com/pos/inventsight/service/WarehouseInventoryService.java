@@ -125,9 +125,9 @@ public class WarehouseInventoryService {
 
         addition = additionRepository.save(addition);
 
-        // Update inventory levels
+        // Update inventory levels with pessimistic lock for concurrency safety
         WarehouseInventory inventory = warehouseInventoryRepository
-            .findByWarehouseAndProduct(warehouse, product)
+            .findByWarehouseAndProductWithLock(warehouse, product)
             .orElse(new WarehouseInventory(warehouse, product, 0));
 
         inventory.addStock(request.getQuantity());
@@ -139,6 +139,9 @@ public class WarehouseInventoryService {
         }
 
         warehouseInventoryRepository.save(inventory);
+
+        // Check for low stock
+        checkLowStock(inventory, authentication);
 
         // Log activity
         activityLogService.logActivity(
@@ -195,12 +198,20 @@ public class WarehouseInventoryService {
             request.getTransactionType() : WarehouseInventoryWithdrawal.TransactionType.ISSUE);
         withdrawal.setCreatedBy(username);
 
+        // Save withdrawal first, then update inventory with lock
         withdrawal = withdrawalRepository.save(withdrawal);
 
-        // Update inventory levels
-        inventory.removeStock(request.getQuantity());
-        inventory.setUpdatedBy(username);
-        warehouseInventoryRepository.save(inventory);
+        // Re-fetch inventory with lock for safe concurrent update
+        WarehouseInventory lockedInventory = warehouseInventoryRepository
+            .findByWarehouseAndProductWithLock(warehouse, product)
+            .orElseThrow(() -> new ResourceNotFoundException("Inventory record not found during update"));
+        
+        lockedInventory.removeStock(request.getQuantity());
+        lockedInventory.setUpdatedBy(username);
+        warehouseInventoryRepository.save(lockedInventory);
+
+        // Check for low stock
+        checkLowStock(lockedInventory, authentication);
 
         // Log activity
         activityLogService.logActivity(
@@ -258,8 +269,9 @@ public class WarehouseInventoryService {
 
         String username = authentication.getName();
 
+        // Use pessimistic lock for concurrency-safe release
         WarehouseInventory inventory = warehouseInventoryRepository
-            .findByWarehouseIdAndProductId(warehouseId, productId)
+            .findByWarehouseIdAndProductIdWithLock(warehouseId, productId)
             .orElseThrow(() -> new ResourceNotFoundException("No inventory found for this product in the warehouse"));
 
         try {
@@ -336,6 +348,246 @@ public class WarehouseInventoryService {
      */
     public Double getTotalInventoryValue(UUID warehouseId) {
         return warehouseInventoryRepository.getTotalInventoryValueByWarehouse(warehouseId);
+    }
+
+    /**
+     * Edit inventory addition (same-day only)
+     */
+    @Transactional
+    public void editAdditionSameDay(UUID additionId, WarehouseInventoryAdditionRequest request, Authentication authentication) {
+        if (authentication == null) {
+            throw new IllegalArgumentException("Authentication is required");
+        }
+
+        String username = authentication.getName();
+
+        // Get the addition
+        WarehouseInventoryAddition addition = additionRepository.findById(additionId)
+            .orElseThrow(() -> new ResourceNotFoundException("Addition not found with ID: " + additionId));
+
+        // Check if same day edit
+        LocalDate today = LocalDate.now();
+        LocalDate createdDate = addition.getCreatedAt().toLocalDate();
+        if (!createdDate.equals(today)) {
+            throw new IllegalArgumentException("Can only edit additions created today. This addition was created on " + createdDate);
+        }
+
+        // Calculate the difference in quantity to adjust inventory
+        int oldQuantity = addition.getQuantity();
+        int newQuantity = request.getQuantity();
+        int quantityDiff = newQuantity - oldQuantity;
+
+        // Update addition fields
+        addition.setQuantity(newQuantity);
+        addition.setUnitCost(request.getUnitCost());
+        addition.setSupplierName(request.getSupplierName());
+        addition.setReferenceNumber(request.getReferenceNumber());
+        addition.setReceiptDate(request.getReceiptDate() != null ? request.getReceiptDate() : addition.getReceiptDate());
+        addition.setExpiryDate(request.getExpiryDate());
+        addition.setBatchNumber(request.getBatchNumber());
+        addition.setNotes(request.getNotes());
+        if (request.getTransactionType() != null) {
+            addition.setTransactionType(request.getTransactionType());
+        }
+        addition.setUpdatedBy(username);
+
+        additionRepository.save(addition);
+
+        // Adjust inventory levels if quantity changed (with lock for concurrency safety)
+        if (quantityDiff != 0) {
+            WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouseAndProductWithLock(addition.getWarehouse(), addition.getProduct())
+                .orElseThrow(() -> new ResourceNotFoundException("Inventory record not found"));
+
+            if (quantityDiff > 0) {
+                inventory.addStock(quantityDiff);
+            } else {
+                // Removing stock
+                int absQuantityDiff = Math.abs(quantityDiff);
+                if (inventory.getAvailableQuantity() < absQuantityDiff) {
+                    throw new IllegalArgumentException("Cannot reduce addition quantity: insufficient available stock");
+                }
+                inventory.removeStock(absQuantityDiff);
+            }
+            inventory.setUpdatedBy(username);
+            warehouseInventoryRepository.save(inventory);
+
+            // Check for low stock
+            checkLowStock(inventory, authentication);
+        }
+
+        // Log activity
+        activityLogService.logActivity(
+            authentication.getName(),
+            username,
+            "inventory_addition_edited",
+            "warehouse_inventory",
+            String.format("Edited addition for %s in warehouse %s (quantity changed from %d to %d)", 
+                addition.getProduct().getName(), addition.getWarehouse().getName(), oldQuantity, newQuantity)
+        );
+    }
+
+    /**
+     * Edit inventory withdrawal (same-day only)
+     */
+    @Transactional
+    public void editWithdrawalSameDay(UUID withdrawalId, WarehouseInventoryWithdrawalRequest request, Authentication authentication) {
+        if (authentication == null) {
+            throw new IllegalArgumentException("Authentication is required");
+        }
+
+        String username = authentication.getName();
+
+        // Get the withdrawal
+        WarehouseInventoryWithdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
+            .orElseThrow(() -> new ResourceNotFoundException("Withdrawal not found with ID: " + withdrawalId));
+
+        // Check if same day edit
+        LocalDate today = LocalDate.now();
+        LocalDate createdDate = withdrawal.getCreatedAt().toLocalDate();
+        if (!createdDate.equals(today)) {
+            throw new IllegalArgumentException("Can only edit withdrawals created today. This withdrawal was created on " + createdDate);
+        }
+
+        // Calculate the difference in quantity to adjust inventory
+        int oldQuantity = withdrawal.getQuantity();
+        int newQuantity = request.getQuantity();
+        int quantityDiff = newQuantity - oldQuantity;
+
+        // Update withdrawal fields
+        withdrawal.setQuantity(newQuantity);
+        withdrawal.setUnitCost(request.getUnitCost());
+        withdrawal.setDestination(request.getDestination());
+        withdrawal.setReferenceNumber(request.getReferenceNumber());
+        withdrawal.setWithdrawalDate(request.getWithdrawalDate() != null ? request.getWithdrawalDate() : withdrawal.getWithdrawalDate());
+        withdrawal.setReason(request.getReason());
+        withdrawal.setNotes(request.getNotes());
+        if (request.getTransactionType() != null) {
+            withdrawal.setTransactionType(request.getTransactionType());
+        }
+        withdrawal.setUpdatedBy(username);
+
+        withdrawalRepository.save(withdrawal);
+
+        // Adjust inventory levels if quantity changed (with lock for concurrency safety)
+        if (quantityDiff != 0) {
+            WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouseAndProductWithLock(withdrawal.getWarehouse(), withdrawal.getProduct())
+                .orElseThrow(() -> new ResourceNotFoundException("Inventory record not found"));
+
+            if (quantityDiff > 0) {
+                // Withdrawing more - need to check available stock
+                if (inventory.getAvailableQuantity() < quantityDiff) {
+                    throw new InsufficientStockException(
+                        String.format("Insufficient stock. Requested additional: %d, Available: %d", 
+                            quantityDiff, inventory.getAvailableQuantity())
+                    );
+                }
+                inventory.removeStock(quantityDiff);
+            } else {
+                // Withdrawing less - return stock to inventory
+                int absQuantityDiff = Math.abs(quantityDiff);
+                inventory.addStock(absQuantityDiff);
+            }
+            inventory.setUpdatedBy(username);
+            warehouseInventoryRepository.save(inventory);
+
+            // Check for low stock
+            checkLowStock(inventory, authentication);
+        }
+
+        // Log activity
+        activityLogService.logActivity(
+            authentication.getName(),
+            username,
+            "inventory_withdrawal_edited",
+            "warehouse_inventory",
+            String.format("Edited withdrawal for %s from warehouse %s (quantity changed from %d to %d)", 
+                withdrawal.getProduct().getName(), withdrawal.getWarehouse().getName(), oldQuantity, newQuantity)
+        );
+    }
+
+    /**
+     * List inventory additions with filters
+     */
+    public List<WarehouseInventoryAddition> listAdditions(UUID warehouseId, LocalDate startDate, LocalDate endDate, String transactionType) {
+        if (startDate != null && endDate != null) {
+            if (transactionType != null) {
+                try {
+                    WarehouseInventoryAddition.TransactionType type = WarehouseInventoryAddition.TransactionType.valueOf(transactionType);
+                    return additionRepository.findByWarehouseIdAndReceiptDateBetween(warehouseId, startDate, endDate)
+                        .stream()
+                        .filter(a -> a.getTransactionType() == type)
+                        .collect(Collectors.toList());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid transaction type: " + transactionType);
+                }
+            }
+            return additionRepository.findByWarehouseIdAndReceiptDateBetween(warehouseId, startDate, endDate);
+        } else if (transactionType != null) {
+            try {
+                WarehouseInventoryAddition.TransactionType type = WarehouseInventoryAddition.TransactionType.valueOf(transactionType);
+                return additionRepository.findByWarehouseId(warehouseId)
+                    .stream()
+                    .filter(a -> a.getTransactionType() == type)
+                    .collect(Collectors.toList());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid transaction type: " + transactionType);
+            }
+        } else {
+            return additionRepository.findByWarehouseIdOrderByReceiptDateDesc(warehouseId);
+        }
+    }
+
+    /**
+     * List inventory withdrawals with filters
+     */
+    public List<WarehouseInventoryWithdrawal> listWithdrawals(UUID warehouseId, LocalDate startDate, LocalDate endDate, String transactionType) {
+        if (startDate != null && endDate != null) {
+            if (transactionType != null) {
+                try {
+                    WarehouseInventoryWithdrawal.TransactionType type = WarehouseInventoryWithdrawal.TransactionType.valueOf(transactionType);
+                    return withdrawalRepository.findByWarehouseIdAndWithdrawalDateBetween(warehouseId, startDate, endDate)
+                        .stream()
+                        .filter(w -> w.getTransactionType() == type)
+                        .collect(Collectors.toList());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid transaction type: " + transactionType);
+                }
+            }
+            return withdrawalRepository.findByWarehouseIdAndWithdrawalDateBetween(warehouseId, startDate, endDate);
+        } else if (transactionType != null) {
+            try {
+                WarehouseInventoryWithdrawal.TransactionType type = WarehouseInventoryWithdrawal.TransactionType.valueOf(transactionType);
+                return withdrawalRepository.findByWarehouseId(warehouseId)
+                    .stream()
+                    .filter(w -> w.getTransactionType() == type)
+                    .collect(Collectors.toList());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid transaction type: " + transactionType);
+            }
+        } else {
+            return withdrawalRepository.findByWarehouseIdOrderByWithdrawalDateDesc(warehouseId);
+        }
+    }
+
+    /**
+     * Check for low stock and log alert if needed
+     */
+    private void checkLowStock(WarehouseInventory inventory, Authentication authentication) {
+        if (inventory.isLowStock()) {
+            activityLogService.logActivity(
+                authentication.getName(),
+                authentication.getName(),
+                "low_stock_alert",
+                "warehouse_inventory",
+                String.format("LOW STOCK ALERT: %s in warehouse %s - Available: %d, Reorder Point: %d",
+                    inventory.getProduct().getName(),
+                    inventory.getWarehouse().getName(),
+                    inventory.getAvailableQuantity(),
+                    inventory.getReorderPoint())
+            );
+        }
     }
 
     /**
