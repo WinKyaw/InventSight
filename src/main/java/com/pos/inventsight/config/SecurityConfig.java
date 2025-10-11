@@ -53,8 +53,17 @@ public class SecurityConfig {
     @Autowired(required = false)
     private JwtDecoder jwtDecoder;
     
+    @Autowired(required = false)
+    private com.pos.inventsight.service.CustomOAuth2UserService customOAuth2UserService;
+    
     @Value("${inventsight.security.oauth2.resource-server.enabled:false}")
     private boolean oauth2Enabled;
+    
+    @Value("${inventsight.security.oauth2.login.enabled:false}")
+    private boolean oauth2LoginEnabled;
+    
+    @Value("${inventsight.security.saml.enabled:false}")
+    private boolean samlEnabled;
     
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -110,6 +119,22 @@ public class SecurityConfig {
             http.oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.decoder(jwtDecoder))
             );
+        }
+        
+        // Configure OAuth2 Login if enabled
+        if (oauth2LoginEnabled && customOAuth2UserService != null) {
+            System.out.println("✅ Enabling OAuth2 Login (Google, Microsoft, Okta)");
+            http.oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(customOAuth2UserService)
+                )
+            );
+        }
+        
+        // SAML2 Login support disabled - dependency not available
+        // To enable SAML2, add spring-security-saml2-service-provider dependency
+        if (samlEnabled) {
+            System.out.println("⚠️ SAML2 Login requested but dependency not available");
         }
         
         http.authenticationProvider(authenticationProvider());
