@@ -26,11 +26,18 @@ public class JwtUtils {
     }
     
     public String generateJwtToken(User user) {
+        return generateJwtToken(user, null);
+    }
+    
+    /**
+     * Generate JWT token with optional tenant_id claim
+     */
+    public String generateJwtToken(User user, String tenantId) {
         System.out.println("🔑 InventSight - Generating JWT token for user: " + user.getEmail());
         System.out.println("📅 Token generation time: 2025-08-26 09:04:35");
         System.out.println("👤 Current User's Login: WinKyaw");
         
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("userId", user.getId())
                 .claim("username", user.getUsername())
@@ -40,9 +47,14 @@ public class JwtUtils {
                 .claim("createdBy", "WinKyaw")
                 .claim("tokenType", "access")
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(getSigningKey())
-                .compact();
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs));
+        
+        // Add tenant_id if provided
+        if (tenantId != null && !tenantId.isEmpty()) {
+            builder.claim("tenant_id", tenantId);
+        }
+        
+        return builder.signWith(getSigningKey()).compact();
     }
     
     public String generateRefreshToken(User user) {
@@ -110,6 +122,31 @@ public class JwtUtils {
                 .getPayload();
         
         return claims.get("role", String.class);
+    }
+    
+    /**
+     * Get tenant_id from JWT token
+     */
+    public String getTenantIdFromJwtToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            
+            return claims.get("tenant_id", String.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * Check if token contains tenant_id claim
+     */
+    public boolean hasTenantId(String token) {
+        String tenantId = getTenantIdFromJwtToken(token);
+        return tenantId != null && !tenantId.isEmpty();
     }
     
     public boolean validateJwtToken(String authToken) {
