@@ -1,5 +1,6 @@
 package com.pos.inventsight.tenant;
 
+import com.pos.inventsight.config.JwtUtils;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.repository.sql.CompanyRepository;
@@ -14,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.core.Authentication;
@@ -42,11 +44,17 @@ public class CompanyTenantFilter implements Filter {
     
     private final CompanyStoreUserRepository companyStoreUserRepository;
     private final CompanyRepository companyRepository;
+    private final JwtUtils jwtUtils;
+    
+    @Value("${inventsight.tenancy.header.validate-against-jwt:true}")
+    private boolean validateHeaderAgainstJwt;
     
     public CompanyTenantFilter(CompanyStoreUserRepository companyStoreUserRepository,
-                               CompanyRepository companyRepository) {
+                               CompanyRepository companyRepository,
+                               JwtUtils jwtUtils) {
         this.companyStoreUserRepository = companyStoreUserRepository;
         this.companyRepository = companyRepository;
+        this.jwtUtils = jwtUtils;
     }
     
     @Override
@@ -74,22 +82,64 @@ public class CompanyTenantFilter implements Filter {
             // Extract X-Tenant-ID header (expecting company UUID)
             String tenantHeader = httpRequest.getHeader(TENANT_HEADER_NAME);
             
-            if (tenantHeader == null || tenantHeader.trim().isEmpty()) {
-                logger.warn("Missing X-Tenant-ID header for request: {}", requestUri);
-                sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
-                         "X-Tenant-ID header is required and must contain a valid company UUID");
-                return;
+            // Extract tenant_id from JWT claim if present
+            String jwtTenantId = null;
+            String authHeader = httpRequest.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    if (jwtUtils.hasTenantId(token)) {
+                        jwtTenantId = jwtUtils.getTenantIdFromJwtToken(token);
+                        logger.debug("Extracted tenant_id from JWT: {}", jwtTenantId);
+                    }
+                } catch (Exception e) {
+                    logger.debug("Could not extract tenant_id from JWT: {}", e.getMessage());
+                }
             }
             
-            // Parse and validate company UUID
+            // Determine the authoritative tenant ID
             UUID companyUuid;
-            try {
-                companyUuid = UUID.fromString(tenantHeader.trim());
-            } catch (IllegalArgumentException e) {
-                logger.warn("Invalid company UUID in X-Tenant-ID header: {}", tenantHeader);
-                sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
-                         "X-Tenant-ID must be a valid UUID");
-                return;
+            
+            // If JWT has tenant_id, use it as source of truth
+            if (jwtTenantId != null && !jwtTenantId.isEmpty()) {
+                try {
+                    companyUuid = UUID.fromString(jwtTenantId);
+                    logger.debug("Using tenant_id from JWT: {}", companyUuid);
+                    
+                    // If validateHeaderAgainstJwt is enabled and X-Tenant-ID is present, verify they match
+                    if (validateHeaderAgainstJwt && tenantHeader != null && !tenantHeader.trim().isEmpty()) {
+                        if (!tenantHeader.trim().equals(jwtTenantId)) {
+                            logger.warn("X-Tenant-ID header {} does not match JWT tenant_id claim {}", 
+                                       tenantHeader, jwtTenantId);
+                            sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
+                                     "X-Tenant-ID header does not match authenticated tenant");
+                            return;
+                        }
+                    }
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Invalid tenant_id UUID in JWT claim: {}", jwtTenantId);
+                    sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
+                             "Invalid tenant_id in JWT token");
+                    return;
+                }
+            } else {
+                // Fall back to X-Tenant-ID header if no JWT tenant_id
+                if (tenantHeader == null || tenantHeader.trim().isEmpty()) {
+                    logger.warn("Missing X-Tenant-ID header and no tenant_id in JWT for request: {}", requestUri);
+                    sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
+                             "X-Tenant-ID header is required or tenant_id must be present in JWT");
+                    return;
+                }
+                
+                // Parse and validate company UUID from header
+                try {
+                    companyUuid = UUID.fromString(tenantHeader.trim());
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Invalid company UUID in X-Tenant-ID header: {}", tenantHeader);
+                    sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
+                             "X-Tenant-ID must be a valid UUID");
+                    return;
+                }
             }
             
             // Verify company exists and is active
