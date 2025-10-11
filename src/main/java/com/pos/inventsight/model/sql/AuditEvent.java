@@ -98,20 +98,20 @@ public class AuditEvent {
     public String getHash() { return hash; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     
-    // Setters (package-private for use only during construction)
-    void setEventAt(LocalDateTime eventAt) { this.eventAt = eventAt; }
-    void setActor(String actor) { this.actor = actor; }
-    void setActorId(Long actorId) { this.actorId = actorId; }
-    void setAction(String action) { this.action = action; }
-    void setEntityType(String entityType) { this.entityType = entityType; }
-    void setEntityId(String entityId) { this.entityId = entityId; }
-    void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
-    void setCompanyId(UUID companyId) { this.companyId = companyId; }
-    void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
-    void setUserAgent(String userAgent) { this.userAgent = userAgent; }
-    void setDetailsJson(String detailsJson) { this.detailsJson = detailsJson; }
-    void setPrevHash(String prevHash) { this.prevHash = prevHash; }
-    void setHash(String hash) { this.hash = hash; }
+    // Setters (public for AuditService but should only be used during construction)
+    public void setEventAt(LocalDateTime eventAt) { this.eventAt = eventAt; }
+    public void setActor(String actor) { this.actor = actor; }
+    public void setActorId(Long actorId) { this.actorId = actorId; }
+    public void setAction(String action) { this.action = action; }
+    public void setEntityType(String entityType) { this.entityType = entityType; }
+    public void setEntityId(String entityId) { this.entityId = entityId; }
+    public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+    public void setCompanyId(UUID companyId) { this.companyId = companyId; }
+    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+    public void setDetailsJson(String detailsJson) { this.detailsJson = detailsJson; }
+    public void setPrevHash(String prevHash) { this.prevHash = prevHash; }
+    public void setHash(String hash) { this.hash = hash; }
     
     public static class Builder {
         private final AuditEvent event = new AuditEvent();
