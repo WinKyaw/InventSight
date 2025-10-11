@@ -387,6 +387,278 @@ Control feature rollout via environment variables:
 3. Add FX service for currency conversion
 4. Implement OAuth2 resource server validation
 
+## Latest Enhancements (October 2025)
+
+### OAuth2 Resource Server & Enhanced Tenant Security
+
+#### OAuth2 Resource Server Configuration
+**Location:** `src/main/java/com/pos/inventsight/config/OAuth2ResourceServerConfig.java`
+
+Enables external OIDC/OAuth2 identity providers with production-grade security:
+
+- **JWKS Validation:** Verifies JWT signatures using JWKS endpoint (RS256)
+- **Issuer Validation:** Rejects tokens from unauthorized issuers
+- **Audience Validation:** Ensures tokens are intended for InventSight API
+- **Clock Skew Tolerance:** Configurable tolerance (default 60 seconds) for time drift
+
+**Configuration:**
+```yaml
+inventsight:
+  security:
+    oauth2:
+      resource-server:
+        enabled: false  # Feature flag
+        audiences: inventsight-api
+        clock-skew-seconds: 60
+```
+
+**Environment Variables:**
+- `OAUTH2_ENABLED` - Enable/disable OAuth2 Resource Server
+- `JWT_ISSUER_URI` - OIDC issuer URI (e.g., `https://accounts.google.com`)
+- `JWT_JWK_SET_URI` - Direct JWKS endpoint URL
+- `JWT_AUDIENCES` - Comma-separated list of valid audiences
+
+#### Enhanced Tenant Isolation
+**Location:** `src/main/java/com/pos/inventsight/tenant/CompanyTenantFilter.java`
+
+Strengthened tenant isolation with JWT claim enforcement:
+
+- **JWT `tenant_id` Claim as Source of Truth:** Filter prioritizes JWT claim over header
+- **X-Tenant-ID Validation:** Detects mismatches between header and JWT claim (returns 400)
+- **Membership Verification:** Ensures authenticated user is member of requested tenant
+- **Backward Compatible:** Falls back to header if JWT has no `tenant_id` claim
+
+**Configuration:**
+```yaml
+inventsight:
+  tenancy:
+    header:
+      enabled: true
+      validate-against-jwt: true  # Enforce JWT claim validation
+```
+
+#### Tenant Switching API
+**Location:** `src/main/java/com/pos/inventsight/controller/TenantSwitchController.java`
+
+Allows users with multiple company memberships to switch context:
+
+**Endpoint:** `POST /auth/tenant-switch`
+
+**Request Body:**
+```json
+{
+  "tenant_id": "uuid-of-target-company"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Tenant switched successfully",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "tenant_id": "uuid",
+  "token_type": "Bearer",
+  "expires_in": 300
+}
+```
+
+**Security:**
+- Verifies user has active membership in target tenant
+- Issues short-lived token (5 minutes) with `tenant_id` claim
+- Audit trail for all switch attempts (success and denied)
+
+### GDPR Data Subject Rights
+
+#### Data Export (Article 15 - Right to Access)
+**Location:** `src/main/java/com/pos/inventsight/controller/GdprController.java`
+
+**Endpoint:** `GET /gdpr/export`
+
+Returns ZIP archive containing:
+- User profile data (username, email, name, role, etc.)
+- Company memberships and roles
+- Store assignments
+- Export metadata (timestamp, tenant, version)
+- README file with contact information
+
+**Response:** Binary ZIP file with `application/octet-stream` content type
+
+**Format:** Machine-readable JSON with pretty printing
+
+**Example Contents:**
+```json
+{
+  "user": {
+    "id": 123,
+    "username": "john.doe",
+    "email": "john@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    ...
+  },
+  "company_memberships": [
+    {
+      "company_id": "uuid",
+      "company_name": "Acme Corp",
+      "role": "EMPLOYEE",
+      "is_active": true,
+      "joined_at": "2025-01-15T10:00:00"
+    }
+  ],
+  "export_metadata": {
+    "exported_at": "2025-10-11T10:00:00",
+    "tenant_id": "company_uuid",
+    "format": "json",
+    "version": "1.0"
+  }
+}
+```
+
+#### Data Deletion (Article 17 - Right to Erasure)
+**Endpoint:** `DELETE /gdpr/delete?hardDelete=false`
+
+**Soft Delete (Default):**
+- Anonymizes PII: `username → "deleted_<random>"`
+- Anonymizes email: `email → "deleted_<random>@anonymized.local"`
+- Clears: phone, first_name, last_name
+- Deactivates: sets `is_active = false`
+- Preserves: ID, timestamps (for referential integrity)
+- Maintains: Audit trail with anonymized actor
+
+**Hard Delete (Optional):**
+- Similar anonymization
+- Use with caution - may break referential integrity
+- Recommended only when soft delete insufficient
+
+**Audit Events:**
+- `GDPR_DATA_EXPORT` - Export requested
+- `GDPR_DATA_DELETION_REQUESTED` - Deletion initiated
+- `GDPR_DATA_DELETION_COMPLETED` - Deletion finished
+- `GDPR_DATA_DELETION_FAILED` - Error occurred
+
+**Configuration:**
+```yaml
+inventsight:
+  gdpr:
+    export:
+      format: json  # or csv (future)
+    retention:
+      audit-fields-allowlist: actor,timestamp,action,tenant_id,company_id
+  data:
+    retention:
+      days: 365  # Retention policy
+```
+
+### Offline Sync Foundation
+
+#### Idempotency Tracking
+**Database Table:** `idempotency_keys`
+
+Tracks request idempotency for offline sync scenarios:
+
+```sql
+CREATE TABLE idempotency_keys (
+    id UUID PRIMARY KEY,
+    idempotency_key VARCHAR(255) NOT NULL,
+    tenant_id UUID,
+    company_id UUID,
+    endpoint VARCHAR(500) NOT NULL,
+    request_hash VARCHAR(64),
+    response_status INTEGER,
+    response_body TEXT,
+    created_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    UNIQUE (idempotency_key, tenant_id)
+);
+```
+
+**Usage (Future):**
+Clients include `Idempotency-Key` header in POST/PUT/PATCH/DELETE requests. Server stores result and replays for duplicate requests.
+
+#### Change Feed
+**Database Table:** `sync_changes`
+
+Tracks row-level changes for incremental sync:
+
+```sql
+CREATE TABLE sync_changes (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    company_id UUID,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id VARCHAR(100) NOT NULL,
+    operation VARCHAR(20) NOT NULL,
+    changed_at TIMESTAMP NOT NULL,
+    change_data TEXT,
+    version BIGINT,
+    UNIQUE (tenant_id, entity_type, entity_id, changed_at)
+);
+```
+
+**Configuration:**
+```yaml
+inventsight:
+  sync:
+    idempotency:
+      enabled: true
+      ttl-hours: 24
+    change-feed:
+      enabled: true
+      page-size: 100
+```
+
+### Rate Limiting Configuration
+
+Prepared for Phase 7 implementation:
+
+```yaml
+inventsight:
+  rate-limiting:
+    enabled: true
+    per-tenant:
+      requests-per-minute: 1000
+    per-ip:
+      requests-per-minute: 100
+    auth-endpoints:
+      requests-per-minute: 10
+```
+
+**Features (Planned):**
+- Per-tenant quotas to prevent one tenant from monopolizing resources
+- Per-IP quotas for abuse protection
+- Stricter limits for authentication endpoints
+- 429 responses with `Retry-After` headers
+- Redis-backed counters with sliding windows
+
+### SSO Configuration Prepared
+
+OAuth2 and SAML2 providers can be configured:
+
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,profile,email
+          microsoft:
+            client-id: ${MICROSOFT_CLIENT_ID}
+            client-secret: ${MICROSOFT_CLIENT_SECRET}
+            scope: openid,profile,email
+          okta:
+            client-id: ${OKTA_CLIENT_ID}
+            client-secret: ${OKTA_CLIENT_SECRET}
+            scope: openid,profile,email
+```
+
+**Implementation:** See `IMPLEMENTATION_ROADMAP.md` Phase 6
+
+---
+
 ## Conclusion
 
 This implementation provides a solid foundation for enhanced security, compliance, and internationalization in InventSight. The features are production-ready, fully integrated with the existing multi-tenant architecture, and designed for incremental adoption without breaking changes.
@@ -400,5 +672,12 @@ Key achievements:
 - ✅ JWT tenant binding foundation
 - ✅ Email service abstraction
 - ✅ Feature flags for controlled rollout
+- ✅ **OAuth2 Resource Server with JWKS validation** (NEW)
+- ✅ **Enhanced tenant isolation with JWT claim enforcement** (NEW)
+- ✅ **Tenant switching API** (NEW)
+- ✅ **GDPR data export and deletion** (NEW)
+- ✅ **Offline sync foundation (idempotency & change feed)** (NEW)
 
 All code follows existing patterns, maintains backward compatibility, and preserves the schema-per-company multi-tenancy model.
+
+**For complete implementation details and roadmap:** See `IMPLEMENTATION_ROADMAP.md`
