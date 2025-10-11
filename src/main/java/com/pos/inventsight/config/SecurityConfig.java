@@ -1,5 +1,7 @@
 package com.pos.inventsight.config;
 
+import com.pos.inventsight.filter.IdempotencyKeyFilter;
+import com.pos.inventsight.filter.RateLimitingFilter;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.tenant.CompanyTenantFilter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,12 @@ public class SecurityConfig {
     
     @Autowired
     private CompanyTenantFilter companyTenantFilter;
+    
+    @Autowired
+    private RateLimitingFilter rateLimitingFilter;
+    
+    @Autowired
+    private IdempotencyKeyFilter idempotencyKeyFilter;
     
     @Autowired(required = false)
     private JwtDecoder jwtDecoder;
@@ -105,11 +113,18 @@ public class SecurityConfig {
         }
         
         http.authenticationProvider(authenticationProvider());
-        // Add CompanyTenantFilter before JWT filter to ensure tenant context is set early
+        
+        // Add filters in correct order:
+        // 1. RateLimitingFilter (earliest - before any processing)
+        // 2. CompanyTenantFilter (tenant context)
+        // 3. Auth layer (JWT filter)
+        // 4. IdempotencyKeyFilter (after auth/tenant, so cache keys include tenant)
+        http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(companyTenantFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(idempotencyKeyFilter, UsernamePasswordAuthenticationFilter.class);
         
-        System.out.println("✅ InventSight Spring Security Configuration completed with CompanyTenantFilter");
+        System.out.println("✅ InventSight Spring Security Configuration completed with all filters");
         return http.build();
     }
     
