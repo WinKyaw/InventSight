@@ -59,7 +59,25 @@ spring:
         jwt:
           issuer-uri: ${JWT_ISSUER_URI:}
           jwk-set-uri: ${JWT_JWK_SET_URI:}
-          # audiences: ${JWT_AUDIENCES:inventsight-api}
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope: openid,profile,email
+          microsoft:
+            client-id: ${MICROSOFT_CLIENT_ID:}
+            client-secret: ${MICROSOFT_CLIENT_SECRET:}
+            scope: openid,profile,email
+          okta:
+            client-id: ${OKTA_CLIENT_ID:}
+            client-secret: ${OKTA_CLIENT_SECRET:}
+            scope: openid,profile,email
+        provider:
+          microsoft:
+            issuer-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID:common}/v2.0
+          okta:
+            issuer-uri: ${OKTA_ISSUER_URI:}
       
 # Server Configuration
 server:
@@ -78,6 +96,10 @@ inventsight:
     oauth2:
       resource-server:
         enabled: ${OAUTH2_ENABLED:false}
+        audiences: ${JWT_AUDIENCES:inventsight-api}
+        clock-skew-seconds: ${JWT_CLOCK_SKEW_SECONDS:60}
+      login:
+        enabled: ${OAUTH2_LOGIN_ENABLED:false}
       
     saml:
       enabled: ${SAML_ENABLED:false}
@@ -103,7 +125,34 @@ inventsight:
   # Feature Flags
   tenancy:
     header:
-      enabled: ${TENANCY_HEADER_ENABLED:false}
+      enabled: ${TENANCY_HEADER_ENABLED:true}
+      validate-against-jwt: ${TENANCY_VALIDATE_JWT:true}
+      
+  # Rate Limiting Configuration
+  rate-limiting:
+    enabled: ${RATE_LIMITING_ENABLED:true}
+    per-tenant:
+      requests-per-minute: ${RATE_LIMIT_TENANT_RPM:1000}
+    per-ip:
+      requests-per-minute: ${RATE_LIMIT_IP_RPM:100}
+    auth-endpoints:
+      requests-per-minute: ${RATE_LIMIT_AUTH_RPM:10}
+      
+  # GDPR Configuration
+  gdpr:
+    export:
+      format: ${GDPR_EXPORT_FORMAT:json} # json, csv, or both
+    retention:
+      audit-fields-allowlist: actor,timestamp,action,tenant_id,company_id
+      
+  # Offline Sync Configuration
+  sync:
+    idempotency:
+      enabled: ${SYNC_IDEMPOTENCY_ENABLED:true}
+      ttl-hours: ${SYNC_IDEMPOTENCY_TTL:24}
+    change-feed:
+      enabled: ${SYNC_CHANGE_FEED_ENABLED:true}
+      page-size: ${SYNC_CHANGE_FEED_PAGE_SIZE:100}
       
   # Email Provider Configuration
   email:

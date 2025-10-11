@@ -3,6 +3,7 @@ package com.pos.inventsight.config;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.tenant.CompanyTenantFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -40,6 +42,12 @@ public class SecurityConfig {
     @Autowired
     private CompanyTenantFilter companyTenantFilter;
     
+    @Autowired(required = false)
+    private JwtDecoder jwtDecoder;
+    
+    @Value("${inventsight.security.oauth2.resource-server.enabled:false}")
+    private boolean oauth2Enabled;
+    
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
         return new AuthTokenFilter();
@@ -61,7 +69,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         System.out.println("🔒 InventSight - Initializing Spring Security Configuration");
-        System.out.println("📅 Current Date and Time (UTC): 2025-08-26 09:04:35");
+        System.out.println("📅 OAuth2 Resource Server enabled: " + oauth2Enabled);
         System.out.println("👤 Current User's Login: WinKyaw");
         
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -87,6 +95,14 @@ public class SecurityConfig {
                     .requestMatchers("/favicon.ico").permitAll()
                     .anyRequest().authenticated()
             );
+        
+        // Configure OAuth2 Resource Server if enabled
+        if (oauth2Enabled && jwtDecoder != null) {
+            System.out.println("✅ Enabling OAuth2 Resource Server with JWKS validation");
+            http.oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.decoder(jwtDecoder))
+            );
+        }
         
         http.authenticationProvider(authenticationProvider());
         // Add CompanyTenantFilter before JWT filter to ensure tenant context is set early
