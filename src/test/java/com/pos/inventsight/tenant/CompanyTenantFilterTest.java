@@ -61,9 +61,12 @@ class CompanyTenantFilterTest {
     private Company company;
     private UUID companyUuid;
 
+    @Mock
+    private com.pos.inventsight.config.JwtUtils jwtUtils;
+    
     @BeforeEach
     void setUp() throws IOException {
-        companyTenantFilter = new CompanyTenantFilter(companyStoreUserRepository, companyRepository);
+        companyTenantFilter = new CompanyTenantFilter(companyStoreUserRepository, companyRepository, jwtUtils);
         TenantContext.clear();
         SecurityContextHolder.clearContext();
 
