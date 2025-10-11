@@ -37,6 +37,29 @@ spring:
       port: 6379
       timeout: 2000ms
       password: # Leave empty for local development
+  
+  # Email Configuration
+  mail:
+    host: ${EMAIL_HOST:smtp.example.com}
+    port: ${EMAIL_PORT:587}
+    username: ${EMAIL_USERNAME:}
+    password: ${EMAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+  
+  # OAuth2 Resource Server Configuration  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:}
+          jwk-set-uri: ${JWT_JWK_SET_URI:}
+          # audiences: ${JWT_AUDIENCES:inventsight-api}
       
 # Server Configuration
 server:
@@ -49,7 +72,15 @@ inventsight:
   security:
     jwt:
       secret: inventsight-super-secret-jwt-key-winkyaw-2025-08-26
-      expiration: 86400000 # 24 hours
+      expiration: 300000 # 5 minutes (300,000 ms) for enhanced security
+      refresh-expiration: 604800000 # 7 days
+      
+    oauth2:
+      resource-server:
+        enabled: ${OAUTH2_ENABLED:false}
+      
+    saml:
+      enabled: ${SAML_ENABLED:false}
       
   system:
     name: "InventSight - Intelligent Inventory & POS System"
@@ -68,6 +99,32 @@ inventsight:
     analytics-tracking: true
     audit-logging: true
     intelligent-forecasting: true
+    
+  # Feature Flags
+  tenancy:
+    header:
+      enabled: ${TENANCY_HEADER_ENABLED:false}
+      
+  # Email Provider Configuration
+  email:
+    provider: ${EMAIL_PROVIDER:smtp} # Options: smtp, ses, sendgrid
+    from-address: ${EMAIL_FROM:noreply@inventsight.com}
+    from-name: "InventSight"
+    
+  # Data Retention Policy
+  data:
+    retention:
+      days: ${DATA_RETENTION_DAYS:365}
+      
+  # Currency Configuration
+  currency:
+    default-code: ${DEFAULT_CURRENCY:USD}
+    
+  # MFA Configuration  
+  mfa:
+    issuer: "InventSight"
+    totp:
+      window-size: 3 # Allow 3 time windows for clock skew
 
 # Logging Configuration
 logging:
