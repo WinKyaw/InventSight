@@ -168,6 +168,10 @@ inventsight:
   # Currency Configuration
   currency:
     default-code: ${DEFAULT_CURRENCY:USD}
+    fx:
+      provider: ${FX_PROVIDER:mock} # Options: mock, ecb, openexchangerates
+      api-key: ${FX_API_KEY:}
+      cache-ttl-hours: ${FX_CACHE_TTL:24}
     
   # MFA Configuration  
   mfa:

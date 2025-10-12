@@ -6,11 +6,15 @@ import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
 import com.pos.inventsight.exception.InsufficientStockException;
 import com.pos.inventsight.exception.ResourceNotFoundException;
+import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventory;
 import com.pos.inventsight.model.sql.WarehouseInventoryAddition;
 import com.pos.inventsight.model.sql.WarehouseInventoryWithdrawal;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryAdditionRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
@@ -32,6 +36,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class WarehouseInventoryService {
+    
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WarehouseInventoryService.class);
 
     @Autowired
     private WarehouseInventoryRepository warehouseInventoryRepository;
@@ -50,6 +56,9 @@ public class WarehouseInventoryService {
 
     @Autowired
     private ActivityLogService activityLogService;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
 
     /**
      * Get or create warehouse inventory record
@@ -102,6 +111,15 @@ public class WarehouseInventoryService {
         }
 
         String username = authentication.getName();
+        
+        // Check if user is EMPLOYEE and trying to set cost
+        User user = (User) authentication.getPrincipal();
+        CompanyRole userRole = getUserCompanyRole(user);
+        if (userRole == CompanyRole.EMPLOYEE && request.getUnitCost() != null) {
+            // Employees cannot set cost fields - ignore silently
+            request.setUnitCost(null);
+            logger.warn("EMPLOYEE {} attempted to set unitCost, field ignored", username);
+        }
 
         // Get warehouse and product
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
@@ -164,6 +182,15 @@ public class WarehouseInventoryService {
         }
 
         String username = authentication.getName();
+        
+        // Check if user is EMPLOYEE and trying to set cost
+        User user = (User) authentication.getPrincipal();
+        CompanyRole userRole = getUserCompanyRole(user);
+        if (userRole == CompanyRole.EMPLOYEE && request.getUnitCost() != null) {
+            // Employees cannot set cost fields - ignore silently
+            request.setUnitCost(null);
+            logger.warn("EMPLOYEE {} attempted to set unitCost, field ignored", username);
+        }
 
         // Get warehouse and product
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
@@ -372,6 +399,21 @@ public class WarehouseInventoryService {
             throw new IllegalArgumentException("Can only edit additions created today. This addition was created on " + createdDate);
         }
 
+        // Check ownership for EMPLOYEE role
+        User user = (User) authentication.getPrincipal();
+        CompanyRole userRole = getUserCompanyRole(user);
+        if (userRole == CompanyRole.EMPLOYEE) {
+            // Employees can only edit their own additions
+            if (!addition.getCreatedBy().equals(username)) {
+                throw new IllegalArgumentException("Employees can only edit their own inventory additions");
+            }
+            // Employees cannot set cost fields
+            if (request.getUnitCost() != null) {
+                request.setUnitCost(null);
+                logger.warn("EMPLOYEE {} attempted to set unitCost in edit, field ignored", username);
+            }
+        }
+
         // Calculate the difference in quantity to adjust inventory
         int oldQuantity = addition.getQuantity();
         int newQuantity = request.getQuantity();
@@ -447,6 +489,21 @@ public class WarehouseInventoryService {
         LocalDate createdDate = withdrawal.getCreatedAt().toLocalDate();
         if (!createdDate.equals(today)) {
             throw new IllegalArgumentException("Can only edit withdrawals created today. This withdrawal was created on " + createdDate);
+        }
+
+        // Check ownership for EMPLOYEE role
+        User user = (User) authentication.getPrincipal();
+        CompanyRole userRole = getUserCompanyRole(user);
+        if (userRole == CompanyRole.EMPLOYEE) {
+            // Employees can only edit their own withdrawals
+            if (!withdrawal.getCreatedBy().equals(username)) {
+                throw new IllegalArgumentException("Employees can only edit their own inventory withdrawals");
+            }
+            // Employees cannot set cost fields
+            if (request.getUnitCost() != null) {
+                request.setUnitCost(null);
+                logger.warn("EMPLOYEE {} attempted to set unitCost in edit, field ignored", username);
+            }
         }
 
         // Calculate the difference in quantity to adjust inventory
@@ -616,5 +673,32 @@ public class WarehouseInventoryService {
         response.setLowStock(inventory.isLowStock());
         response.setOverstock(inventory.isOverstock());
         return response;
+    }
+    
+    /**
+     * Get user's company role from their memberships
+     */
+    private CompanyRole getUserCompanyRole(User user) {
+        // Get user's active company memberships
+        List<CompanyStoreUser> memberships = companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+        if (memberships.isEmpty()) {
+            return CompanyRole.EMPLOYEE; // Default to lowest privilege
+        }
+        
+        // Return the highest role
+        CompanyRole highestRole = CompanyRole.EMPLOYEE;
+        for (CompanyStoreUser membership : memberships) {
+            CompanyRole role = membership.getRole();
+            if (role == CompanyRole.FOUNDER) {
+                return CompanyRole.FOUNDER; // Highest, return immediately
+            }
+            if (role == CompanyRole.GENERAL_MANAGER && highestRole == CompanyRole.EMPLOYEE) {
+                highestRole = CompanyRole.GENERAL_MANAGER;
+            }
+            if (role == CompanyRole.STORE_MANAGER && highestRole == CompanyRole.EMPLOYEE) {
+                highestRole = CompanyRole.STORE_MANAGER;
+            }
+        }
+        return highestRole;
     }
 }

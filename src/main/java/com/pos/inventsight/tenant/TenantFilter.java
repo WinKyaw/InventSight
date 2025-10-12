@@ -19,8 +19,9 @@ import com.pos.inventsight.model.sql.User;
 import java.io.IOException;
 
 /**
- * TenantFilter automatically sets tenant context based on the authenticated user if present,
- * otherwise falls back to extracting the tenant identifier from the X-Tenant-ID request header.
+ * TenantFilter - LEGACY filter made no-op for protected routes.
+ * CompanyTenantFilter is now the authoritative source for tenant context on protected endpoints.
+ * This filter only handles public endpoints where tenant context might be needed.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -35,7 +36,7 @@ public class TenantFilter implements Filter {
     
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        logger.info("TenantFilter initialized");
+        logger.info("TenantFilter initialized (legacy - no-op for protected routes)");
     }
     
     @Override
@@ -43,7 +44,16 @@ public class TenantFilter implements Filter {
             throws IOException, ServletException {
         
         HttpServletRequest httpRequest = (HttpServletRequest) request;
+        String requestUri = httpRequest.getRequestURI();
         
+        // Skip all protected endpoints - CompanyTenantFilter handles these
+        if (isProtectedEndpoint(requestUri)) {
+            logger.debug("Skipping TenantFilter for protected endpoint: {} - CompanyTenantFilter handles this", requestUri);
+            chain.doFilter(request, response);
+            return;
+        }
+        
+        // Only handle public endpoints
         // First, try to get tenant ID from authenticated user
         String tenantId = getTenantIdFromAuthenticatedUser();
         
@@ -55,7 +65,7 @@ public class TenantFilter implements Filter {
         if (tenantId != null && !tenantId.trim().isEmpty()) {
             // Validate and sanitize tenant ID
             tenantId = sanitizeTenantId(tenantId.trim());
-            logger.debug("Setting tenant context to: {}", tenantId);
+            logger.debug("Setting tenant context to: {} (public endpoint)", tenantId);
             TenantContext.setCurrentTenant(tenantId);
         } else {
             // Use default tenant if no header provided and no authenticated user
@@ -71,6 +81,35 @@ public class TenantFilter implements Filter {
             logger.debug("Clearing tenant context");
             TenantContext.clear();
         }
+    }
+    
+    /**
+     * Check if the endpoint is protected (should be handled by CompanyTenantFilter)
+     * @param requestUri the request URI
+     * @return true if protected endpoint, false otherwise
+     */
+    private boolean isProtectedEndpoint(String requestUri) {
+        // All endpoints except public ones are protected
+        return !isPublicEndpoint(requestUri);
+    }
+    
+    /**
+     * Check if the endpoint is public (doesn't require authentication)
+     * @param requestUri the request URI
+     * @return true if public endpoint, false otherwise
+     */
+    private boolean isPublicEndpoint(String requestUri) {
+        return requestUri.startsWith("/auth/") ||
+               requestUri.startsWith("/api/register") ||
+               requestUri.startsWith("/api/auth/register") ||
+               requestUri.startsWith("/api/auth/signup") ||
+               requestUri.startsWith("/register") ||
+               requestUri.startsWith("/health") ||
+               requestUri.startsWith("/actuator") ||
+               requestUri.startsWith("/swagger-ui") ||
+               requestUri.startsWith("/v3/api-docs") ||
+               requestUri.startsWith("/docs") ||
+               requestUri.equals("/favicon.ico");
     }
     
     @Override
