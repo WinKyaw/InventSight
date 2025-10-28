@@ -481,3 +481,368 @@ For issues or questions:
 - Enhanced authentication with MFA
 - Tamper-evident audit logging
 - Improved token hygiene
+
+---
+
+## Sales Order API for Employees
+
+InventSight now supports a comprehensive sales order API that allows store employees to view inventory, create orders, and manage sales with proper RBAC and approval workflows.
+
+### Features
+
+- **Employee Inventory View**: Employees can view current inventory and sale prices (cost fields are redacted)
+- **Cross-Store Sourcing**: Check product availability across multiple warehouses
+- **Order Creation**: Build orders with automatic stock reservation
+- **Approval Workflows**: Manager approval required for high discounts or cross-store sourcing
+- **Cancellation Management**: Employee-initiated cancellations with manager approval for confirmed orders
+- **Idempotency**: All write endpoints support idempotent operations
+- **Offline Sync**: Change feed integration for synchronization
+
+### Sales Inventory Endpoints
+
+#### 1. Get Warehouse Inventory
+
+View available inventory for a specific warehouse.
+
+**Request:**
+```http
+GET /api/sales/inventory/warehouse/{warehouseId}
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+[
+  {
+    "productId": "uuid",
+    "productName": "Product Name",
+    "productSku": "SKU-001",
+    "warehouseId": "uuid",
+    "warehouseName": "Main Warehouse",
+    "available": 50,
+    "reorderPoint": 10,
+    "price": 99.99,
+    "currencyCode": "USD"
+  }
+]
+```
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+#### 2. Get Product Availability
+
+Check availability of a product across all warehouses.
+
+**Request:**
+```http
+GET /api/sales/inventory/availability?productId={uuid}
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+[
+  {
+    "productId": "uuid",
+    "productName": "Product Name",
+    "productSku": "SKU-001",
+    "warehouseId": "uuid",
+    "warehouseName": "Main Warehouse",
+    "available": 50,
+    "reorderPoint": 10,
+    "price": 99.99,
+    "currencyCode": "USD"
+  },
+  {
+    "productId": "uuid",
+    "productName": "Product Name",
+    "productSku": "SKU-001",
+    "warehouseId": "uuid",
+    "warehouseName": "Branch Warehouse",
+    "available": 30,
+    "reorderPoint": 5,
+    "price": 99.99,
+    "currencyCode": "USD"
+  }
+]
+```
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+### Sales Order Endpoints
+
+#### 3. Create Sales Order
+
+Create a new draft sales order.
+
+**Request:**
+```http
+POST /api/sales/orders
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+Idempotency-Key: <unique_key>
+Content-Type: application/json
+
+{
+  "currencyCode": "USD",
+  "customerName": "John Doe",
+  "customerPhone": "123-456-7890",
+  "customerEmail": "john@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "tenantId": "uuid",
+  "status": "DRAFT",
+  "requiresManagerApproval": false,
+  "currencyCode": "USD",
+  "customerName": "John Doe",
+  "customerPhone": "123-456-7890",
+  "customerEmail": "john@example.com",
+  "createdAt": "2025-10-28T10:00:00",
+  "updatedAt": "2025-10-28T10:00:00",
+  "createdBy": "employee@example.com",
+  "updatedBy": "employee@example.com",
+  "items": [],
+  "totalAmount": 0.00
+}
+```
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+#### 4. Add Item to Order
+
+Add a product to an order and reserve stock.
+
+**Request:**
+```http
+POST /api/sales/orders/{orderId}/items
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+Idempotency-Key: <unique_key>
+Content-Type: application/json
+
+{
+  "warehouseId": "uuid",
+  "productId": "uuid",
+  "quantity": 2,
+  "unitPrice": 99.99,
+  "discountPercent": 5.0,
+  "currencyCode": "USD"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "warehouseId": "uuid",
+  "warehouseName": "Main Warehouse",
+  "productId": "uuid",
+  "productName": "Product Name",
+  "productSku": "SKU-001",
+  "quantity": 2,
+  "unitPrice": 99.99,
+  "discountPercent": 5.0,
+  "currencyCode": "USD",
+  "lineTotal": 189.98,
+  "createdAt": "2025-10-28T10:00:00"
+}
+```
+
+**Notes:**
+- Stock is reserved immediately using pessimistic locking
+- If employee discount exceeds threshold (default 10%), requiresManagerApproval is set to true
+- If items are from multiple warehouses, requiresManagerApproval is set to true (configurable)
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+#### 5. Submit Order
+
+Submit order for processing.
+
+**Request:**
+```http
+POST /api/sales/orders/{orderId}/submit
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "status": "CONFIRMED",
+  ...
+}
+```
+
+**Status Transitions:**
+- If requiresManagerApproval=false: DRAFT → CONFIRMED
+- If requiresManagerApproval=true: DRAFT → PENDING_MANAGER_APPROVAL
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+#### 6. Request Order Cancellation
+
+Request to cancel an order.
+
+**Request:**
+```http
+POST /api/sales/orders/{orderId}/cancel-request
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "status": "CANCELLED",
+  ...
+}
+```
+
+**Status Transitions:**
+- DRAFT/SUBMITTED: Cancels immediately, releases reservations → CANCELLED
+- CONFIRMED/PENDING_MANAGER_APPROVAL: Requires approval → CANCEL_REQUESTED
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+#### 7. Approve Order (Manager)
+
+Manager approves order that requires approval.
+
+**Request:**
+```http
+POST /api/sales/orders/{orderId}/approve
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "status": "CONFIRMED",
+  ...
+}
+```
+
+**Status Transition:** PENDING_MANAGER_APPROVAL → CONFIRMED
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER
+
+#### 8. Approve Cancellation (Manager)
+
+Manager approves cancellation request.
+
+**Request:**
+```http
+POST /api/sales/orders/{orderId}/cancel-approve
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "status": "CANCELLED",
+  ...
+}
+```
+
+**Status Transition:** CANCEL_REQUESTED → CANCELLED (releases all reservations)
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER
+
+#### 9. Get Order Details
+
+Retrieve order information with items.
+
+**Request:**
+```http
+GET /api/sales/orders/{orderId}
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "tenantId": "uuid",
+  "status": "CONFIRMED",
+  "requiresManagerApproval": false,
+  "currencyCode": "USD",
+  "customerName": "John Doe",
+  "customerPhone": "123-456-7890",
+  "items": [
+    {
+      "id": "uuid",
+      "productName": "Product Name",
+      "quantity": 2,
+      "unitPrice": 99.99,
+      "discountPercent": 5.0,
+      "lineTotal": 189.98
+    }
+  ],
+  "totalAmount": 189.98
+}
+```
+
+**Access:** FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+
+### Configuration
+
+Add to `application.yml`:
+
+```yaml
+inventsight:
+  sales:
+    enabled: true
+    max-employee-discount-percent: 10
+    cross-store:
+      employee-requires-approval: true
+```
+
+**Configuration Options:**
+- `sales.enabled`: Enable/disable sales functionality (default: true)
+- `sales.max-employee-discount-percent`: Maximum discount employees can apply without approval (default: 10)
+- `sales.cross-store.employee-requires-approval`: Require manager approval for cross-store sourcing (default: true)
+
+### Security Notes
+
+1. **Price Redaction**: Employees never see cost prices; only sale prices are exposed
+2. **RBAC**: All endpoints enforce role-based access control
+3. **Tenancy**: All operations are tenant-scoped via CompanyTenantFilter
+4. **Idempotency**: All write operations support Idempotency-Key header
+5. **Pessimistic Locking**: Stock reservations use database locks to prevent overselling
+6. **Change Feed**: All mutations emit SyncChange events for offline sync
+
+### Order Status Flow
+
+```
+DRAFT → SUBMITTED → PENDING_MANAGER_APPROVAL → CONFIRMED → FULFILLED
+     ↓                     ↓                      ↓
+CANCEL_REQUESTED ← ← ← ← ← ←
+     ↓
+CANCELLED
+```
+
+### Testing
+
+Comprehensive tests cover:
+- Stock reservation with pessimistic locking
+- Discount threshold triggering approval
+- Cross-store sourcing triggering approval
+- Cancellation request transitions
+- Reservation release on cancellation
+- RBAC enforcement
+- Manager approval workflows
