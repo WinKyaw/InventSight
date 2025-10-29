@@ -178,6 +178,13 @@ inventsight:
     issuer: "InventSight"
     totp:
       window-size: 3 # Allow 3 time windows for clock skew
+      
+  # Sales Configuration
+  sales:
+    enabled: ${SALES_ENABLED:true}
+    max-employee-discount-percent: ${SALES_MAX_EMPLOYEE_DISCOUNT:10}
+    cross-store:
+      employee-requires-approval: ${SALES_CROSS_STORE_APPROVAL:true}
 
 # Logging Configuration
 logging:

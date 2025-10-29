@@ -677,7 +677,72 @@ Key achievements:
 - ✅ **Tenant switching API** (NEW)
 - ✅ **GDPR data export and deletion** (NEW)
 - ✅ **Offline sync foundation (idempotency & change feed)** (NEW)
+- ✅ **Sales Order API with idempotency and RBAC** (NEW)
 
 All code follows existing patterns, maintains backward compatibility, and preserves the schema-per-company multi-tenancy model.
 
-**For complete implementation details and roadmap:** See `IMPLEMENTATION_ROADMAP.md`
+## Sales Order API - Idempotency and Security
+
+### Idempotency Implementation
+
+The Sales Order API fully supports idempotent operations through the existing `IdempotencyKeyFilter`:
+
+**Write Endpoints with Idempotency:**
+- `POST /api/sales/orders` - Create order
+- `POST /api/sales/orders/{orderId}/items` - Add item (reserves stock)
+
+**How it works:**
+1. Client sends `Idempotency-Key` header with unique value
+2. `IdempotencyKeyFilter` intercepts request
+3. If key exists for tenant, cached response is returned
+4. If key is new, request proceeds and response is cached
+5. Keys expire after configured TTL (default 24 hours)
+
+**Example:**
+```http
+POST /api/sales/orders/{orderId}/items
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+Idempotency-Key: order-item-12345-67890
+Content-Type: application/json
+
+{
+  "warehouseId": "uuid",
+  "productId": "uuid",
+  "quantity": 2,
+  "unitPrice": 99.99,
+  "currencyCode": "USD"
+}
+```
+
+If this request is replayed with the same `Idempotency-Key`, the original response is returned and stock is NOT reserved again.
+
+### Security Implementation
+
+**Tenant Isolation:**
+- All operations scoped via `CompanyTenantFilter` 
+- Tenant ID extracted from JWT claims
+- Orders only visible to same tenant
+
+**RBAC Enforcement:**
+- Employee actions: `@PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")`
+- Manager actions: `@PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER')")`
+- Spring Security evaluates before method execution
+
+**Price Redaction:**
+- `EmployeePriceRedactionAdvice` automatically redacts cost fields
+- Employees see only sale prices (retail prices)
+- Cost information visible only to managers and founders
+- Applied globally via `@ControllerAdvice`
+
+**Stock Reservation:**
+- Pessimistic locking via `@Lock(LockModeType.PESSIMISTIC_WRITE)`
+- Prevents overselling in concurrent scenarios
+- Database-level transaction isolation
+
+**Change Feed Integration:**
+- All mutations emit `SyncChange` events
+- Supports offline sync and audit trails
+- Events include: order creation, item additions, reservation changes
+
+**For complete implementation details and roadmap:** See `IMPLEMENTATION_ROADMAP.md` and `API_ENHANCEMENTS_GUIDE.md`
