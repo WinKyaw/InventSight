@@ -420,3 +420,173 @@ Planned improvements:
 - SAML2 support (pending dependency availability)
 - Conflict resolution for offline sync
 - Enhanced audit logging for price redactions
+
+---
+
+## CEO Role and Price Management (v2.5.0)
+
+**Release Date:** October 30, 2025
+
+### Summary
+
+Introduces a **CEO role** with owner-level privileges, **many-to-many role assignment** per company membership, and dedicated **price management APIs** with comprehensive audit logging.
+
+### Key Features
+
+#### 1. CEO Role
+- New `CEO` role in `CompanyRole` enum
+- Owner-level privileges (equivalent to FOUNDER)
+- Full manager-level operations
+- Can manage stores, users, warehouses, and prices
+
+#### 2. Many-to-Many Role Assignment
+- Users can hold multiple roles per company membership
+- New `company_store_user_roles` table for role mapping
+- Backward compatible with legacy single-role field
+- Automatic migration and backfill via Flyway V7
+
+#### 3. Price Management APIs
+Three dedicated endpoints for managing product prices:
+- **Original Price**: Base cost from supplier
+- **Owner-Sell Price**: Price set by owner/management
+- **Retail Price**: Final customer-facing price
+
+**Restrictions:** CEO, FOUNDER, GENERAL_MANAGER only
+
+#### 4. Comprehensive Audit Logging
+All price changes are logged with:
+- Actor information (username, ID)
+- Product details (ID, name)
+- Price type and values (old, new)
+- Optional reason for change
+- Store information
+- Timestamp
+
+#### 5. Sync Support
+Price changes emit `SyncChange` events for offline synchronization
+
+### API Endpoints
+
+#### Role Management
+
+**Add Role to Membership:**
+```
+POST /api/companies/{companyId}/memberships/{membershipId}/roles
+```
+
+**Remove Role from Membership:**
+```
+DELETE /api/companies/{companyId}/memberships/{membershipId}/roles/{role}
+```
+
+**Get Membership Roles:**
+```
+GET /api/companies/{companyId}/memberships/{membershipId}/roles
+```
+
+#### Price Management
+
+**Set Original Price:**
+```
+PUT /api/products/{productId}/price/original
+```
+
+**Set Owner-Sell Price:**
+```
+PUT /api/products/{productId}/price/owner-sell
+```
+
+**Set Retail Price:**
+```
+PUT /api/products/{productId}/price/retail
+```
+
+### Database Changes
+
+**New Table:** `company_store_user_roles`
+- Supports many-to-many role assignment
+- Unique constraint on (membership_id, role)
+- Tracks assignment/revocation metadata
+
+**Migration:** Flyway V7
+- Creates `company_store_user_roles` table
+- Backfills existing roles from `company_store_user.role`
+- Maintains legacy field for backward compatibility
+
+### Technical Details
+
+**Files Added:**
+- `CompanyStoreUserRole.java` - Role mapping entity
+- `CompanyStoreUserRoleRepository.java` - Repository interface
+- `ProductPricingController.java` - Price management endpoints
+- `SetPriceRequest.java` - DTO for price updates
+- `AddRoleRequest.java` - DTO for adding roles
+- `CompanyStoreUserRoleResponse.java` - DTO for role responses
+- `V7__company_store_user_roles.sql` - Flyway migration
+
+**Files Modified:**
+- `CompanyRole.java` - Added CEO role and updated helper methods
+- `CompanyAuthorizationService.java` - Role resolution with many-to-many support
+- `CompanyService.java` - Role management methods
+- `CompanyController.java` - Role management endpoints
+- Multiple controllers - Updated RBAC annotations
+
+### RBAC Changes
+
+All manager-level endpoints now include CEO:
+- Warehouse inventory operations
+- Sales order management
+- Approval workflows
+- Store operations
+- Sync endpoints
+
+### Security Considerations
+
+1. **Price Management:** Restricted to top 3 roles (CEO, FOUNDER, GENERAL_MANAGER)
+2. **Role Assignment:** Only manager-level roles can manage roles
+3. **Audit Trail:** Immutable logging of all price changes
+4. **Store Access:** Users can only update prices for accessible products
+5. **Many-to-Many Roles:** Prevents duplicate role assignments via unique constraint
+
+### Backward Compatibility
+
+✅ Legacy `role` field in `company_store_user` maintained
+✅ Services read from new table with fallback to legacy field
+✅ Existing memberships automatically backfilled
+✅ No breaking changes to existing APIs
+
+### Usage Examples
+
+#### Assign CEO Role to User
+```bash
+curl -X POST https://api.inventsight.com/api/companies/550e8400-e29b-41d4-a716-446655440000/memberships/660e8400-e29b-41d4-a716-446655440000/roles \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"role": "CEO"}'
+```
+
+#### Update Product Retail Price
+```bash
+curl -X PUT https://api.inventsight.com/api/products/770e8400-e29b-41d4-a716-446655440000/price/retail \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 199.99, "reason": "Holiday promotion"}'
+```
+
+### Testing
+
+New test: `testCeoRolePermissions()` in `CompanyRoleTest.java`
+
+Run tests:
+```bash
+./mvnw test -Dtest=CompanyRoleTest
+```
+
+### Future Enhancements
+
+- UI for role management
+- Bulk role assignment
+- Role templates
+- Price approval workflow for larger changes
+- Price history tracking and analytics
+
