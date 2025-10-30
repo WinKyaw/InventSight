@@ -36,7 +36,7 @@ public class SyncController {
      * @return List of changes with pagination metadata
      */
     @GetMapping("/changes")
-    @PreAuthorize("hasAnyRole('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('CEO', 'FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<?> getChanges(
             @RequestParam(required = false) String since,
             @RequestParam(required = false, defaultValue = "100") Integer limit) {

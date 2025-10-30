@@ -256,6 +256,91 @@ public class CompanyController {
     }
     
     /**
+     * Add user to company with multiple roles
+     */
+    @PostMapping("/{companyId}/users/multi-role")
+    @Operation(summary = "Add user with multiple roles", description = "Add a user to company with multiple roles")
+    public ResponseEntity<GenericApiResponse<CompanyUserResponse>> addUserWithMultipleRoles(
+            @Parameter(description = "Company ID") @PathVariable UUID companyId,
+            @Valid @RequestBody CompanyUserMultiRoleRequest request,
+            Authentication authentication) {
+        
+        try {
+            // Find user by username or email
+            User userToAdd = findUserByUsernameOrEmail(request.getUsernameOrEmail());
+            
+            // Add to company with multiple roles
+            CompanyStoreUser companyStoreUser = companyService.addUserToCompanyWithRoles(
+                companyId, userToAdd, request.getRoles(), authentication
+            );
+            
+            CompanyUserResponse response = new CompanyUserResponse(companyStoreUser);
+            
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new GenericApiResponse<>(true, "User added with multiple roles successfully", response));
+                
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Add a role to an existing membership
+     */
+    @PostMapping("/{companyId}/users/add-role")
+    @Operation(summary = "Add role to user", description = "Add a role to an existing user membership")
+    public ResponseEntity<GenericApiResponse<String>> addRoleToUser(
+            @Parameter(description = "Company ID") @PathVariable UUID companyId,
+            @Valid @RequestBody RoleManagementRequest request,
+            Authentication authentication) {
+        
+        try {
+            User targetUser = userService.getUserByUuid(request.getUserId());
+            companyService.addRoleToMembership(companyId, targetUser, request.getRole(), authentication);
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(true, 
+                "Role added successfully", null));
+                
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Remove a role from an existing membership
+     */
+    @PostMapping("/{companyId}/users/remove-role")
+    @Operation(summary = "Remove role from user", description = "Remove a role from an existing user membership")
+    public ResponseEntity<GenericApiResponse<String>> removeRoleFromUser(
+            @Parameter(description = "Company ID") @PathVariable UUID companyId,
+            @Valid @RequestBody RoleManagementRequest request,
+            Authentication authentication) {
+        
+        try {
+            User targetUser = userService.getUserByUuid(request.getUserId());
+            companyService.removeRoleFromMembership(companyId, targetUser, request.getRole(), authentication);
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(true, 
+                "Role removed successfully", null));
+                
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
      * Helper method to find user by username or email
      */
     private User findUserByUsernameOrEmail(String usernameOrEmail) {

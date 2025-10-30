@@ -41,7 +41,7 @@ public class SalesOrderController {
      * Create a new sales order
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> createOrder(
             @Valid @RequestBody CreateSalesOrderRequest request,
             Authentication authentication) {
@@ -76,7 +76,7 @@ public class SalesOrderController {
      * Add item to order (reserves stock)
      */
     @PostMapping("/{orderId}/items")
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> addItem(
             @PathVariable UUID orderId,
             @Valid @RequestBody AddSalesOrderItemRequest request,
@@ -120,7 +120,7 @@ public class SalesOrderController {
      * Submit order for processing
      */
     @PostMapping("/{orderId}/submit")
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> submitOrder(
             @PathVariable UUID orderId,
             Authentication authentication) {
@@ -150,7 +150,7 @@ public class SalesOrderController {
      * Request order cancellation
      */
     @PostMapping("/{orderId}/cancel-request")
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> requestCancel(
             @PathVariable UUID orderId,
             Authentication authentication) {
@@ -176,7 +176,7 @@ public class SalesOrderController {
      * Manager approves order
      */
     @PostMapping("/{orderId}/approve")
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER')")
     public ResponseEntity<?> approveOrder(
             @PathVariable UUID orderId,
             Authentication authentication) {
@@ -210,7 +210,7 @@ public class SalesOrderController {
      * Manager approves cancellation
      */
     @PostMapping("/{orderId}/cancel-approve")
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER')")
     public ResponseEntity<?> approveCancel(
             @PathVariable UUID orderId,
             Authentication authentication) {
@@ -244,7 +244,7 @@ public class SalesOrderController {
      * Get order details
      */
     @GetMapping("/{orderId}")
-    @PreAuthorize("hasAnyRole('FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> getOrder(
             @PathVariable UUID orderId,
             Authentication authentication) {
