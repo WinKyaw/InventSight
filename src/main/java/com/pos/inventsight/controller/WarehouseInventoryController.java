@@ -34,10 +34,10 @@ public class WarehouseInventoryController {
     /**
      * Create or update warehouse inventory
      * POST /api/warehouse-inventory
-     * RBAC: FOUNDER, GENERAL_MANAGER only
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER only
      */
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER')")
     public ResponseEntity<?> createOrUpdateInventory(@Valid @RequestBody WarehouseInventoryRequest request,
                                                    Authentication authentication) {
         try {
@@ -64,10 +64,10 @@ public class WarehouseInventoryController {
     /**
      * Add inventory to warehouse
      * POST /api/warehouse-inventory/add
-     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
      */
     @PostMapping("/add")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<?> addInventory(@Valid @RequestBody WarehouseInventoryAdditionRequest request,
                                         Authentication authentication) {
         try {
@@ -88,10 +88,10 @@ public class WarehouseInventoryController {
     /**
      * Withdraw inventory from warehouse
      * POST /api/warehouse-inventory/withdraw
-     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
      */
     @PostMapping("/withdraw")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<?> withdrawInventory(@Valid @RequestBody WarehouseInventoryWithdrawalRequest request,
                                              Authentication authentication) {
         try {
@@ -112,10 +112,10 @@ public class WarehouseInventoryController {
     /**
      * Reserve inventory
      * POST /api/warehouse-inventory/reserve
-     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
      */
     @PostMapping("/reserve")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER')")
     public ResponseEntity<?> reserveInventory(@RequestParam UUID warehouseId,
                                             @RequestParam UUID productId,
                                             @RequestParam Integer quantity,
@@ -138,10 +138,10 @@ public class WarehouseInventoryController {
     /**
      * Release inventory reservation
      * POST /api/warehouse-inventory/release
-     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
      */
     @PostMapping("/release")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER')")
     public ResponseEntity<?> releaseReservation(@RequestParam UUID warehouseId,
                                                @RequestParam UUID productId,
                                                @RequestParam Integer quantity,
@@ -294,10 +294,10 @@ public class WarehouseInventoryController {
     /**
      * Edit inventory addition (same-day only)
      * PUT /api/warehouse-inventory/additions/{additionId}
-     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE (own only)
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE (own only)
      */
     @PutMapping("/additions/{additionId}")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<?> editAddition(@PathVariable UUID additionId,
                                          @Valid @RequestBody WarehouseInventoryAdditionRequest request,
                                          Authentication authentication) {
@@ -319,10 +319,10 @@ public class WarehouseInventoryController {
     /**
      * Edit inventory withdrawal (same-day only)
      * PUT /api/warehouse-inventory/withdrawals/{withdrawalId}
-     * RBAC: FOUNDER, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE (own only)
+     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE (own only)
      */
     @PutMapping("/withdrawals/{withdrawalId}")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<?> editWithdrawal(@PathVariable UUID withdrawalId,
                                            @Valid @RequestBody WarehouseInventoryWithdrawalRequest request,
                                            Authentication authentication) {

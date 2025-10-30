@@ -3,7 +3,9 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.*;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
+import com.pos.inventsight.model.sql.CompanyStoreUserRole;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.service.CompanyService;
 import com.pos.inventsight.service.UserService;
@@ -245,6 +247,88 @@ public class CompanyController {
                 .collect(Collectors.toList());
             
             return ResponseEntity.ok(new GenericApiResponse<>(true, "Store users retrieved successfully", responses));
+            
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Add role to a membership (many-to-many support)
+     */
+    @PostMapping("/{companyId}/memberships/{membershipId}/roles")
+    @Operation(summary = "Add role to membership", description = "Add an additional role to an existing company membership")
+    public ResponseEntity<GenericApiResponse<CompanyStoreUserRoleResponse>> addRoleToMembership(
+            @Parameter(description = "Company ID") @PathVariable UUID companyId,
+            @Parameter(description = "Membership ID") @PathVariable UUID membershipId,
+            @Valid @RequestBody AddRoleRequest request,
+            Authentication authentication) {
+        
+        try {
+            CompanyStoreUserRole roleMapping = companyService.addRoleToMembership(
+                companyId, membershipId, request.getRole(), authentication
+            );
+            
+            CompanyStoreUserRoleResponse response = new CompanyStoreUserRoleResponse(roleMapping);
+            
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new GenericApiResponse<>(true, "Role added successfully", response));
+                
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Remove role from a membership (many-to-many support)
+     */
+    @DeleteMapping("/{companyId}/memberships/{membershipId}/roles/{role}")
+    @Operation(summary = "Remove role from membership", description = "Remove a specific role from a company membership")
+    public ResponseEntity<GenericApiResponse<String>> removeRoleFromMembership(
+            @Parameter(description = "Company ID") @PathVariable UUID companyId,
+            @Parameter(description = "Membership ID") @PathVariable UUID membershipId,
+            @Parameter(description = "Role to remove") @PathVariable CompanyRole role,
+            Authentication authentication) {
+        
+        try {
+            companyService.removeRoleFromMembership(companyId, membershipId, role, authentication);
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Role removed successfully", null));
+            
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Get all roles for a membership
+     */
+    @GetMapping("/{companyId}/memberships/{membershipId}/roles")
+    @Operation(summary = "Get membership roles", description = "Get all roles assigned to a membership")
+    public ResponseEntity<GenericApiResponse<List<CompanyStoreUserRoleResponse>>> getMembershipRoles(
+            @Parameter(description = "Company ID") @PathVariable UUID companyId,
+            @Parameter(description = "Membership ID") @PathVariable UUID membershipId,
+            Authentication authentication) {
+        
+        try {
+            List<CompanyStoreUserRole> roleMappings = companyService.getMembershipRoles(membershipId, authentication);
+            List<CompanyStoreUserRoleResponse> responses = roleMappings.stream()
+                .map(CompanyStoreUserRoleResponse::new)
+                .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Roles retrieved successfully", responses));
             
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

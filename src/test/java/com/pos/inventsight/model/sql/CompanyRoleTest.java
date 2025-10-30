@@ -20,6 +20,18 @@ public class CompanyRoleTest {
     }
     
     @Test
+    void testCeoRolePermissions() {
+        CompanyRole ceo = CompanyRole.CEO;
+        
+        assertTrue(ceo.isOwnerLevel());
+        assertTrue(ceo.isManagerLevel());
+        assertTrue(ceo.canManageStores());
+        assertTrue(ceo.canManageUsers());
+        assertTrue(ceo.canManageWarehouses());
+        assertEquals("Chief Executive Officer", ceo.getDisplayName());
+    }
+    
+    @Test
     void testGeneralManagerRolePermissions() {
         CompanyRole generalManager = CompanyRole.GENERAL_MANAGER;
         

@@ -2,10 +2,12 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -16,6 +18,9 @@ public class CompanyAuthorizationService {
     
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private UserService userService;
@@ -132,17 +137,119 @@ public class CompanyAuthorizationService {
     }
     
     /**
-     * Get user's highest role in company
+     * Get user's highest role in company (with many-to-many mapping support)
+     * Uses role mapping table with fallback to legacy single role field
      */
     public Optional<CompanyRole> getUserHighestRoleInCompany(User user, Company company) {
-        return companyStoreUserRepository.findUserRoleInCompany(user, company);
+        // Find company-level membership (no specific store)
+        Optional<CompanyStoreUser> membershipOpt = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreIsNullAndIsActiveTrue(user, company);
+        
+        if (!membershipOpt.isPresent()) {
+            return Optional.empty();
+        }
+        
+        CompanyStoreUser membership = membershipOpt.get();
+        
+        // Try to get roles from the many-to-many mapping table
+        List<CompanyRole> roles = companyStoreUserRoleRepository.findActiveRolesByMembership(membership);
+        
+        if (!roles.isEmpty()) {
+            // Return highest priority role (enum order: FOUNDER < CEO < GENERAL_MANAGER < STORE_MANAGER < EMPLOYEE)
+            return Optional.of(roles.get(0)); // Already ordered by enum
+        }
+        
+        // Fallback to legacy single role field (deprecated but maintained for backward compatibility)
+        if (membership.getRole() != null) {
+            return Optional.of(membership.getRole());
+        }
+        
+        return Optional.empty();
     }
     
     /**
-     * Get user's role in specific store
+     * Get all active roles for a user in a company
+     */
+    public List<CompanyRole> getUserRolesInCompany(User user, Company company) {
+        Optional<CompanyStoreUser> membershipOpt = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreIsNullAndIsActiveTrue(user, company);
+        
+        if (!membershipOpt.isPresent()) {
+            return List.of();
+        }
+        
+        CompanyStoreUser membership = membershipOpt.get();
+        
+        // Try to get roles from the many-to-many mapping table
+        List<CompanyRole> roles = companyStoreUserRoleRepository.findActiveRolesByMembership(membership);
+        
+        if (!roles.isEmpty()) {
+            return roles;
+        }
+        
+        // Fallback to legacy single role field
+        if (membership.getRole() != null) {
+            return List.of(membership.getRole());
+        }
+        
+        return List.of();
+    }
+    
+    /**
+     * Get user's role in specific store (with many-to-many mapping support)
      */
     public Optional<CompanyRole> getUserRoleInStore(User user, Store store) {
-        return companyStoreUserRepository.findUserRoleInStore(user, store);
+        // Find store-specific membership
+        Optional<CompanyStoreUser> membershipOpt = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreAndIsActiveTrue(user, store.getCompany(), store);
+        
+        if (!membershipOpt.isPresent()) {
+            return Optional.empty();
+        }
+        
+        CompanyStoreUser membership = membershipOpt.get();
+        
+        // Try to get roles from the many-to-many mapping table
+        List<CompanyRole> roles = companyStoreUserRoleRepository.findActiveRolesByMembership(membership);
+        
+        if (!roles.isEmpty()) {
+            return Optional.of(roles.get(0)); // Return highest priority role
+        }
+        
+        // Fallback to legacy single role field
+        if (membership.getRole() != null) {
+            return Optional.of(membership.getRole());
+        }
+        
+        return Optional.empty();
+    }
+    
+    /**
+     * Get all active roles for a user in a specific store
+     */
+    public List<CompanyRole> getUserRolesInStore(User user, Store store) {
+        Optional<CompanyStoreUser> membershipOpt = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreAndIsActiveTrue(user, store.getCompany(), store);
+        
+        if (!membershipOpt.isPresent()) {
+            return List.of();
+        }
+        
+        CompanyStoreUser membership = membershipOpt.get();
+        
+        // Try to get roles from the many-to-many mapping table
+        List<CompanyRole> roles = companyStoreUserRoleRepository.findActiveRolesByMembership(membership);
+        
+        if (!roles.isEmpty()) {
+            return roles;
+        }
+        
+        // Fallback to legacy single role field
+        if (membership.getRole() != null) {
+            return List.of(membership.getRole());
+        }
+        
+        return List.of();
     }
     
     /**

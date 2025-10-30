@@ -846,3 +846,321 @@ Comprehensive tests cover:
 - Reservation release on cancellation
 - RBAC enforcement
 - Manager approval workflows
+
+---
+
+## CEO Role and Price Management
+
+### Overview
+
+InventSight now supports a **CEO** role with owner-level privileges and dedicated price management APIs restricted to CEO, Founder, and General Manager roles. The system also supports **many-to-many role assignment**, allowing users to hold multiple roles per company membership.
+
+### CEO Role
+
+The **CEO** role is a new company role with the following privileges:
+
+- **Owner-level access**: Same privileges as FOUNDER
+- **Manager-level operations**: Full manager privileges including approvals
+- **Store management**: Can create and manage stores
+- **User management**: Can add/remove users and manage roles
+- **Warehouse management**: Can create and manage warehouses
+- **Price management**: Can set all product price tiers
+
+#### Role Hierarchy
+
+```
+FOUNDER     → Owner-level (highest)
+CEO         → Owner-level
+GENERAL_MANAGER → Manager-level
+STORE_MANAGER   → Manager-level (store-specific)
+EMPLOYEE        → Basic access
+```
+
+### Many-to-Many Role Assignment
+
+Users can now have **multiple roles** for the same company membership. This is implemented via the `company_store_user_roles` table.
+
+#### Database Schema
+
+**New Table: `company_store_user_roles`**
+```sql
+CREATE TABLE company_store_user_roles (
+    id UUID PRIMARY KEY,
+    company_store_user_id UUID NOT NULL,  -- FK to company_store_user
+    role VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    assigned_by VARCHAR(100),
+    revoked_at TIMESTAMP,
+    revoked_by VARCHAR(100),
+    UNIQUE (company_store_user_id, role)
+);
+```
+
+#### Migration and Backward Compatibility
+
+- **Flyway Migration V7** automatically backfills existing roles
+- Legacy `role` field in `company_store_user` is **deprecated** but maintained for backward compatibility
+- Services read from `company_store_user_roles` with fallback to legacy field
+
+### Role Management Endpoints
+
+#### Add Role to Membership
+
+**Request:**
+```http
+POST /api/companies/{companyId}/memberships/{membershipId}/roles
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "role": "CEO"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Role added successfully",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "membershipId": "660e8400-e29b-41d4-a716-446655440000",
+    "role": "CEO",
+    "roleDisplayName": "Chief Executive Officer",
+    "isActive": true,
+    "assignedAt": "2025-10-30T07:00:00",
+    "assignedBy": "admin"
+  }
+}
+```
+
+**Access:** FOUNDER, CEO, GENERAL_MANAGER
+
+#### Remove Role from Membership
+
+**Request:**
+```http
+DELETE /api/companies/{companyId}/memberships/{membershipId}/roles/{role}
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Role removed successfully"
+}
+```
+
+**Access:** FOUNDER, CEO, GENERAL_MANAGER
+
+#### Get Membership Roles
+
+**Request:**
+```http
+GET /api/companies/{companyId}/memberships/{membershipId}/roles
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Roles retrieved successfully",
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "membershipId": "660e8400-e29b-41d4-a716-446655440000",
+      "role": "CEO",
+      "roleDisplayName": "Chief Executive Officer",
+      "isActive": true,
+      "assignedAt": "2025-10-30T07:00:00",
+      "assignedBy": "admin"
+    }
+  ]
+}
+```
+
+### Price Management Endpoints
+
+Three dedicated endpoints allow CEO, Founder, and General Manager roles to update product prices with full audit logging and sync support.
+
+#### Set Original Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/original
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "amount": 150.00,
+  "reason": "Supplier price increase"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Original price updated successfully",
+  "data": {
+    "productId": "770e8400-e29b-41d4-a716-446655440000",
+    "priceType": "original",
+    "oldPrice": 120.00,
+    "newPrice": 150.00
+  }
+}
+```
+
+**Access:** CEO, FOUNDER, GENERAL_MANAGER
+
+#### Set Owner-Sell Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/owner-sell
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "amount": 180.00,
+  "reason": "Adjusted markup for Q4"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Owner-sell price updated successfully",
+  "data": {
+    "productId": "770e8400-e29b-41d4-a716-446655440000",
+    "priceType": "ownerSetSell",
+    "oldPrice": 160.00,
+    "newPrice": 180.00
+  }
+}
+```
+
+**Access:** CEO, FOUNDER, GENERAL_MANAGER
+
+#### Set Retail Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/retail
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "amount": 199.99
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Retail price updated successfully",
+  "data": {
+    "productId": "770e8400-e29b-41d4-a716-446655440000",
+    "priceType": "retail",
+    "oldPrice": 189.99,
+    "newPrice": 199.99
+  }
+}
+```
+
+**Access:** CEO, FOUNDER, GENERAL_MANAGER
+
+### Audit Logging
+
+All price changes are automatically logged to the audit trail with:
+- Actor (username and user ID)
+- Product details (ID and name)
+- Price type (original, ownerSetSell, retail)
+- Old and new values
+- Optional reason
+- Store information
+- Timestamp
+
+**Audit Event Example:**
+```json
+{
+  "actor": "admin",
+  "actorId": 12345,
+  "action": "PRICE_CHANGE_RETAIL",
+  "entityType": "Product",
+  "entityId": "770e8400-e29b-41d4-a716-446655440000",
+  "detailsJson": {
+    "productId": "770e8400-e29b-41d4-a716-446655440000",
+    "productName": "Widget Pro",
+    "priceType": "retail",
+    "oldPrice": 189.99,
+    "newPrice": 199.99,
+    "storeId": "880e8400-e29b-41d4-a716-446655440000",
+    "storeName": "Main Store"
+  }
+}
+```
+
+### Sync Support
+
+Price changes emit **SyncChange** events for offline synchronization:
+- Entity Type: "Product"
+- Operation: "UPDATE"
+- Change Data: Full product snapshot
+
+### RBAC Updates
+
+All manager-level endpoints now include **CEO** in their `@PreAuthorize` annotations:
+
+**Before:**
+```java
+@PreAuthorize("hasAnyAuthority('FOUNDER', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+```
+
+**After:**
+```java
+@PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+```
+
+**Updated Controllers:**
+- WarehouseInventoryController
+- SalesOrderController
+- SalesInventoryController
+- SyncController
+
+### Security Notes
+
+1. **Price Management**: Restricted to owner-level roles (CEO, FOUNDER, GENERAL_MANAGER)
+2. **Role Assignment**: Only manager-level roles can assign/revoke roles
+3. **Audit Trail**: All price changes are immutably logged
+4. **Store Access**: Users can only update prices for products in stores they have access to
+5. **Sync Events**: All price changes trigger offline sync events
+
+### Migration Checklist
+
+✅ Database migration V7 applied (creates `company_store_user_roles` table)
+✅ Existing roles backfilled automatically
+✅ Legacy `role` field maintained for backward compatibility
+✅ Services updated to read from role mapping table
+✅ CEO role added to all manager-level RBAC checks
+
+### Testing
+
+Run tests to verify the new features:
+```bash
+./mvnw test -Dtest=CompanyRoleTest
+```
+
+**Test Coverage:**
+- CEO role permissions (owner-level, manager-level)
+- Role hierarchy validation
+- Many-to-many role assignment
+- Price management endpoint authorization
+- Audit logging for price changes
+- Sync event generation
+
