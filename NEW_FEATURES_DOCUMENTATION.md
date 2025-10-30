@@ -420,3 +420,277 @@ Planned improvements:
 - SAML2 support (pending dependency availability)
 - Conflict resolution for offline sync
 - Enhanced audit logging for price redactions
+
+---
+
+## 8. CEO Role and Many-to-Many Role Management
+
+### Overview
+
+InventSight now supports a dedicated CEO role and allows users to have multiple roles per company membership through a many-to-many relationship model.
+
+### CEO Role
+
+**New Role Added:** `CEO` (Chief Executive Officer)
+
+**Privileges:**
+- Owner-level access (same as FOUNDER)
+- Can manage all company resources (stores, users, warehouses)
+- Can manage product pricing (original, owner-sell, retail prices)
+- Full manager-level permissions
+
+**Role Hierarchy:**
+1. CEO (highest privilege)
+2. FOUNDER
+3. GENERAL_MANAGER
+4. STORE_MANAGER
+5. EMPLOYEE (lowest privilege)
+
+### Many-to-Many Role Mapping
+
+**Previous Model:** Each `CompanyStoreUser` had a single `role` field.
+
+**New Model:** Users can have multiple roles via the `company_store_user_roles` mapping table.
+
+**Benefits:**
+- Flexibility: Users can hold multiple responsibilities (e.g., CEO + GENERAL_MANAGER)
+- Granular permissions: Add/remove specific roles without recreating memberships
+- Audit trail: Track when roles are assigned/revoked and by whom
+
+### Implementation Details
+
+**New Entity:** `CompanyStoreUserRole`
+```java
+- id: UUID
+- companyStoreUser: FK to CompanyStoreUser
+- role: CompanyRole enum
+- isActive: Boolean
+- assignedAt: Timestamp
+- assignedBy: String
+- revokedAt: Timestamp
+- revokedBy: String
+```
+
+**Database Migration:** `V7__company_store_user_roles.sql`
+- Creates `company_store_user_roles` table
+- Backfills existing roles from `company_store_user.role`
+- Maintains backward compatibility (legacy role column kept)
+
+**Role Resolution:**
+- Services first query the new mapping table
+- Falls back to legacy role column if no mappings found
+- Highest privilege role is used for authorization checks
+
+### API Endpoints
+
+#### Add User with Multiple Roles
+```http
+POST /api/companies/{companyId}/users/multi-role
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "user@example.com",
+  "roles": ["CEO", "GENERAL_MANAGER"]
+}
+```
+
+#### Add Role to Existing User
+```http
+POST /api/companies/{companyId}/users/add-role
+Content-Type: application/json
+
+{
+  "userId": "user-uuid",
+  "role": "CEO"
+}
+```
+
+#### Remove Role from User
+```http
+POST /api/companies/{companyId}/users/remove-role
+Content-Type: application/json
+
+{
+  "userId": "user-uuid",
+  "role": "STORE_MANAGER"
+}
+```
+
+### Updated Authorization
+
+All manager-level endpoints now include CEO role in `@PreAuthorize` annotations:
+
+**Examples:**
+- Sales Orders: `@PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")`
+- Warehouse Management: `@PreAuthorize("hasAnyAuthority('CEO','FOUNDER','GENERAL_MANAGER')")`
+- Product Pricing: `@PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER')")`
+
+---
+
+## 9. Product Pricing Management APIs
+
+### Overview
+
+Dedicated API endpoints for managing product prices with strict role-based access control and comprehensive audit logging.
+
+### Pricing Tiers
+
+Products support three distinct pricing levels:
+
+1. **Original Price** - Cost/acquisition price from supplier
+2. **Owner Set Sell Price** - Wholesale or bulk selling price
+3. **Retail Price** - Customer-facing retail price
+
+### API Endpoints
+
+#### Update Original Price
+```http
+PUT /api/products/{productId}/price/original
+Content-Type: application/json
+
+{
+  "amount": 100.00,
+  "reason": "Supplier price increase"
+}
+```
+
+**Authorization:** CEO, FOUNDER, or GENERAL_MANAGER only
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Original price updated successfully",
+  "data": {
+    "id": "product-uuid",
+    "name": "Product Name",
+    "originalPrice": 100.00,
+    "ownerSetSellPrice": 120.00,
+    "retailPrice": 150.00
+  }
+}
+```
+
+#### Update Owner Sell Price
+```http
+PUT /api/products/{productId}/price/owner-sell
+Content-Type: application/json
+
+{
+  "amount": 120.00,
+  "reason": "Adjust wholesale margin"
+}
+```
+
+**Authorization:** CEO, FOUNDER, or GENERAL_MANAGER only
+
+#### Update Retail Price
+```http
+PUT /api/products/{productId}/price/retail
+Content-Type: application/json
+
+{
+  "amount": 150.00,
+  "reason": "Market price adjustment"
+}
+```
+
+**Authorization:** CEO, FOUNDER, or GENERAL_MANAGER only
+
+### Security Features
+
+**Role-Based Access Control:**
+- Only CEO, FOUNDER, and GENERAL_MANAGER can update prices
+- STORE_MANAGER and EMPLOYEE roles are denied access
+- Authorization enforced via `@PreAuthorize` annotations and service-level checks
+
+**Audit Logging:**
+All price changes are logged via `AuditService` with:
+- Actor username
+- Action type (UPDATE_ORIGINAL_PRICE, UPDATE_OWNER_SELL_PRICE, UPDATE_RETAIL_PRICE)
+- Old and new price values
+- Optional reason provided by user
+- Product details (name, SKU)
+- Timestamp
+- Tenant/Company context
+
+**Example Audit Log Entry:**
+```json
+{
+  "actor": "john.doe",
+  "action": "UPDATE_RETAIL_PRICE",
+  "entityType": "Product",
+  "entityId": "product-uuid",
+  "detailsJson": {
+    "priceType": "retail",
+    "oldPrice": 140.00,
+    "newPrice": 150.00,
+    "reason": "Market price adjustment",
+    "productName": "Widget A",
+    "productSku": "WDG-001"
+  },
+  "companyId": "company-uuid",
+  "eventAt": "2025-10-30T10:30:00Z"
+}
+```
+
+**Offline Sync Integration:**
+- Price updates emit `SyncChange` events
+- Offline clients can sync price changes via change feed
+- Idempotency support prevents duplicate price updates
+
+### Business Rules
+
+1. **Validation:** Prices must be non-negative (≥ 0)
+2. **Reason Field:** Optional but recommended for audit trail
+3. **Atomic Updates:** Each price tier updated independently
+4. **Company Context:** User must have pricing role in the product's company
+
+### Implementation Notes
+
+**Controller:** `ProductPricingController`
+- Three dedicated endpoints (one per price tier)
+- Uses `ProductRepository` for persistence
+- Integrates with `AuditService` and `SyncChangeService`
+
+**DTO:** `SetPriceRequest`
+```java
+{
+  "amount": BigDecimal (required, min: 0.0),
+  "reason": String (optional)
+}
+```
+
+**Service Integration:**
+- `CompanyAuthorizationService.hasProductPricingAccess()` verifies role
+- `ProductRepository.save()` persists changes
+- `AuditService.log()` creates audit record
+- `SyncChangeService.recordChange()` emits sync event
+
+---
+
+## Testing
+
+### New Tests Added
+
+1. **CompanyRoleTest**
+   - Validates CEO role permissions
+   - Tests role hierarchy (CEO > FOUNDER > GM > SM > EMPLOYEE)
+   - Verifies canManagePricing() for pricing roles
+
+2. **Integration Tests** (Recommended)
+   - Test pricing endpoints with different roles
+   - Verify audit logs are created
+   - Test multi-role assignment and resolution
+   - Validate backward compatibility with legacy role column
+
+### Test Coverage
+
+Run existing tests to verify changes:
+```bash
+./mvnw test -Dtest=CompanyRoleTest
+./mvnw test
+```
+
+All existing tests should pass with CEO role additions.
+

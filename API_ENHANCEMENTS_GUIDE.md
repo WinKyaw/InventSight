@@ -846,3 +846,232 @@ Comprehensive tests cover:
 - Reservation release on cancellation
 - RBAC enforcement
 - Manager approval workflows
+
+---
+
+## CEO Role and Many-to-Many Role Management
+
+### New CEO Role
+
+InventSight now includes a CEO role with owner-level privileges. The role hierarchy is:
+
+1. **CEO** - Chief Executive Officer (owner-level, can manage pricing)
+2. **FOUNDER** - Company Founder (owner-level, can manage pricing)
+3. **GENERAL_MANAGER** - General Manager (can manage pricing, stores, users)
+4. **STORE_MANAGER** - Store Manager (manager-level, cannot manage pricing)
+5. **EMPLOYEE** - Employee (basic access)
+
+### Role Privileges
+
+| Capability | CEO | FOUNDER | GENERAL_MANAGER | STORE_MANAGER | EMPLOYEE |
+|-----------|-----|---------|-----------------|---------------|----------|
+| Owner-level | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Manager-level | ✓ | ✓ | ✓ | ✓ | ✗ |
+| Manage Pricing | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Manage Stores | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Manage Users | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Manage Warehouses | ✓ | ✓ | ✓ | ✗ | ✗ |
+
+### Many-to-Many Roles
+
+Users can now have multiple roles per company membership through the `company_store_user_roles` mapping table.
+
+#### Add User with Multiple Roles
+
+**Request:**
+```http
+POST /api/companies/{companyId}/users/multi-role
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: company_<uuid>
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "john.doe@example.com",
+  "roles": ["GENERAL_MANAGER", "STORE_MANAGER"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User added with multiple roles successfully",
+  "data": {
+    "id": "uuid",
+    "userId": "user-uuid",
+    "companyId": "company-uuid",
+    "role": "GENERAL_MANAGER",
+    "isActive": true
+  }
+}
+```
+
+#### Add Role to Existing Membership
+
+**Request:**
+```http
+POST /api/companies/{companyId}/users/add-role
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: company_<uuid>
+Content-Type: application/json
+
+{
+  "userId": "user-uuid",
+  "role": "CEO"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Role added successfully"
+}
+```
+
+#### Remove Role from Membership
+
+**Request:**
+```http
+POST /api/companies/{companyId}/users/remove-role
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: company_<uuid>
+Content-Type: application/json
+
+{
+  "userId": "user-uuid",
+  "role": "STORE_MANAGER"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Role removed successfully"
+}
+```
+
+---
+
+## Product Pricing Management
+
+### Pricing Tiers
+
+Products support three pricing tiers:
+- **Original Price**: Cost price from supplier
+- **Owner Set Sell Price**: Wholesale/bulk price
+- **Retail Price**: Customer-facing price
+
+### Update Original Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/original
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: company_<uuid>
+Content-Type: application/json
+
+{
+  "amount": 100.00,
+  "reason": "Supplier price increase"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Original price updated successfully",
+  "data": {
+    "id": "product-uuid",
+    "name": "Product Name",
+    "sku": "SKU-001",
+    "originalPrice": 100.00,
+    "ownerSetSellPrice": 120.00,
+    "retailPrice": 150.00
+  }
+}
+```
+
+**Authorization:** Requires CEO, FOUNDER, or GENERAL_MANAGER role
+
+**Audit:** Logs price change with old/new values, actor, and reason
+
+### Update Owner Sell Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/owner-sell
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: company_<uuid>
+Content-Type: application/json
+
+{
+  "amount": 120.00,
+  "reason": "Adjust wholesale margin"
+}
+```
+
+**Authorization:** Requires CEO, FOUNDER, or GENERAL_MANAGER role
+
+### Update Retail Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/retail
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: company_<uuid>
+Content-Type: application/json
+
+{
+  "amount": 150.00,
+  "reason": "Market price adjustment"
+}
+```
+
+**Authorization:** Requires CEO, FOUNDER, or GENERAL_MANAGER role
+
+### Pricing Security
+
+1. **Role-Based Access**: Only CEO, FOUNDER, and GENERAL_MANAGER can update prices
+2. **Audit Trail**: All price changes are logged with:
+   - Actor (who made the change)
+   - Old and new values
+   - Price type (original/ownerSetSell/retail)
+   - Reason (optional)
+   - Timestamp
+3. **Sync Changes**: Price updates emit SyncChange events for offline sync
+4. **Product Context**: Audit logs include product name and SKU
+
+### Database Migration
+
+The V7 migration creates the `company_store_user_roles` table and backfills existing roles:
+
+```sql
+CREATE TABLE company_store_user_roles (
+    id UUID PRIMARY KEY,
+    company_store_user_id UUID NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    assigned_at TIMESTAMP,
+    assigned_by VARCHAR(255),
+    revoked_at TIMESTAMP,
+    revoked_by VARCHAR(255),
+    UNIQUE (company_store_user_id, role)
+);
+```
+
+**Backward Compatibility:** The `role` column in `company_store_user` is kept but deprecated. Services read from the new mapping table with automatic fallback to the legacy column.
+
+---
+
+## Updated RBAC Annotations
+
+All manager-level endpoints now include CEO role:
+
+- Sales Order endpoints: `@PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")`
+- Manager approval: `@PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER')")`
+- Warehouse management: `@PreAuthorize("hasAnyAuthority('CEO','FOUNDER','GENERAL_MANAGER')")`
+- Sync operations: `@PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")`
+
