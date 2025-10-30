@@ -26,7 +26,7 @@ InventSight now includes a CEO (Chief Executive Officer) role with owner-level p
 - CEO role has same privileges as FOUNDER (owner-level)
 - All manager-only endpoints updated to include CEO
 - `isOwnerLevel()` method now returns true for both FOUNDER and CEO
-- `isManagerLevel()` includes FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
+- `isManagerLevel()` returns true for FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
 
 ### RBAC Updates
 All controllers have been updated with CEO role:
