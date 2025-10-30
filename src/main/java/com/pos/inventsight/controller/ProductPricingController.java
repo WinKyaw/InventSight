@@ -50,7 +50,7 @@ public class ProductPricingController {
      * Set original price for a product (CEO, Founder, or General Manager only)
      */
     @PutMapping("/{productId}/price/original")
-    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('CEO','FOUNDER','GENERAL_MANAGER')")
     @Operation(summary = "Set original price", description = "Set the original price for a product. Restricted to CEO, Founder, and General Manager.")
     public ResponseEntity<GenericApiResponse<Map<String, Object>>> setOriginalPrice(
             @Parameter(description = "Product ID") @PathVariable UUID productId,
@@ -118,7 +118,7 @@ public class ProductPricingController {
      * Set owner-set sell price for a product (CEO, Founder, or General Manager only)
      */
     @PutMapping("/{productId}/price/owner-sell")
-    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('CEO','FOUNDER','GENERAL_MANAGER')")
     @Operation(summary = "Set owner-sell price", description = "Set the owner-set sell price for a product. Restricted to CEO, Founder, and General Manager.")
     public ResponseEntity<GenericApiResponse<Map<String, Object>>> setOwnerSellPrice(
             @Parameter(description = "Product ID") @PathVariable UUID productId,
@@ -186,7 +186,7 @@ public class ProductPricingController {
      * Set retail price for a product (CEO, Founder, or General Manager only)
      */
     @PutMapping("/{productId}/price/retail")
-    @PreAuthorize("hasAnyRole('CEO','FOUNDER','GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('CEO','FOUNDER','GENERAL_MANAGER')")
     @Operation(summary = "Set retail price", description = "Set the retail price for a product. Restricted to CEO, Founder, and General Manager.")
     public ResponseEntity<GenericApiResponse<Map<String, Object>>> setRetailPrice(
             @Parameter(description = "Product ID") @PathVariable UUID productId,

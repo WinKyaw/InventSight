@@ -40,7 +40,7 @@ public class SalesInventoryController {
      * Returns only available quantity and sale price (no cost information)
      */
     @GetMapping("/warehouse/{warehouseId}")
-    @PreAuthorize("hasAnyRole('FOUNDER','CEO','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER','CEO','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> getWarehouseInventory(
             @PathVariable UUID warehouseId,
             Authentication authentication) {
@@ -84,7 +84,7 @@ public class SalesInventoryController {
      * Allows employees to check cross-store sourcing options
      */
     @GetMapping("/availability")
-    @PreAuthorize("hasAnyRole('FOUNDER','CEO','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('FOUNDER','CEO','GENERAL_MANAGER','STORE_MANAGER','EMPLOYEE')")
     public ResponseEntity<?> getProductAvailability(
             @RequestParam UUID productId,
             Authentication authentication) {
