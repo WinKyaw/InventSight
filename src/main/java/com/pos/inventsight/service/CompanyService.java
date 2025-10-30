@@ -6,6 +6,7 @@ import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -26,6 +27,9 @@ public class CompanyService {
     
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private StoreRepository storeRepository;
@@ -59,7 +63,11 @@ public class CompanyService {
         
         // Create company-user relationship with founder role
         CompanyStoreUser companyStoreUser = new CompanyStoreUser(savedCompany, user, CompanyRole.FOUNDER, username);
-        companyStoreUserRepository.save(companyStoreUser);
+        CompanyStoreUser savedMembership = companyStoreUserRepository.save(companyStoreUser);
+        
+        // Create role mapping entry for many-to-many support
+        CompanyStoreUserRole roleMapping = new CompanyStoreUserRole(savedMembership, CompanyRole.FOUNDER, username);
+        companyStoreUserRoleRepository.save(roleMapping);
         
         System.out.println("🏢 Company created: " + savedCompany.getName() + " (ID: " + savedCompany.getId() + ") with founder: " + username);
         
@@ -285,5 +293,100 @@ public class CompanyService {
                     maxCompanies, subscriptionLevel.getDisplayName())
             );
         }
+    }
+    
+    /**
+     * Add a role to an existing company membership (many-to-many support)
+     */
+    public CompanyStoreUserRole addRoleToMembership(UUID companyId, UUID membershipId, CompanyRole role, Authentication authentication) {
+        String username = authentication.getName();
+        User currentUser = userService.getUserByUsername(username);
+        
+        Company company = getCompany(companyId, authentication);
+        
+        // Check if current user has permission to manage roles
+        Optional<CompanyRole> currentUserRole = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
+        if (currentUserRole.isEmpty() || !currentUserRole.get().canManageUsers()) {
+            throw new RuntimeException("You don't have permission to manage roles in this company");
+        }
+        
+        // Find the membership
+        CompanyStoreUser membership = companyStoreUserRepository.findById(membershipId)
+            .orElseThrow(() -> new ResourceNotFoundException("Membership not found with ID: " + membershipId));
+        
+        // Verify membership belongs to the company
+        if (!membership.getCompany().getId().equals(companyId)) {
+            throw new RuntimeException("Membership does not belong to the specified company");
+        }
+        
+        // Check if role already exists
+        Optional<CompanyStoreUserRole> existingRole = companyStoreUserRoleRepository
+            .findByCompanyStoreUserAndRole(membership, role);
+        
+        if (existingRole.isPresent()) {
+            // If exists but inactive, reactivate it
+            if (!existingRole.get().getIsActive()) {
+                existingRole.get().restoreRole();
+                return companyStoreUserRoleRepository.save(existingRole.get());
+            }
+            throw new DuplicateResourceException("User already has this role in the company");
+        }
+        
+        // Create new role mapping
+        CompanyStoreUserRole roleMapping = new CompanyStoreUserRole(membership, role, username);
+        return companyStoreUserRoleRepository.save(roleMapping);
+    }
+    
+    /**
+     * Remove a role from a company membership (many-to-many support)
+     */
+    public void removeRoleFromMembership(UUID companyId, UUID membershipId, CompanyRole role, Authentication authentication) {
+        String username = authentication.getName();
+        User currentUser = userService.getUserByUsername(username);
+        
+        Company company = getCompany(companyId, authentication);
+        
+        // Check if current user has permission to manage roles
+        Optional<CompanyRole> currentUserRole = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
+        if (currentUserRole.isEmpty() || !currentUserRole.get().canManageUsers()) {
+            throw new RuntimeException("You don't have permission to manage roles in this company");
+        }
+        
+        // Find the membership
+        CompanyStoreUser membership = companyStoreUserRepository.findById(membershipId)
+            .orElseThrow(() -> new ResourceNotFoundException("Membership not found with ID: " + membershipId));
+        
+        // Verify membership belongs to the company
+        if (!membership.getCompany().getId().equals(companyId)) {
+            throw new RuntimeException("Membership does not belong to the specified company");
+        }
+        
+        // Find and revoke the role
+        Optional<CompanyStoreUserRole> roleMapping = companyStoreUserRoleRepository
+            .findByCompanyStoreUserAndRoleAndIsActiveTrue(membership, role);
+        
+        if (roleMapping.isEmpty()) {
+            throw new ResourceNotFoundException("User does not have this role in the company");
+        }
+        
+        roleMapping.get().revokeRole(username);
+        companyStoreUserRoleRepository.save(roleMapping.get());
+    }
+    
+    /**
+     * Get all roles for a membership
+     */
+    public List<CompanyStoreUserRole> getMembershipRoles(UUID membershipId, Authentication authentication) {
+        CompanyStoreUser membership = companyStoreUserRepository.findById(membershipId)
+            .orElseThrow(() -> new ResourceNotFoundException("Membership not found with ID: " + membershipId));
+        
+        // Verify user has access to the company
+        String username = authentication.getName();
+        User user = userService.getUserByUsername(username);
+        if (!hasCompanyAccess(user, membership.getCompany())) {
+            throw new ResourceNotFoundException("You don't have access to this membership");
+        }
+        
+        return companyStoreUserRoleRepository.findByCompanyStoreUser(membership);
     }
 }
