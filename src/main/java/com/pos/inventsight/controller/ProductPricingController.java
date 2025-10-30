@@ -44,10 +44,10 @@ public class ProductPricingController {
     
     /**
      * Update original price of a product
-     * Only FOUNDER and GENERAL_MANAGER can update prices
+     * Only FOUNDER, CEO and GENERAL_MANAGER can update prices
      */
     @PutMapping("/{productId}/price/original")
-    @PreAuthorize("hasAnyRole('FOUNDER', 'GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyRole('FOUNDER', 'CEO', 'GENERAL_MANAGER')")
     public ResponseEntity<?> updateOriginalPrice(
             @PathVariable UUID productId,
             @Valid @RequestBody SetPriceRequest request,
@@ -100,10 +100,10 @@ public class ProductPricingController {
     
     /**
      * Update owner-set sell price of a product
-     * Only FOUNDER and GENERAL_MANAGER can update prices
+     * Only FOUNDER, CEO and GENERAL_MANAGER can update prices
      */
     @PutMapping("/{productId}/price/owner-sell")
-    @PreAuthorize("hasAnyRole('FOUNDER', 'GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyRole('FOUNDER', 'CEO', 'GENERAL_MANAGER')")
     public ResponseEntity<?> updateOwnerSetSellPrice(
             @PathVariable UUID productId,
             @Valid @RequestBody SetPriceRequest request,
@@ -156,10 +156,10 @@ public class ProductPricingController {
     
     /**
      * Update retail price of a product
-     * Only FOUNDER and GENERAL_MANAGER can update prices
+     * Only FOUNDER, CEO and GENERAL_MANAGER can update prices
      */
     @PutMapping("/{productId}/price/retail")
-    @PreAuthorize("hasAnyRole('FOUNDER', 'GENERAL_MANAGER')")
+    @PreAuthorize("hasAnyRole('FOUNDER', 'CEO', 'GENERAL_MANAGER')")
     public ResponseEntity<?> updateRetailPrice(
             @PathVariable UUID productId,
             @Valid @RequestBody SetPriceRequest request,
