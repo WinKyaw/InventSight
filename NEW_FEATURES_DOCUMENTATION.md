@@ -2,7 +2,166 @@
 
 This document describes the newly implemented features in the InventSight system as of October 2025.
 
-## 1. Offline Sync Runtime: Idempotency and Change Feed
+## Table of Contents
+1. [CEO Role and Enhanced RBAC](#1-ceo-role-and-enhanced-rbac)
+2. [Product Price Management APIs](#2-product-price-management-apis)
+3. [Many-to-Many Role Assignments](#3-many-to-many-role-assignments)
+4. [Offline Sync Runtime: Idempotency and Change Feed](#4-offline-sync-runtime-idempotency-and-change-feed)
+
+---
+
+## 1. CEO Role and Enhanced RBAC
+
+### Overview
+InventSight now includes a CEO (Chief Executive Officer) role with owner-level privileges, providing more granular access control for organizations.
+
+### Role Hierarchy
+1. **FOUNDER** - Original owner with full privileges
+2. **CEO** - Owner-level privileges (NEW)
+3. **GENERAL_MANAGER** - Can manage stores, users, and warehouses
+4. **STORE_MANAGER** - Store-level management
+5. **EMPLOYEE** - Basic access
+
+### Key Changes
+- CEO role has same privileges as FOUNDER (owner-level)
+- All manager-only endpoints updated to include CEO
+- `isOwnerLevel()` method now returns true for both FOUNDER and CEO
+- `isManagerLevel()` includes FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
+
+### RBAC Updates
+All controllers have been updated with CEO role:
+- `SalesOrderController` - Order approval and management
+- `WarehouseInventoryController` - Inventory operations
+- `ProductPricingController` - Price management
+- `SalesInventoryController` - Sales operations
+- `SyncController` - Sync operations
+
+### Code Example
+```java
+// CEO role check
+if (role.isOwnerLevel()) {
+    // FOUNDER or CEO
+}
+
+if (role.isManagerLevel()) {
+    // FOUNDER, CEO, GENERAL_MANAGER, or STORE_MANAGER
+}
+```
+
+---
+
+## 2. Product Price Management APIs
+
+### Overview
+New REST endpoints for managing product prices with audit logging and sync support. Access restricted to FOUNDER, CEO, and GENERAL_MANAGER roles only.
+
+### Endpoints
+
+#### Update Original Price
+```bash
+PUT /api/products/{productId}/price/original
+Authorization: Bearer {token}
+X-Tenant-ID: {companyId}
+
+{
+  "amount": 100.00,
+  "reason": "Cost increase from supplier"
+}
+```
+
+#### Update Owner-Set Sell Price
+```bash
+PUT /api/products/{productId}/price/owner-sell
+Authorization: Bearer {token}
+X-Tenant-ID: {companyId}
+
+{
+  "amount": 150.00,
+  "reason": "Promotional pricing"
+}
+```
+
+#### Update Retail Price
+```bash
+PUT /api/products/{productId}/price/retail
+Authorization: Bearer {token}
+X-Tenant-ID: {companyId}
+
+{
+  "amount": 175.00,
+  "reason": "Market adjustment"
+}
+```
+
+### Features
+- **Audit Logging**: All price changes logged with old/new values, actor, and reason
+- **Activity Tracking**: Changes recorded in activity log for user history
+- **Sync Support**: Price changes pushed to sync feed for offline clients
+- **RBAC**: Only FOUNDER, CEO, and GENERAL_MANAGER can update prices
+
+### DTO Structure
+```java
+public class SetPriceRequest {
+    @NotNull
+    @DecimalMin("0.0")
+    private BigDecimal amount;
+    
+    private String reason;  // Optional
+}
+```
+
+---
+
+## 3. Many-to-Many Role Assignments
+
+### Overview
+Users can now hold multiple roles within a single company or store membership via a new mapping table.
+
+### Database Schema
+```sql
+CREATE TABLE company_store_user_roles (
+    id UUID PRIMARY KEY,
+    company_store_user_id UUID NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    assigned_at TIMESTAMP,
+    assigned_by VARCHAR(100),
+    revoked_at TIMESTAMP,
+    revoked_by VARCHAR(100),
+    UNIQUE (company_store_user_id, role)
+);
+```
+
+### Migration V7
+- Automatically creates `company_store_user_roles` table
+- Backfills existing roles from `company_store_user.role` column
+- Maintains backward compatibility
+
+### Repository Methods
+```java
+// Get all active roles for a user membership
+List<CompanyRole> findRolesByCompanyStoreUser(CompanyStoreUser csu);
+
+// Get highest privilege role
+List<CompanyRole> findRolesByCompanyStoreUserOrderedByPrivilege(CompanyStoreUser csu);
+
+// Check if specific role exists
+boolean existsByCompanyStoreUserAndRoleAndIsActiveTrue(CompanyStoreUser csu, CompanyRole role);
+```
+
+### Backward Compatibility
+- Existing `company_store_user.role` column retained
+- Code can be gradually updated to use mapping table
+- Both approaches work during transition period
+
+### Future Enhancements
+- API endpoints to assign/revoke multiple roles
+- Role history and audit trail
+- Role-based permission customization
+
+---
+
+## 4. Offline Sync Runtime: Idempotency and Change Feed
 
 ### Idempotency Support
 

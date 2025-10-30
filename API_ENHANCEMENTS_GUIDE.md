@@ -6,11 +6,174 @@ This guide covers the new backend-only security, compliance, and internationaliz
 
 ## Table of Contents
 
-1. [Multi-Factor Authentication (MFA)](#multi-factor-authentication-mfa)
-2. [Password Reset](#password-reset)
-3. [Audit Trail](#audit-trail)
-4. [Internationalization](#internationalization)
-5. [Configuration](#configuration)
+1. [CEO Role and RBAC Updates](#ceo-role-and-rbac-updates)
+2. [Product Price Management APIs](#product-price-management-apis)
+3. [Many-to-Many Role Assignments](#many-to-many-role-assignments)
+4. [Multi-Factor Authentication (MFA)](#multi-factor-authentication-mfa)
+5. [Password Reset](#password-reset)
+6. [Audit Trail](#audit-trail)
+7. [Internationalization](#internationalization)
+8. [Configuration](#configuration)
+
+---
+
+## CEO Role and RBAC Updates
+
+InventSight now includes a CEO role with owner-level privileges, separate from FOUNDER. This provides more granular access control for organizations.
+
+### Role Hierarchy
+
+- **FOUNDER**: Original owner with full privileges
+- **CEO**: Chief Executive Officer with owner-level privileges (new)
+- **GENERAL_MANAGER**: Can manage stores, users, and warehouses
+- **STORE_MANAGER**: Can manage store-level operations
+- **EMPLOYEE**: Basic access level
+
+### Role Privileges
+
+#### Owner-Level Roles (FOUNDER, CEO)
+- Full access to all company resources
+- Can manage stores, warehouses, and users
+- Can approve orders and access all endpoints
+- Can manage product pricing
+
+#### Manager-Level Roles (FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER)
+- Can approve sales orders
+- Can manage inventory operations
+- Can view all employee data
+
+### Updated Endpoints with CEO Access
+
+All manager-only endpoints have been updated to include CEO role:
+- Sales order approval endpoints
+- Warehouse inventory management
+- Price management APIs
+- Store operations management
+
+---
+
+## Product Price Management APIs
+
+New endpoints for managing product prices, restricted to FOUNDER, CEO, and GENERAL_MANAGER roles only.
+
+### Update Original Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/original
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+Content-Type: application/json
+
+{
+  "amount": 100.00,
+  "reason": "Cost increase from supplier"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Original price updated successfully"
+}
+```
+
+### Update Owner-Set Sell Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/owner-sell
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+Content-Type: application/json
+
+{
+  "amount": 150.00,
+  "reason": "Promotional pricing"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Owner-set sell price updated successfully"
+}
+```
+
+### Update Retail Price
+
+**Request:**
+```http
+PUT /api/products/{productId}/price/retail
+Authorization: Bearer <jwt_token>
+X-Tenant-ID: <company_uuid>
+Content-Type: application/json
+
+{
+  "amount": 175.00,
+  "reason": "Market adjustment"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Retail price updated successfully"
+}
+```
+
+### Price Change Audit
+
+All price changes are automatically logged with:
+- Product ID and name
+- Price type (original, ownerSetSell, retail)
+- Old and new price values
+- Actor (username)
+- Reason (optional)
+- Timestamp
+
+Audit logs can be queried via the audit service for compliance and tracking.
+
+---
+
+## Many-to-Many Role Assignments
+
+Users can now hold multiple roles within a company or store membership through the new `company_store_user_roles` mapping table.
+
+### Migration
+
+The V7 migration automatically:
+1. Creates the `company_store_user_roles` table
+2. Backfills existing roles from `company_store_user.role`
+3. Maintains backward compatibility with existing code
+
+### Database Schema
+
+```sql
+CREATE TABLE company_store_user_roles (
+    id UUID PRIMARY KEY,
+    company_store_user_id UUID NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    assigned_at TIMESTAMP,
+    assigned_by VARCHAR(100),
+    revoked_at TIMESTAMP,
+    revoked_by VARCHAR(100),
+    UNIQUE (company_store_user_id, role)
+);
+```
+
+### Future Enhancement
+
+Future versions will support API endpoints to:
+- Assign multiple roles to a user
+- Revoke specific roles
+- Query user roles dynamically
+
+---
 
 ---
 
