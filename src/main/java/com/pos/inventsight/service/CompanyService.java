@@ -6,6 +6,7 @@ import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -26,6 +27,9 @@ public class CompanyService {
     
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private StoreRepository storeRepository;
@@ -59,7 +63,11 @@ public class CompanyService {
         
         // Create company-user relationship with founder role
         CompanyStoreUser companyStoreUser = new CompanyStoreUser(savedCompany, user, CompanyRole.FOUNDER, username);
-        companyStoreUserRepository.save(companyStoreUser);
+        CompanyStoreUser savedMembership = companyStoreUserRepository.save(companyStoreUser);
+        
+        // Add role to new mapping table
+        CompanyStoreUserRole roleMapping = new CompanyStoreUserRole(savedMembership, CompanyRole.FOUNDER, username);
+        companyStoreUserRoleRepository.save(roleMapping);
         
         System.out.println("🏢 Company created: " + savedCompany.getName() + " (ID: " + savedCompany.getId() + ") with founder: " + username);
         
@@ -150,7 +158,153 @@ public class CompanyService {
         
         // Create company-user relationship
         CompanyStoreUser companyStoreUser = new CompanyStoreUser(company, userToAdd, role, username);
-        return companyStoreUserRepository.save(companyStoreUser);
+        CompanyStoreUser savedMembership = companyStoreUserRepository.save(companyStoreUser);
+        
+        // Add role to new mapping table
+        CompanyStoreUserRole roleMapping = new CompanyStoreUserRole(savedMembership, role, username);
+        companyStoreUserRoleRepository.save(roleMapping);
+        
+        return savedMembership;
+    }
+    
+    /**
+     * Add user to company with multiple roles
+     */
+    public CompanyStoreUser addUserToCompanyWithRoles(UUID companyId, User userToAdd, List<CompanyRole> roles, Authentication authentication) {
+        String username = authentication.getName();
+        User currentUser = userService.getUserByUsername(username);
+        
+        Company company = getCompany(companyId, authentication);
+        
+        // Check if current user has permission to add users
+        Optional<CompanyRole> currentUserRole = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
+        if (currentUserRole.isEmpty() || (!currentUserRole.get().canManageUsers())) {
+            throw new RuntimeException("You don't have permission to add users to this company");
+        }
+        
+        // Check if user is already in the company
+        if (companyStoreUserRepository.existsByUserAndCompanyAndIsActiveTrue(userToAdd, company)) {
+            throw new DuplicateResourceException("User is already a member of this company");
+        }
+        
+        if (roles == null || roles.isEmpty()) {
+            throw new IllegalArgumentException("At least one role is required");
+        }
+        
+        // Create company-user relationship with primary role (first in list or highest privilege)
+        CompanyRole primaryRole = getHighestRole(roles);
+        CompanyStoreUser companyStoreUser = new CompanyStoreUser(company, userToAdd, primaryRole, username);
+        CompanyStoreUser savedMembership = companyStoreUserRepository.save(companyStoreUser);
+        
+        // Add all roles to new mapping table
+        for (CompanyRole role : roles) {
+            CompanyStoreUserRole roleMapping = new CompanyStoreUserRole(savedMembership, role, username);
+            companyStoreUserRoleRepository.save(roleMapping);
+        }
+        
+        return savedMembership;
+    }
+    
+    /**
+     * Add a role to an existing membership
+     */
+    public void addRoleToMembership(UUID companyId, User targetUser, CompanyRole roleToAdd, Authentication authentication) {
+        String username = authentication.getName();
+        User currentUser = userService.getUserByUsername(username);
+        
+        Company company = getCompany(companyId, authentication);
+        
+        // Check if current user has permission
+        Optional<CompanyRole> currentUserRole = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
+        if (currentUserRole.isEmpty() || (!currentUserRole.get().canManageUsers())) {
+            throw new RuntimeException("You don't have permission to manage roles in this company");
+        }
+        
+        // Find the membership
+        Optional<CompanyStoreUser> membership = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreIsNullAndIsActiveTrue(targetUser, company);
+        
+        if (membership.isEmpty()) {
+            throw new ResourceNotFoundException("User is not a member of this company");
+        }
+        
+        // Check if role already exists
+        if (companyStoreUserRoleRepository.existsByCompanyStoreUserAndRoleAndIsActiveTrue(membership.get(), roleToAdd)) {
+            throw new DuplicateResourceException("User already has this role");
+        }
+        
+        // Add the role
+        CompanyStoreUserRole roleMapping = new CompanyStoreUserRole(membership.get(), roleToAdd, username);
+        companyStoreUserRoleRepository.save(roleMapping);
+        
+        // Update legacy role column to highest role
+        List<CompanyRole> allRoles = companyStoreUserRoleRepository.findRolesByCompanyStoreUser(membership.get());
+        CompanyStoreUser updatedMembership = membership.get();
+        updatedMembership.setRole(getHighestRole(allRoles));
+        updatedMembership.setUpdatedAt(LocalDateTime.now());
+        companyStoreUserRepository.save(updatedMembership);
+    }
+    
+    /**
+     * Remove a role from an existing membership
+     */
+    public void removeRoleFromMembership(UUID companyId, User targetUser, CompanyRole roleToRemove, Authentication authentication) {
+        String username = authentication.getName();
+        User currentUser = userService.getUserByUsername(username);
+        
+        Company company = getCompany(companyId, authentication);
+        
+        // Check if current user has permission
+        Optional<CompanyRole> currentUserRole = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
+        if (currentUserRole.isEmpty() || (!currentUserRole.get().canManageUsers())) {
+            throw new RuntimeException("You don't have permission to manage roles in this company");
+        }
+        
+        // Find the membership
+        Optional<CompanyStoreUser> membership = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreIsNullAndIsActiveTrue(targetUser, company);
+        
+        if (membership.isEmpty()) {
+            throw new ResourceNotFoundException("User is not a member of this company");
+        }
+        
+        // Find the role mapping
+        Optional<CompanyStoreUserRole> roleMapping = companyStoreUserRoleRepository
+            .findByCompanyStoreUserAndRoleAndIsActiveTrue(membership.get(), roleToRemove);
+        
+        if (roleMapping.isEmpty()) {
+            throw new ResourceNotFoundException("User does not have this role");
+        }
+        
+        // Revoke the role
+        CompanyStoreUserRole mapping = roleMapping.get();
+        mapping.revoke(username);
+        companyStoreUserRoleRepository.save(mapping);
+        
+        // Update legacy role column to highest remaining role
+        List<CompanyRole> remainingRoles = companyStoreUserRoleRepository.findRolesByCompanyStoreUser(membership.get());
+        if (!remainingRoles.isEmpty()) {
+            CompanyStoreUser updatedMembership = membership.get();
+            updatedMembership.setRole(getHighestRole(remainingRoles));
+            updatedMembership.setUpdatedAt(LocalDateTime.now());
+            companyStoreUserRepository.save(updatedMembership);
+        } else {
+            // If no roles left, deactivate membership
+            CompanyStoreUser updatedMembership = membership.get();
+            updatedMembership.revokeRole(username);
+            companyStoreUserRepository.save(updatedMembership);
+        }
+    }
+    
+    /**
+     * Get highest privilege role from a list
+     */
+    private CompanyRole getHighestRole(List<CompanyRole> roles) {
+        if (roles.contains(CompanyRole.CEO)) return CompanyRole.CEO;
+        if (roles.contains(CompanyRole.FOUNDER)) return CompanyRole.FOUNDER;
+        if (roles.contains(CompanyRole.GENERAL_MANAGER)) return CompanyRole.GENERAL_MANAGER;
+        if (roles.contains(CompanyRole.STORE_MANAGER)) return CompanyRole.STORE_MANAGER;
+        return CompanyRole.EMPLOYEE;
     }
     
     /**

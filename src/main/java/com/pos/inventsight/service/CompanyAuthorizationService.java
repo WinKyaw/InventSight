@@ -2,10 +2,12 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -16,6 +18,9 @@ public class CompanyAuthorizationService {
     
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private UserService userService;
@@ -56,27 +61,27 @@ public class CompanyAuthorizationService {
     }
     
     /**
-     * Check if user can manage stores (founder or general manager)
+     * Check if user can manage stores (CEO, founder or general manager)
      */
     public boolean canManageStores(User user, Company company) {
-        Optional<CompanyRole> role = companyStoreUserRepository.findUserRoleInCompany(user, company);
-        return role.isPresent() && role.get().canManageStores();
+        Optional<CompanyRole> highestRole = getUserHighestRoleInCompany(user, company);
+        return highestRole.isPresent() && highestRole.get().canManageStores();
     }
     
     /**
-     * Check if user can manage warehouses (founder or general manager)
+     * Check if user can manage warehouses (CEO, founder or general manager)
      */
     public boolean canManageWarehouses(User user, Company company) {
-        Optional<CompanyRole> role = companyStoreUserRepository.findUserRoleInCompany(user, company);
-        return role.isPresent() && role.get().canManageWarehouses();
+        Optional<CompanyRole> highestRole = getUserHighestRoleInCompany(user, company);
+        return highestRole.isPresent() && highestRole.get().canManageWarehouses();
     }
     
     /**
-     * Check if user can manage users in company (founder or general manager)
+     * Check if user can manage users in company (CEO, founder or general manager)
      */
     public boolean canManageCompanyUsers(User user, Company company) {
-        Optional<CompanyRole> role = companyStoreUserRepository.findUserRoleInCompany(user, company);
-        return role.isPresent() && role.get().canManageUsers();
+        Optional<CompanyRole> highestRole = getUserHighestRoleInCompany(user, company);
+        return highestRole.isPresent() && highestRole.get().canManageUsers();
     }
     
     /**
@@ -133,9 +138,58 @@ public class CompanyAuthorizationService {
     
     /**
      * Get user's highest role in company
+     * Supports many-to-many roles with legacy fallback
      */
     public Optional<CompanyRole> getUserHighestRoleInCompany(User user, Company company) {
+        // First try to get roles from new many-to-many mapping
+        Optional<CompanyStoreUser> membership = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreIsNullAndIsActiveTrue(user, company);
+        
+        if (membership.isPresent()) {
+            List<CompanyRole> roles = companyStoreUserRoleRepository
+                .findRolesByCompanyStoreUser(membership.get());
+            
+            if (!roles.isEmpty()) {
+                // Return highest privilege role
+                return Optional.of(getHighestRole(roles));
+            }
+        }
+        
+        // Fallback to legacy role column
         return companyStoreUserRepository.findUserRoleInCompany(user, company);
+    }
+    
+    /**
+     * Get all active roles for a user in a company
+     */
+    public List<CompanyRole> getUserRolesInCompany(User user, Company company) {
+        Optional<CompanyStoreUser> membership = companyStoreUserRepository
+            .findByUserAndCompanyAndStoreIsNullAndIsActiveTrue(user, company);
+        
+        if (membership.isPresent()) {
+            List<CompanyRole> roles = companyStoreUserRoleRepository
+                .findRolesByCompanyStoreUser(membership.get());
+            
+            if (!roles.isEmpty()) {
+                return roles;
+            }
+        }
+        
+        // Fallback to legacy role
+        Optional<CompanyRole> legacyRole = companyStoreUserRepository.findUserRoleInCompany(user, company);
+        return legacyRole.map(List::of).orElse(List.of());
+    }
+    
+    /**
+     * Determine highest privilege role from a list of roles
+     */
+    private CompanyRole getHighestRole(List<CompanyRole> roles) {
+        // Priority order: CEO > FOUNDER > GENERAL_MANAGER > STORE_MANAGER > EMPLOYEE
+        if (roles.contains(CompanyRole.CEO)) return CompanyRole.CEO;
+        if (roles.contains(CompanyRole.FOUNDER)) return CompanyRole.FOUNDER;
+        if (roles.contains(CompanyRole.GENERAL_MANAGER)) return CompanyRole.GENERAL_MANAGER;
+        if (roles.contains(CompanyRole.STORE_MANAGER)) return CompanyRole.STORE_MANAGER;
+        return CompanyRole.EMPLOYEE;
     }
     
     /**
