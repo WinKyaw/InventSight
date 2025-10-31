@@ -6,6 +6,10 @@ spring:
       - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
       - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
   
+  # Disable Flyway for tests (using H2 with Hibernate DDL)
+  flyway:
+    enabled: false
+  
   # Disable SQL initialization
   sql:
     init:
