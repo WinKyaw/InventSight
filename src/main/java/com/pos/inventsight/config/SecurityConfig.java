@@ -27,6 +27,23 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
 
+/**
+ * Security Configuration for InventSight
+ * 
+ * OAuth2 Login Configuration:
+ * - By default, OAuth2 login is NOT enabled to avoid startup failures
+ * - To enable OAuth2 login with Google/Microsoft/Okta providers:
+ *   1. Activate the 'oauth-login' profile: --spring.profiles.active=oauth-login
+ *   2. Set required environment variables:
+ *      - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+ *      - MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_TENANT_ID
+ *      - OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_ISSUER_URI
+ *   3. Set inventsight.security.oauth2.login.enabled=true
+ * 
+ * OAuth2 Resource Server is gated behind null defaults and requires:
+ *   - inventsight.security.oauth2.resource-server.enabled=true
+ *   - JWT_ISSUER_URI or JWT_JWK_SET_URI environment variables
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)

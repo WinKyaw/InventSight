@@ -67,25 +67,8 @@ spring:
         jwt:
           issuer-uri: ${JWT_ISSUER_URI:#{null}}
           jwk-set-uri: ${JWT_JWK_SET_URI:#{null}}
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID:}
-            client-secret: ${GOOGLE_CLIENT_SECRET:}
-            scope: openid,profile,email
-          microsoft:
-            client-id: ${MICROSOFT_CLIENT_ID:}
-            client-secret: ${MICROSOFT_CLIENT_SECRET:}
-            scope: openid,profile,email
-          okta:
-            client-id: ${OKTA_CLIENT_ID:}
-            client-secret: ${OKTA_CLIENT_SECRET:}
-            scope: openid,profile,email
-        provider:
-          microsoft:
-            issuer-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID:common}/v2.0
-          okta:
-            issuer-uri: ${OKTA_ISSUER_URI:}
+      # OAuth2 Client Login configuration moved to application-oauth-login.yml profile
+      # To enable OAuth2 Login: use --spring.profiles.active=oauth-login and set provider env vars
       
 # Server Configuration
 server:
