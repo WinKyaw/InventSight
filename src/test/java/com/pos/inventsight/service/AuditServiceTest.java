@@ -12,7 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
-import java.util.Optional;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,7 +39,7 @@ class AuditServiceTest {
     void setUp() {
         // Setup common mocks - lenient for tests that don't use it
         lenient().when(auditEventRepository.findLatestEvent(any(Pageable.class)))
-                .thenReturn(Optional.empty());
+                .thenReturn(Collections.emptyList());
     }
     
     @Test
@@ -82,7 +83,7 @@ class AuditServiceTest {
         reset(auditEventRepository);
         reset(objectMapper);
         when(auditEventRepository.findLatestEvent(any(Pageable.class)))
-                .thenReturn(Optional.of(previousEvent));
+                .thenReturn(List.of(previousEvent));
         
         ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         when(auditEventRepository.save(eventCaptor.capture())).thenAnswer(i -> i.getArguments()[0]);
