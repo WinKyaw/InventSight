@@ -24,6 +24,14 @@ spring:
         format_sql: true
         # Multi-tenancy configuration - only enabled for PostgreSQL profiles
         # Will be overridden by profile-specific configurations
+  
+  # Flyway Configuration
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    default-schema: public
+    validate-on-migrate: true
         
   # MongoDB Configuration (Analytics & Logs)
   data:
