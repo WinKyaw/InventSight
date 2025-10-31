@@ -20,15 +20,13 @@ class JwtConfigurationTest {
     @Test
     void shouldNotCreateJwtDecoderWhenJwtUrisAreNull() {
         // This simulates the default configuration where JWT_ISSUER_URI and JWT_JWK_SET_URI
-        // environment variables are not set, defaulting to null
+        // environment variables are not set, defaulting to null (as configured in application.yml)
         contextRunner
             .withPropertyValues(
-                "spring.security.oauth2.resourceserver.jwt.issuer-uri=",
-                "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=",
                 "inventsight.security.oauth2.resource-server.enabled=false"
             )
             .run(context -> {
-                // When both URIs are empty/null and OAuth2 is disabled,
+                // When both URIs are null and OAuth2 is disabled,
                 // Spring Boot should NOT attempt to create JwtDecoder
                 assertThat(context).doesNotHaveBean(JwtDecoder.class);
             });
