@@ -65,8 +65,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI:}
-          jwk-set-uri: ${JWT_JWK_SET_URI:}
+          issuer-uri: ${JWT_ISSUER_URI:#{null}}
+          jwk-set-uri: ${JWT_JWK_SET_URI:#{null}}
       client:
         registration:
           google:
