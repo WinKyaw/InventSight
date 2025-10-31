@@ -33,8 +33,10 @@ export GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```bash
 export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
 export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
-export MICROSOFT_TENANT_ID="your-tenant-id"  # Optional, defaults to 'common'
+export MICROSOFT_TENANT_ID="your-tenant-id"  # Optional, defaults to 'common' for multi-tenant apps
 ```
+
+*Note: Microsoft's 'common' endpoint supports both personal Microsoft accounts and organizational accounts. Use a specific tenant ID for single-tenant applications.*
 
 **Okta:**
 ```bash
