@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,12 +36,6 @@ public class OAuth2ClientConfigTest {
             .run(context -> {
                 // Context should load successfully without throwing exceptions
                 assertThat(context).hasNotFailed();
-                System.out.println("✅ OAuth2 client auto-configuration loaded successfully without client registration errors");
             });
-    }
-
-    @Configuration
-    static class TestConfiguration {
-        // Empty configuration class for testing
     }
 }
