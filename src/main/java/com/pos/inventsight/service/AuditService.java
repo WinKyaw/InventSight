@@ -19,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -127,9 +128,8 @@ public class AuditService {
     private void computeHash(AuditEvent event) {
         try {
             // Get previous hash from latest event
-            String prevHash = auditEventRepository.findLatestEvent(Pageable.ofSize(1))
-                    .map(AuditEvent::getHash)
-                    .orElse(null);
+            List<AuditEvent> latestEvents = auditEventRepository.findLatestEvent(Pageable.ofSize(1));
+            String prevHash = latestEvents.isEmpty() ? null : latestEvents.get(0).getHash();
             
             // Build content to hash
             StringBuilder content = new StringBuilder();

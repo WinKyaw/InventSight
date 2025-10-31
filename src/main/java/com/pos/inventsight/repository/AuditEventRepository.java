@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -28,5 +28,5 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, UUID> {
     Page<AuditEvent> findByTenantIdAndEventAtAfter(UUID tenantId, LocalDateTime since, Pageable pageable);
     
     @Query("SELECT e FROM AuditEvent e ORDER BY e.createdAt DESC")
-    Optional<AuditEvent> findLatestEvent(Pageable pageable);
+    List<AuditEvent> findLatestEvent(Pageable pageable);
 }
