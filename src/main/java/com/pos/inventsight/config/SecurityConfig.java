@@ -122,6 +122,8 @@ public class SecurityConfig {
         }
         
         // Configure OAuth2 Login if enabled
+        // To enable OAuth2 login: set spring.profiles.active=oauth-login (or add it to active profiles)
+        // and provide the required client environment variables (GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID, etc.)
         if (oauth2LoginEnabled && customOAuth2UserService != null) {
             System.out.println("✅ Enabling OAuth2 Login (Google, Microsoft, Okta)");
             http.oauth2Login(oauth2 -> oauth2
