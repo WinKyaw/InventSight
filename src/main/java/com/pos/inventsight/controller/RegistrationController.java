@@ -13,6 +13,7 @@ import com.pos.inventsight.exception.DuplicateResourceException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,10 +31,14 @@ import java.util.Map;
  * Handles user registration requests for the main API endpoints.
  * This controller provides a direct /register endpoint that complements 
  * the authentication-specific /auth/register endpoint.
+ * 
+ * This controller is disabled by default (OAuth2-only mode).
+ * To enable local registration, set: inventsight.security.local-login.enabled=true
  */
 @RestController
 @RequestMapping("/")
 @CrossOrigin(origins = "*", maxAge = 3600)
+@ConditionalOnProperty(name = "inventsight.security.local-login.enabled", havingValue = "true", matchIfMissing = false)
 public class RegistrationController {
     
     @Autowired

@@ -90,10 +90,14 @@ inventsight:
         audiences: ${JWT_AUDIENCES:inventsight-api}
         clock-skew-seconds: ${JWT_CLOCK_SKEW_SECONDS:60}
       login:
-        enabled: ${OAUTH2_LOGIN_ENABLED:false}
+        enabled: ${OAUTH2_LOGIN_ENABLED:true}
       
     saml:
       enabled: ${SAML_ENABLED:false}
+    
+    # Local login/registration endpoints (disabled by default, OAuth2-only mode)
+    local-login:
+      enabled: ${LOCAL_LOGIN_ENABLED:false}
       
   system:
     name: "InventSight - Intelligent Inventory & POS System"
@@ -116,7 +120,10 @@ inventsight:
   # Feature Flags
   tenancy:
     header:
-      enabled: ${TENANCY_HEADER_ENABLED:true}
+      # JWT-only tenant mode (default): tenant_id must come from JWT claim
+      # Set to true to allow X-Tenant-ID header (legacy mode)
+      enabled: ${TENANCY_HEADER_ENABLED:false}
+      # When header mode is enabled, validate X-Tenant-ID against JWT claim
       validate-against-jwt: ${TENANCY_VALIDATE_JWT:true}
       
   # Rate Limiting Configuration
