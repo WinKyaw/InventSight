@@ -11,7 +11,8 @@ InventSight implements **schema-per-company multi-tenancy** where each company h
 1. **Company UUID as Tenant ID**: Each company is identified by a unique UUID that serves as the tenant identifier
 2. **Schema Isolation**: Each company gets its own PostgreSQL schema named `company_<uuid>` (with dashes replaced by underscores)
 3. **No Public Fallback**: Company schemas do NOT include the public schema in search_path, ensuring complete isolation
-4. **Membership Validation**: Every request validates that the authenticated user is a member of the company specified in the X-Tenant-ID header
+4. **JWT-Based Tenant Resolution**: By default, the tenant (company) is identified via the `tenant_id` claim in the JWT token
+5. **Membership Validation**: Every request validates that the authenticated user is a member of the company specified in the JWT token
 
 ### Schema Naming Convention
 
@@ -48,15 +49,20 @@ PostgreSQL Database
 **Location**: `src/main/java/com/pos/inventsight/tenant/CompanyTenantFilter.java`
 
 **Purpose**: 
-- Extracts and validates the `X-Tenant-ID` header (company UUID)
+- Extracts and validates the company UUID from JWT `tenant_id` claim (default mode)
+- Optionally validates the `X-Tenant-ID` header if header mode is enabled
 - Verifies the authenticated user has membership in the specified company
 - Sets the tenant context to the company's schema
 - Returns appropriate errors for invalid requests
 
 **Order**: Runs at `HIGHEST_PRECEDENCE + 5` (before JWT authentication filter)
 
+**Modes**:
+- **JWT-only mode** (default, `inventsight.tenancy.header.enabled=false`): Requires `tenant_id` claim in JWT token
+- **Header mode** (`inventsight.tenancy.header.enabled=true`): Accepts `X-Tenant-ID` header with optional JWT validation
+
 **Error Codes**:
-- `400 Bad Request`: Missing or invalid X-Tenant-ID header
+- `400 Bad Request`: Missing/invalid tenant_id in JWT (JWT-only mode) or invalid X-Tenant-ID header (header mode)
 - `401 Unauthorized`: No authenticated user
 - `403 Forbidden`: User is not a member of the company
 - `404 Not Found`: Company does not exist
@@ -92,14 +98,17 @@ public Connection getConnection(String tenantId) throws SQLException
 
 ## API Usage
 
-### Request Headers
+### Authentication and Tenant Resolution
 
-All protected API endpoints MUST include the `X-Tenant-ID` header with a valid company UUID:
+#### JWT-Only Mode (Default)
+
+All protected API endpoints MUST include a valid JWT token with a `tenant_id` claim:
 
 ```http
-X-Tenant-ID: 550e8400-e29b-41d4-a716-446655440000
-Authorization: Bearer <jwt_token>
+Authorization: Bearer <jwt_token_with_tenant_id_claim>
 ```
+
+The JWT token must contain a `tenant_id` claim with a valid company UUID that the authenticated user has membership in.
 
 ### Public Endpoints (No X-Tenant-ID Required)
 

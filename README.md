@@ -2,6 +2,102 @@
 
 InventSight is a modern, intelligent inventory management and point-of-sale (POS) system built with Spring Boot, PostgreSQL, and multi-tenant architecture.
 
+## Authentication and Authorization
+
+### OAuth2-Only Authentication (Default)
+
+By default, InventSight uses OAuth2 login as the only authentication method. Local email/password login endpoints are disabled for enhanced security.
+
+#### Enabling OAuth2 Login
+
+To use OAuth2 login with external providers (Google, Microsoft, Okta):
+
+1. **Activate the oauth-login profile:**
+   ```bash
+   java -jar inventsight.jar --spring.profiles.active=oauth-login
+   ```
+
+2. **Set required environment variables:**
+   ```bash
+   # Google OAuth2
+   export GOOGLE_CLIENT_ID=your-google-client-id
+   export GOOGLE_CLIENT_SECRET=your-google-client-secret
+   
+   # Microsoft OAuth2
+   export MICROSOFT_CLIENT_ID=your-microsoft-client-id
+   export MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
+   export MICROSOFT_TENANT_ID=your-tenant-id-or-common
+   
+   # Okta OAuth2
+   export OKTA_CLIENT_ID=your-okta-client-id
+   export OKTA_CLIENT_SECRET=your-okta-client-secret
+   export OKTA_ISSUER_URI=https://your-domain.okta.com/oauth2/default
+   ```
+
+3. **OAuth2 login endpoints will be available at:**
+   - `/oauth2/authorization/google` - Google login
+   - `/oauth2/authorization/microsoft` - Microsoft login
+   - `/oauth2/authorization/okta` - Okta login
+
+#### Enabling Local Login (Development Only)
+
+For development or testing purposes, you can enable local email/password authentication:
+
+```yaml
+# In application.yml or via environment variable
+inventsight:
+  security:
+    local-login:
+      enabled: true
+```
+
+With local login enabled, these endpoints become available:
+- `POST /auth/login` - Local email/password login
+- `POST /auth/register` - User registration
+- `POST /api/register` - Alternative registration endpoint
+
+**Note:** Local login is disabled by default and should only be enabled for development/testing.
+
+### JWT-Based Tenant Resolution
+
+InventSight uses JWT tokens to identify which company/tenant a user is accessing:
+
+- **JWT-only mode (default):** The `tenant_id` claim in the JWT token determines the tenant context
+- **Header mode (legacy):** The `X-Tenant-ID` header can be used if enabled
+
+#### JWT-Only Mode (Default)
+
+```yaml
+inventsight:
+  tenancy:
+    header:
+      enabled: false  # Default: JWT-only mode
+```
+
+In JWT-only mode:
+- All authenticated requests **must** include a JWT token with a `tenant_id` claim
+- The `tenant_id` must be a valid UUID matching a company in the system
+- The authenticated user must have active membership in the specified company
+- Requests without a valid `tenant_id` claim return HTTP 400 with a clear error message
+
+#### Enabling Header Mode (Legacy)
+
+```yaml
+inventsight:
+  tenancy:
+    header:
+      enabled: true  # Enable X-Tenant-ID header
+      validate-against-jwt: true  # Validate header against JWT claim
+```
+
+#### Obtaining a JWT with tenant_id
+
+When using OAuth2 login, ensure your Identity Provider (IdP) includes the `tenant_id` claim in the JWT token. This typically requires:
+
+1. Configuring custom claims in your IdP
+2. Mapping the user's company/organization ID to the `tenant_id` claim
+3. Including the claim in the token response
+
 ## Multi-Tenant Architecture
 
 InventSight supports schema-based multi-tenancy, allowing multiple tenants (organizations) to use the same application instance while keeping their data completely isolated in separate PostgreSQL schemas.
@@ -9,9 +105,9 @@ InventSight supports schema-based multi-tenancy, allowing multiple tenants (orga
 ### How Multi-Tenancy Works
 
 - **Schema Isolation**: Each tenant gets their own PostgreSQL schema
-- **Header-Based Routing**: Tenant identification via `X-Tenant-ID` HTTP header
+- **JWT-Based Routing**: Tenant identification via `tenant_id` claim in JWT token (default)
 - **Automatic Schema Switching**: Hibernate automatically switches to the correct schema per request
-- **Backwards Compatibility**: Requests without tenant headers use the default `public` schema
+- **User Membership Validation**: Users must have active membership in the tenant they're accessing
 
 ### Setting Up New Tenants
 

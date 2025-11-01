@@ -86,6 +86,14 @@ class CompanyTenantFilterTest {
         StringWriter stringWriter = new StringWriter();
         writer = new PrintWriter(stringWriter);
         lenient().when(response.getWriter()).thenReturn(writer);
+        
+        // Lenient JWT mocks for header mode tests (won't throw if not called)
+        lenient().when(jwtUtils.hasTenantId(anyString())).thenReturn(false);
+        lenient().when(request.getHeader("Authorization")).thenReturn(null);
+        
+        // Enable header mode by default for backward compatibility with existing tests
+        // JWT-only mode tests will explicitly disable this
+        companyTenantFilter.setHeaderEnabled(true);
     }
 
     @AfterEach
@@ -371,5 +379,135 @@ class CompanyTenantFilterTest {
         membership.setRole(role);
         membership.setIsActive(true);
         return membership;
+    }
+    
+    // ============== JWT-Only Mode Tests ==============
+    
+    @Test
+    void testJwtOnlyMode_WithValidJwtTenantId() throws Exception {
+        // Given JWT-only mode is enabled
+        companyTenantFilter.setHeaderEnabled(false);
+        
+        setupAuthenticatedUser();
+        when(request.getRequestURI()).thenReturn("/api/products");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        
+        // Mock JWT extraction
+        when(jwtUtils.hasTenantId("valid-token")).thenReturn(true);
+        when(jwtUtils.getTenantIdFromJwtToken("valid-token")).thenReturn(companyUuid.toString());
+        
+        when(companyRepository.existsById(companyUuid)).thenReturn(true);
+        
+        CompanyStoreUser membership = createMembership(company, authenticatedUser, CompanyRole.EMPLOYEE);
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(authenticatedUser))
+            .thenReturn(List.of(membership));
+        
+        // When processing the filter
+        companyTenantFilter.doFilter(request, response, filterChain);
+        
+        // Then verify filter chain was called
+        verify(filterChain).doFilter(request, response);
+        verify(jwtUtils).hasTenantId("valid-token");
+        verify(jwtUtils).getTenantIdFromJwtToken("valid-token");
+        verify(companyRepository).existsById(companyUuid);
+        
+        // Context should be cleared after filter execution
+        assertEquals(TenantContext.DEFAULT_TENANT, TenantContext.getCurrentTenant());
+    }
+    
+    @Test
+    void testJwtOnlyMode_WithMissingJwtTenantId() throws Exception {
+        // Given JWT-only mode is enabled
+        companyTenantFilter.setHeaderEnabled(false);
+        
+        setupAuthenticatedUser();
+        when(request.getRequestURI()).thenReturn("/api/products");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        
+        // Mock JWT extraction - no tenant_id in token
+        when(jwtUtils.hasTenantId("valid-token")).thenReturn(false);
+        
+        // When processing the filter
+        companyTenantFilter.doFilter(request, response, filterChain);
+        
+        // Then verify error response was sent
+        verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        verify(response).setContentType("application/json");
+        verify(filterChain, never()).doFilter(request, response);
+        verify(companyRepository, never()).existsById(any());
+    }
+    
+    @Test
+    void testJwtOnlyMode_WithInvalidJwtTenantIdUuid() throws Exception {
+        // Given JWT-only mode is enabled
+        companyTenantFilter.setHeaderEnabled(false);
+        
+        setupAuthenticatedUser();
+        when(request.getRequestURI()).thenReturn("/api/products");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        
+        // Mock JWT extraction with invalid UUID
+        when(jwtUtils.hasTenantId("valid-token")).thenReturn(true);
+        when(jwtUtils.getTenantIdFromJwtToken("valid-token")).thenReturn("not-a-valid-uuid");
+        
+        // When processing the filter
+        companyTenantFilter.doFilter(request, response, filterChain);
+        
+        // Then verify error response was sent
+        verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        verify(response).setContentType("application/json");
+        verify(filterChain, never()).doFilter(request, response);
+        verify(companyRepository, never()).existsById(any());
+    }
+    
+    @Test
+    void testJwtOnlyMode_WithNoAuthorizationHeader() throws Exception {
+        // Given JWT-only mode is enabled
+        companyTenantFilter.setHeaderEnabled(false);
+        
+        setupAuthenticatedUser();
+        when(request.getRequestURI()).thenReturn("/api/products");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        
+        // When processing the filter
+        companyTenantFilter.doFilter(request, response, filterChain);
+        
+        // Then verify error response was sent
+        verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        verify(response).setContentType("application/json");
+        verify(filterChain, never()).doFilter(request, response);
+        verify(jwtUtils, never()).hasTenantId(any());
+    }
+    
+    @Test
+    void testJwtOnlyMode_XTenantIdHeaderIsIgnored() throws Exception {
+        // Given JWT-only mode is enabled and X-Tenant-ID header is present
+        companyTenantFilter.setHeaderEnabled(false);
+        
+        setupAuthenticatedUser();
+        when(request.getRequestURI()).thenReturn("/api/products");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        
+        // X-Tenant-ID header should be ignored in JWT-only mode
+        UUID differentCompanyUuid = UUID.randomUUID();
+        lenient().when(request.getHeader(CompanyTenantFilter.TENANT_HEADER_NAME)).thenReturn(differentCompanyUuid.toString());
+        
+        // Mock JWT extraction with correct tenant_id
+        when(jwtUtils.hasTenantId("valid-token")).thenReturn(true);
+        when(jwtUtils.getTenantIdFromJwtToken("valid-token")).thenReturn(companyUuid.toString());
+        
+        when(companyRepository.existsById(companyUuid)).thenReturn(true);
+        
+        CompanyStoreUser membership = createMembership(company, authenticatedUser, CompanyRole.EMPLOYEE);
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(authenticatedUser))
+            .thenReturn(List.of(membership));
+        
+        // When processing the filter
+        companyTenantFilter.doFilter(request, response, filterChain);
+        
+        // Then verify filter chain was called with JWT tenant_id (header ignored)
+        verify(filterChain).doFilter(request, response);
+        verify(companyRepository).existsById(companyUuid);
+        verify(companyRepository, never()).existsById(differentCompanyUuid);
     }
 }

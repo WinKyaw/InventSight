@@ -21,6 +21,7 @@ import com.pos.inventsight.exception.DuplicateResourceException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -45,6 +46,9 @@ import java.util.Map;
  * This includes user login, registration, email verification, and token management.
  * All endpoints are prefixed with /auth and become /api/auth due to the context path.
  * 
+ * This controller is disabled by default (OAuth2-only mode).
+ * To enable local authentication, set: inventsight.security.local-login.enabled=true
+ * 
  * Key endpoints:
  * - POST /auth/register - User registration with immediate authentication
  * - POST /auth/signup - Alternative registration endpoint for frontend compatibility
@@ -55,6 +59,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin(origins = "*", maxAge = 3600)
+@ConditionalOnProperty(name = "inventsight.security.local-login.enabled", havingValue = "true", matchIfMissing = false)
 public class AuthController {
     
     @Autowired
