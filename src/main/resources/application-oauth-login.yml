@@ -1,0 +1,29 @@
+# OAuth2 Login Profile Configuration
+# Activate this profile with: --spring.profiles.active=oauth-login
+# Requires environment variables for OAuth2 providers (no empty defaults)
+# Example: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID, etc.
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,profile,email
+          microsoft:
+            client-id: ${MICROSOFT_CLIENT_ID}
+            client-secret: ${MICROSOFT_CLIENT_SECRET}
+            scope: openid,profile,email
+          okta:
+            client-id: ${OKTA_CLIENT_ID}
+            client-secret: ${OKTA_CLIENT_SECRET}
+            scope: openid,profile,email
+        provider:
+          microsoft:
+            # 'common' is a special Microsoft value for multi-tenant apps
+            # Override with your specific tenant ID for single-tenant apps
+            issuer-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID:common}/v2.0
+          okta:
+            issuer-uri: ${OKTA_ISSUER_URI}
