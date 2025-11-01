@@ -106,8 +106,9 @@ All protected API endpoints MUST include a valid JWT token with a `tenant_id` cl
 
 ```http
 Authorization: Bearer <jwt_token_with_tenant_id_claim>
-Authorization: Bearer <jwt_token>
 ```
+
+The JWT token must contain a `tenant_id` claim with a valid company UUID that the authenticated user has membership in.
 
 ### Public Endpoints (No X-Tenant-ID Required)
 

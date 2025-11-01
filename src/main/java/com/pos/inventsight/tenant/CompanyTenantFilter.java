@@ -289,4 +289,12 @@ public class CompanyTenantFilter implements Filter {
         response.setContentType("application/json");
         response.getWriter().write(String.format("{\"error\": \"%s\"}", message));
     }
+    
+    /**
+     * Package-private setter for testing purposes
+     * @param enabled whether header mode is enabled
+     */
+    void setHeaderEnabled(boolean enabled) {
+        this.headerEnabled = enabled;
+    }
 }

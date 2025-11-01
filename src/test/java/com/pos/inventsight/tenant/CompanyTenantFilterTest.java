@@ -65,7 +65,7 @@ class CompanyTenantFilterTest {
     private com.pos.inventsight.config.JwtUtils jwtUtils;
     
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() throws IOException {
         companyTenantFilter = new CompanyTenantFilter(companyStoreUserRepository, companyRepository, jwtUtils);
         TenantContext.clear();
         SecurityContextHolder.clearContext();
@@ -93,7 +93,7 @@ class CompanyTenantFilterTest {
         
         // Enable header mode by default for backward compatibility with existing tests
         // JWT-only mode tests will explicitly disable this
-        setHeaderEnabled(true);
+        companyTenantFilter.setHeaderEnabled(true);
     }
 
     @AfterEach
@@ -385,8 +385,8 @@ class CompanyTenantFilterTest {
     
     @Test
     void testJwtOnlyMode_WithValidJwtTenantId() throws Exception {
-        // Given JWT-only mode is enabled (default behavior via reflection)
-        setHeaderEnabled(false);
+        // Given JWT-only mode is enabled
+        companyTenantFilter.setHeaderEnabled(false);
         
         setupAuthenticatedUser();
         when(request.getRequestURI()).thenReturn("/api/products");
@@ -418,7 +418,7 @@ class CompanyTenantFilterTest {
     @Test
     void testJwtOnlyMode_WithMissingJwtTenantId() throws Exception {
         // Given JWT-only mode is enabled
-        setHeaderEnabled(false);
+        companyTenantFilter.setHeaderEnabled(false);
         
         setupAuthenticatedUser();
         when(request.getRequestURI()).thenReturn("/api/products");
@@ -440,7 +440,7 @@ class CompanyTenantFilterTest {
     @Test
     void testJwtOnlyMode_WithInvalidJwtTenantIdUuid() throws Exception {
         // Given JWT-only mode is enabled
-        setHeaderEnabled(false);
+        companyTenantFilter.setHeaderEnabled(false);
         
         setupAuthenticatedUser();
         when(request.getRequestURI()).thenReturn("/api/products");
@@ -463,7 +463,7 @@ class CompanyTenantFilterTest {
     @Test
     void testJwtOnlyMode_WithNoAuthorizationHeader() throws Exception {
         // Given JWT-only mode is enabled
-        setHeaderEnabled(false);
+        companyTenantFilter.setHeaderEnabled(false);
         
         setupAuthenticatedUser();
         when(request.getRequestURI()).thenReturn("/api/products");
@@ -482,7 +482,7 @@ class CompanyTenantFilterTest {
     @Test
     void testJwtOnlyMode_XTenantIdHeaderIsIgnored() throws Exception {
         // Given JWT-only mode is enabled and X-Tenant-ID header is present
-        setHeaderEnabled(false);
+        companyTenantFilter.setHeaderEnabled(false);
         
         setupAuthenticatedUser();
         when(request.getRequestURI()).thenReturn("/api/products");
@@ -509,12 +509,5 @@ class CompanyTenantFilterTest {
         verify(filterChain).doFilter(request, response);
         verify(companyRepository).existsById(companyUuid);
         verify(companyRepository, never()).existsById(differentCompanyUuid);
-    }
-    
-    // Helper method to set headerEnabled via reflection
-    private void setHeaderEnabled(boolean enabled) throws Exception {
-        java.lang.reflect.Field field = CompanyTenantFilter.class.getDeclaredField("headerEnabled");
-        field.setAccessible(true);
-        field.set(companyTenantFilter, enabled);
     }
 }
