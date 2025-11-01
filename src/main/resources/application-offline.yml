@@ -27,11 +27,6 @@ inventsight:
       enabled: false
       validate-against-jwt: true
 
-# OAuth2 Resource Server - disable issuer/jwk URIs to avoid network calls
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: null
-          jwk-set-uri: null
+# OAuth2 Resource Server - URIs not needed offline (falls back to defaults from application.yml)
+# spring.security.oauth2.resourceserver.jwt.issuer-uri and jwk-set-uri
+# default to ${JWT_ISSUER_URI:#{null}} and ${JWT_JWK_SET_URI:#{null}} which are safe
