@@ -73,6 +73,9 @@ public class SecurityConfig {
     @Autowired(required = false)
     private com.pos.inventsight.service.CustomOAuth2UserService customOAuth2UserService;
     
+    @Autowired(required = false)
+    private org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
+    
     @Value("${inventsight.security.oauth2.resource-server.enabled:false}")
     private boolean oauth2Enabled;
     
@@ -161,14 +164,18 @@ public class SecurityConfig {
             );
         }
         
-        // Configure OAuth2 Login if enabled
-        if (oauth2LoginEnabled && customOAuth2UserService != null) {
+        // Configure OAuth2 Login if enabled and client registrations are available
+        // OAuth2 login requires the 'oauth-login' profile with proper client credentials
+        if (oauth2LoginEnabled && customOAuth2UserService != null && clientRegistrationRepository != null) {
             System.out.println("✅ Enabling OAuth2 Login (Google, Microsoft, Okta)");
             http.oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService)
                 )
             );
+        } else if (oauth2LoginEnabled) {
+            System.out.println("⚠️ OAuth2 Login requested but client registrations not configured");
+            System.out.println("⚠️ To enable OAuth2: use --spring.profiles.active=oauth-login and set provider credentials");
         }
         
         // SAML2 Login support disabled - dependency not available
