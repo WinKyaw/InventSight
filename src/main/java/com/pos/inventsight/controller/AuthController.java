@@ -83,6 +83,12 @@ public class AuthController {
     @Autowired
     private RateLimitingService rateLimitingService;
     
+    @Autowired
+    private com.pos.inventsight.repository.sql.CompanyRepository companyRepository;
+    
+    @Autowired
+    private com.pos.inventsight.repository.sql.CompanyStoreUserRepository companyStoreUserRepository;
+    
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private Long jwtExpirationMs;
     
@@ -123,7 +129,46 @@ public class AuthController {
                     .body(new AuthResponse("Email not verified. Please verify your email before logging in."));
             }
             
-            String jwt = jwtUtils.generateJwtToken(user);
+            // Handle tenant-bound JWT for offline mode
+            String jwt;
+            if (loginRequest.getTenantId() != null && !loginRequest.getTenantId().isEmpty()) {
+                // Validate tenant ID format
+                java.util.UUID tenantUuid;
+                try {
+                    tenantUuid = java.util.UUID.fromString(loginRequest.getTenantId());
+                } catch (IllegalArgumentException e) {
+                    System.out.println("❌ Invalid tenant ID format: " + loginRequest.getTenantId());
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new AuthResponse("Invalid tenant ID format. Must be a valid UUID."));
+                }
+                
+                // Validate company exists
+                if (!companyRepository.existsById(tenantUuid)) {
+                    System.out.println("❌ Company not found for tenant ID: " + tenantUuid);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponse("Company not found for the specified tenant ID."));
+                }
+                
+                // Validate user has active membership in the company
+                java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
+                    companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+                
+                boolean hasMembership = memberships.stream()
+                    .anyMatch(m -> m.getCompany().getId().equals(tenantUuid) && m.getIsActive());
+                
+                if (!hasMembership) {
+                    System.out.println("❌ User does not have membership in company: " + tenantUuid);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new AuthResponse("Access denied: user is not a member of the specified company."));
+                }
+                
+                // Generate tenant-bound JWT
+                jwt = jwtUtils.generateJwtToken(user, tenantUuid.toString());
+                System.out.println("✅ Generated tenant-bound JWT for tenant: " + tenantUuid);
+            } else {
+                // Generate regular JWT without tenant_id
+                jwt = jwtUtils.generateJwtToken(user);
+            }
             
             // Update last login
             userService.updateLastLogin(user.getId());
@@ -133,6 +178,9 @@ public class AuthController {
             metadata.put("loginTime", LocalDateTime.now());
             metadata.put("userAgent", "InventSight API");
             metadata.put("ipAddress", "system");
+            if (loginRequest.getTenantId() != null) {
+                metadata.put("tenantId", loginRequest.getTenantId());
+            }
             
             activityLogService.logActivityWithMetadata(
                 user.getId().toString(),
@@ -216,7 +264,47 @@ public class AuthController {
                     .body(new StructuredAuthResponse("Email not verified. Please verify your email before logging in.", false));
             }
             
-            String accessToken = jwtUtils.generateJwtToken(user);
+            // Handle tenant-bound JWT for offline mode
+            String accessToken;
+            if (loginRequest.getTenantId() != null && !loginRequest.getTenantId().isEmpty()) {
+                // Validate tenant ID format
+                java.util.UUID tenantUuid;
+                try {
+                    tenantUuid = java.util.UUID.fromString(loginRequest.getTenantId());
+                } catch (IllegalArgumentException e) {
+                    System.out.println("❌ Invalid tenant ID format: " + loginRequest.getTenantId());
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new StructuredAuthResponse("Invalid tenant ID format. Must be a valid UUID.", false));
+                }
+                
+                // Validate company exists
+                if (!companyRepository.existsById(tenantUuid)) {
+                    System.out.println("❌ Company not found for tenant ID: " + tenantUuid);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new StructuredAuthResponse("Company not found for the specified tenant ID.", false));
+                }
+                
+                // Validate user has active membership in the company
+                java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
+                    companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+                
+                boolean hasMembership = memberships.stream()
+                    .anyMatch(m -> m.getCompany().getId().equals(tenantUuid) && m.getIsActive());
+                
+                if (!hasMembership) {
+                    System.out.println("❌ User does not have membership in company: " + tenantUuid);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new StructuredAuthResponse("Access denied: user is not a member of the specified company.", false));
+                }
+                
+                // Generate tenant-bound JWT
+                accessToken = jwtUtils.generateJwtToken(user, tenantUuid.toString());
+                System.out.println("✅ Generated tenant-bound JWT for tenant: " + tenantUuid);
+            } else {
+                // Generate regular JWT without tenant_id
+                accessToken = jwtUtils.generateJwtToken(user);
+            }
+            
             String refreshToken = jwtUtils.generateRefreshToken(user);
             
             // Update last login
@@ -227,6 +315,9 @@ public class AuthController {
             metadata.put("loginTime", LocalDateTime.now());
             metadata.put("userAgent", "InventSight API");
             metadata.put("ipAddress", "system");
+            if (loginRequest.getTenantId() != null) {
+                metadata.put("tenantId", loginRequest.getTenantId());
+            }
             
             activityLogService.logActivityWithMetadata(
                 user.getId().toString(),
