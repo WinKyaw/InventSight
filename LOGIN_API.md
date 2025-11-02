@@ -1,19 +1,21 @@
 # InventSight Backend Login API Documentation
 
-This document describes the login authentication endpoints implemented for the InventSight API, including the new email verification check feature.
+This document describes the login authentication endpoints implemented for the InventSight API, including automatic tenant binding, email verification, and MFA support.
+
+> **🎯 New Feature: Automatic Tenant Binding**  
+> Users no longer need to provide `tenantId` in login requests! The system automatically resolves the appropriate tenant based on user memberships. See [TENANT_BINDING.md](./TENANT_BINDING.md) for detailed documentation.
 
 ## Login Endpoints
 
 ### 1. POST /auth/login - User Login
 
-Main user login endpoint with email verification check, MFA support, and tenant binding for offline mode.
+Main user login endpoint with **automatic tenant binding**, email verification check, and MFA support.
 
 **Request Body:**
 ```json
 {
     "email": "user@example.com",
     "password": "userpassword",
-    "tenantId": "123e4567-e89b-12d3-a456-426614174000",
     "totpCode": 123456
 }
 ```
@@ -21,15 +23,14 @@ Main user login endpoint with email verification check, MFA support, and tenant 
 **Request Fields:**
 - `email` (required): User's email address
 - `password` (required): User's password
-- `tenantId` (optional): Company UUID for tenant-bound JWT (offline mode). If provided, the JWT will include a `tenant_id` claim
 - `totpCode` (optional): 6-digit TOTP code for multi-factor authentication. Required when user has MFA enabled
 
 **Features:**
 - Email and password credential validation
-- Email verification status check (after successful credential validation)
 - Multi-factor authentication (MFA) enforcement for users with MFA enabled
-- Tenant binding for offline mode - issues JWT with `tenant_id` claim when `tenantId` provided
-- JWT token generation for verified users
+- **Automatic tenant resolution** - no tenantId required in request
+- Email verification status check (after successful credential validation)
+- JWT token generation with automatic `tenant_id` claim
 - Activity logging for all login attempts (including MFA events)
 - Security against user enumeration attacks
 
@@ -80,21 +81,30 @@ When user has MFA enabled and `totpCode` is invalid:
 }
 ```
 
-**Response (Invalid Tenant ID - 400 Bad Request):**
-When `tenantId` is provided but not a valid UUID:
+**Response (Tenant Selection Required - 409 Conflict):**
+When user has multiple company memberships and no default tenant set:
 ```json
 {
-    "message": "Invalid tenant ID format. Must be a valid UUID."
+    "error": "TENANT_SELECTION_REQUIRED",
+    "message": "Multiple tenant memberships found. Please select a tenant to continue.",
+    "companies": [
+        {
+            "companyId": "123e4567-e89b-12d3-a456-426614174000",
+            "displayName": "Acme Corp",
+            "role": "MANAGER",
+            "isActive": true
+        },
+        {
+            "companyId": "987e6543-e21b-98d7-b654-426614174001",
+            "displayName": "Tech Solutions Inc",
+            "role": "EMPLOYEE",
+            "isActive": true
+        }
+    ],
+    "timestamp": "2025-11-02T11:00:00"
 }
 ```
-
-**Response (Tenant Not Found - 404 Not Found):**
-When `tenantId` company does not exist:
-```json
-{
-    "message": "Company not found for the specified tenant ID."
-}
-```
+> **Action Required:** Call `POST /auth/tenant-select` with chosen `tenantId` to complete login.
 
 **Response (No Tenant Membership - 403 Forbidden):**
 When user is not a member of the specified company:
@@ -330,6 +340,66 @@ The login endpoints implement a security-conscious approach to email verificatio
 - **Actionable Feedback**: Users know exactly what action to take (verify email vs. check credentials)
 - **Reduced Confusion**: Eliminates ambiguity about login failures
 
+## Tenant Selection Endpoint
+
+### POST /auth/tenant-select - Select Default Tenant
+
+When a user receives `TENANT_SELECTION_REQUIRED` (409) response from login, they must call this endpoint to select their preferred default tenant.
+
+**Authentication Required:** Yes (Bearer token from initial login attempt)
+
+**Request Body:**
+```json
+{
+    "tenantId": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Request Fields:**
+- `tenantId` (required): UUID of the company to set as default tenant
+
+**Response (Success - 200 OK):**
+```json
+{
+    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "type": "Bearer",
+    "id": 1,
+    "username": "johndoe",
+    "email": "user@example.com",
+    "fullName": "John Doe",
+    "role": "USER",
+    "system": "InventSight",
+    "expiresIn": 86400000
+}
+```
+
+**Response (Invalid Tenant ID - 400 Bad Request):**
+```json
+{
+    "message": "Invalid tenant ID format. Must be a valid UUID."
+}
+```
+
+**Response (Tenant Not Found - 404 Not Found):**
+```json
+{
+    "message": "Company not found for the specified tenant ID."
+}
+```
+
+**Response (No Membership - 403 Forbidden):**
+```json
+{
+    "message": "Access denied: user is not a member of the specified company."
+}
+```
+
+**Features:**
+- Sets the selected tenant as user's default for future logins
+- Returns tenant-bound JWT with `tenant_id` claim
+- Validates user has active membership in selected company
+- Subsequent logins will automatically use this default tenant
+
 ## Activity Logging
 
 All login attempts are logged with appropriate activity types:
@@ -339,10 +409,16 @@ All login attempts are logged with appropriate activity types:
 - `USER_LOGIN_EMAIL_UNVERIFIED` - Failed login due to unverified email
 - `USER_LOGIN_V2_EMAIL_UNVERIFIED` - Failed structured login due to unverified email
 - `USER_LOGIN_FAILED` - Failed login due to invalid credentials
+- `TENANT_SELECTED` - User selected default tenant via /auth/tenant-select
+- `MFA_REQUIRED` - Login attempt without MFA code when MFA enabled
+- `MFA_FAILED` - Login attempt with invalid MFA code
+- `MFA_VERIFIED` - Successful MFA verification
 
 ## Integration Notes
 
-- Both endpoints require email verification to be enabled in the user's account (`emailVerified = true`)
-- New user registrations have `emailVerified = false` by default
-- Email verification can be completed via the `/auth/verify-email` endpoint
+- Login endpoints no longer require `tenantId` in request body
+- Automatic tenant binding occurs after MFA verification (if enabled)
+- Email verification is required for login (`emailVerified = true`)
+- New user registrations automatically set default tenant to created company
+- For detailed tenant binding information, see [TENANT_BINDING.md](./TENANT_BINDING.md)
 - Users with unverified emails cannot obtain JWT tokens through login endpoints

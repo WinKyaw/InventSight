@@ -140,6 +140,7 @@ public class SecurityConfig {
                     .requestMatchers("/auth/verify-email").permitAll()
                     .requestMatchers("/auth/resend-verification").permitAll()
                     .requestMatchers("/auth/validate-password").permitAll()
+                    .requestMatchers("/auth/invite/accept").permitAll()
                     
                     // OAuth2 login endpoints - permit when OAuth2 login is enabled
                     .requestMatchers("/oauth2/**").permitAll()

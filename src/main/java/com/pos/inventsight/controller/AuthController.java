@@ -185,23 +185,29 @@ public class AuthController {
                 );
             }
             
-            // Handle tenant-bound JWT for offline mode
-            String jwt;
-            try {
-                jwt = validateTenantAndGenerateJWT(user, loginRequest.getTenantId());
-            } catch (IllegalArgumentException e) {
-                // Determine appropriate HTTP status based on error message
-                if (e.getMessage().contains("not found")) {
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new AuthResponse(e.getMessage()));
-                } else if (e.getMessage().contains("Access denied")) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new AuthResponse(e.getMessage()));
-                } else {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new AuthResponse(e.getMessage()));
-                }
+            // Automatic tenant resolution and JWT generation (no tenantId in request required)
+            Object tenantResolutionResult = resolveTenantForUser(user);
+            
+            // Check if tenant selection is required (multiple memberships, no default)
+            if (tenantResolutionResult instanceof com.pos.inventsight.dto.TenantSelectionResponse) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(tenantResolutionResult);
             }
+            
+            // Check for error messages
+            if (tenantResolutionResult instanceof String) {
+                String errorMsg = (String) tenantResolutionResult;
+                if (errorMsg.startsWith("NO_TENANT_MEMBERSHIP")) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new AuthResponse(errorMsg));
+                }
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AuthResponse(errorMsg));
+            }
+            
+            // tenantResolutionResult is the tenant UUID string
+            String tenantId = (String) tenantResolutionResult;
+            String jwt = jwtUtils.generateJwtToken(user, tenantId);
             
             // Update last login
             userService.updateLastLogin(user.getId());
@@ -348,23 +354,29 @@ public class AuthController {
                 );
             }
             
-            // Handle tenant-bound JWT for offline mode
-            String accessToken;
-            try {
-                accessToken = validateTenantAndGenerateJWT(user, loginRequest.getTenantId());
-            } catch (IllegalArgumentException e) {
-                // Determine appropriate HTTP status based on error message
-                if (e.getMessage().contains("not found")) {
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new StructuredAuthResponse(e.getMessage(), false));
-                } else if (e.getMessage().contains("Access denied")) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new StructuredAuthResponse(e.getMessage(), false));
-                } else {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new StructuredAuthResponse(e.getMessage(), false));
-                }
+            // Automatic tenant resolution and JWT generation (no tenantId in request required)
+            Object tenantResolutionResult = resolveTenantForUser(user);
+            
+            // Check if tenant selection is required (multiple memberships, no default)
+            if (tenantResolutionResult instanceof com.pos.inventsight.dto.TenantSelectionResponse) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(tenantResolutionResult);
             }
+            
+            // Check for error messages
+            if (tenantResolutionResult instanceof String) {
+                String errorMsg = (String) tenantResolutionResult;
+                if (errorMsg.contains("NO_TENANT_MEMBERSHIP")) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new StructuredAuthResponse(errorMsg, false));
+                }
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new StructuredAuthResponse(errorMsg, false));
+            }
+            
+            // tenantResolutionResult is the tenant UUID string
+            String tenantId = (String) tenantResolutionResult;
+            String accessToken = jwtUtils.generateJwtToken(user, tenantId);
             
             String refreshToken = jwtUtils.generateRefreshToken(user);
             
@@ -505,8 +517,9 @@ public class AuthController {
             
             User savedUser = userService.createUser(user);
             
-            // Generate JWT token for immediate login
-            String jwt = jwtUtils.generateJwtToken(savedUser);
+            // Generate tenant-bound JWT token for immediate login with default tenant
+            // User now has defaultTenantId set automatically by createUser
+            String jwt = jwtUtils.generateJwtToken(savedUser, savedUser.getDefaultTenantId().toString());
             
             // Log registration activity
             activityLogService.logActivity(
@@ -603,8 +616,9 @@ public class AuthController {
             
             User savedUser = userService.createUser(user);
             
-            // Generate JWT tokens
-            String accessToken = jwtUtils.generateJwtToken(savedUser);
+            // Generate tenant-bound JWT tokens with default tenant
+            // User now has defaultTenantId set automatically by createUser
+            String accessToken = jwtUtils.generateJwtToken(savedUser, savedUser.getDefaultTenantId().toString());
             String refreshToken = jwtUtils.generateRefreshToken(savedUser);
             
             // Log registration activity
@@ -822,49 +836,66 @@ public class AuthController {
     }
     
     /**
-     * Validate tenant and generate tenant-bound JWT
-     * @param user the authenticated user
-     * @param tenantId the tenant ID (optional)
-     * @return tenant-bound JWT if tenantId provided, regular JWT otherwise
-     * @throws IllegalArgumentException if tenant validation fails
+     * Automatically resolve tenant for user at login (no tenantId in request required)
+     * Returns: UUID string if resolved, TenantSelectionResponse if selection needed, String error otherwise
      */
-    private String validateTenantAndGenerateJWT(User user, String tenantId) {
-        if (tenantId == null || tenantId.isEmpty()) {
-            // Generate regular JWT without tenant_id
-            return jwtUtils.generateJwtToken(user);
+    private Object resolveTenantForUser(User user) {
+        // Step 1: Check if user has a default tenant set
+        if (user.getDefaultTenantId() != null) {
+            // Verify the default tenant is still valid and user still has active membership
+            if (companyRepository.existsById(user.getDefaultTenantId())) {
+                java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
+                    companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+                
+                boolean hasDefaultMembership = memberships.stream()
+                    .anyMatch(m -> m.getCompany().getId().equals(user.getDefaultTenantId()));
+                
+                if (hasDefaultMembership) {
+                    System.out.println("✅ Using default tenant for user: " + user.getDefaultTenantId());
+                    return user.getDefaultTenantId().toString();
+                } else {
+                    System.out.println("⚠️ User's default tenant is no longer valid, resolving from memberships");
+                }
+            }
         }
         
-        // Validate tenant ID format
-        java.util.UUID tenantUuid;
-        try {
-            tenantUuid = java.util.UUID.fromString(tenantId);
-        } catch (IllegalArgumentException e) {
-            System.out.println("❌ Invalid tenant ID format: " + tenantId);
-            throw new IllegalArgumentException("Invalid tenant ID format. Must be a valid UUID.");
-        }
-        
-        // Validate company exists
-        if (!companyRepository.existsById(tenantUuid)) {
-            System.out.println("❌ Company not found for tenant ID: " + tenantUuid);
-            throw new IllegalArgumentException("Company not found for the specified tenant ID.");
-        }
-        
-        // Validate user has active membership in the company
+        // Step 2: Fetch active memberships
         java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
             companyStoreUserRepository.findByUserAndIsActiveTrue(user);
         
-        boolean hasMembership = memberships.stream()
-            .anyMatch(m -> m.getCompany().getId().equals(tenantUuid));
-        
-        if (!hasMembership) {
-            System.out.println("❌ User does not have membership in company: " + tenantUuid);
-            throw new IllegalArgumentException("Access denied: user is not a member of the specified company.");
+        if (memberships.isEmpty()) {
+            System.out.println("❌ User has no active tenant memberships");
+            return "NO_TENANT_MEMBERSHIP: No active tenant membership found. Please contact your administrator.";
         }
         
-        // Generate tenant-bound JWT
-        String jwt = jwtUtils.generateJwtToken(user, tenantUuid.toString());
-        System.out.println("✅ Generated tenant-bound JWT for tenant: " + tenantUuid);
-        return jwt;
+        // Step 3: If exactly one membership, auto-set as default and use it
+        if (memberships.size() == 1) {
+            java.util.UUID tenantId = memberships.get(0).getCompany().getId();
+            user.setDefaultTenantId(tenantId);
+            userService.saveUser(user);
+            System.out.println("✅ Auto-set single membership as default tenant: " + tenantId);
+            return tenantId.toString();
+        }
+        
+        // Step 4: Multiple memberships and no valid default - return selection required
+        System.out.println("⚠️ Multiple memberships found, tenant selection required");
+        java.util.List<com.pos.inventsight.dto.TenantSelectionResponse.MemberCompany> companies = 
+            new java.util.ArrayList<>();
+        
+        for (com.pos.inventsight.model.sql.CompanyStoreUser membership : memberships) {
+            companies.add(new com.pos.inventsight.dto.TenantSelectionResponse.MemberCompany(
+                membership.getCompany().getId().toString(),
+                membership.getCompany().getName(),
+                membership.getRole().name(),
+                membership.getIsActive()
+            ));
+        }
+        
+        return new com.pos.inventsight.dto.TenantSelectionResponse(
+            "TENANT_SELECTION_REQUIRED",
+            "Multiple tenant memberships found. Please select a tenant to continue.",
+            companies
+        );
     }
     
     // Helper method to get client IP address
@@ -883,6 +914,120 @@ public class AuthController {
         }
         
         return request.getRemoteAddr();
+    }
+    
+    // POST /auth/tenant-select - Select tenant for users with multiple memberships
+    @PostMapping("/tenant-select")
+    public ResponseEntity<?> selectTenant(@Valid @RequestBody com.pos.inventsight.dto.TenantSelectRequest tenantSelectRequest,
+                                         HttpServletRequest request) {
+        System.out.println("🏢 InventSight - Processing tenant selection request");
+        System.out.println("📅 Current DateTime (UTC): 2025-11-02");
+        
+        try {
+            // Get authenticated user from request
+            String headerAuth = request.getHeader("Authorization");
+            
+            if (headerAuth == null || !headerAuth.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse("Authorization required"));
+            }
+            
+            String jwt = headerAuth.substring(7);
+            
+            if (!jwtUtils.validateJwtToken(jwt)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse("Invalid or expired token"));
+            }
+            
+            String username = jwtUtils.getUsernameFromJwtToken(jwt);
+            User user = userService.getUserByEmail(username);
+            
+            // Validate tenant ID
+            java.util.UUID tenantUuid;
+            try {
+                tenantUuid = java.util.UUID.fromString(tenantSelectRequest.getTenantId());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AuthResponse("Invalid tenant ID format. Must be a valid UUID."));
+            }
+            
+            // Verify company exists
+            if (!companyRepository.existsById(tenantUuid)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AuthResponse("Company not found for the specified tenant ID."));
+            }
+            
+            // Verify user has active membership in the company
+            java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
+                companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+            
+            boolean hasMembership = memberships.stream()
+                .anyMatch(m -> m.getCompany().getId().equals(tenantUuid) && m.getIsActive());
+            
+            if (!hasMembership) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AuthResponse("Access denied: user is not a member of the specified company."));
+            }
+            
+            // Set as default tenant and persist
+            user.setDefaultTenantId(tenantUuid);
+            userService.saveUser(user);
+            
+            // Generate tenant-bound JWT
+            String newJwt = jwtUtils.generateJwtToken(user, tenantUuid.toString());
+            
+            // Log activity
+            activityLogService.logActivity(
+                user.getId().toString(),
+                user.getUsername(),
+                "TENANT_SELECTED",
+                "AUTHENTICATION",
+                "User selected default tenant: " + tenantUuid
+            );
+            
+            // Create response
+            AuthResponse authResponse = new AuthResponse(
+                newJwt,
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole().name(),
+                "InventSight",
+                jwtExpirationMs
+            );
+            
+            System.out.println("✅ Tenant selected and set as default: " + tenantUuid);
+            return ResponseEntity.ok(authResponse);
+            
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new AuthResponse("User not found"));
+        } catch (Exception e) {
+            System.out.println("❌ Tenant selection error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Tenant selection service temporarily unavailable"));
+        }
+    }
+    
+    // POST /auth/invite/accept - Accept invite and set default tenant
+    @PostMapping("/invite/accept")
+    public ResponseEntity<?> acceptInvite(@Valid @RequestBody com.pos.inventsight.dto.InviteAcceptRequest inviteRequest) {
+        System.out.println("📨 InventSight - Processing invite acceptance");
+        System.out.println("📅 Current DateTime (UTC): 2025-11-02");
+        
+        try {
+            // TODO: Implement invite token validation and resolution
+            // Returning 503 Service Unavailable until invite service is fully integrated
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "3600") // Suggest retry after 1 hour
+                .body(new AuthResponse("Invite acceptance service is under development. Please contact support for manual invite processing."));
+            
+        } catch (Exception e) {
+            System.out.println("❌ Invite acceptance error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Invite acceptance service temporarily unavailable"));
+        }
     }
     
     // POST /auth/refresh - Token refresh endpoint

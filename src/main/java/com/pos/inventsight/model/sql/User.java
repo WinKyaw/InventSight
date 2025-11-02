@@ -79,6 +79,11 @@ public class User implements UserDetails {
     @Column(name = "tenant_id")
     private UUID tenantId;
     
+    // Default tenant/company ID for automatic tenant binding at login
+    // Set during registration or invite acceptance for seamless multi-tenant access
+    @Column(name = "default_tenant_id")
+    private UUID defaultTenantId;
+    
     // Constructors
     public User() {
         this.uuid = UUID.randomUUID();
@@ -133,6 +138,9 @@ public class User implements UserDetails {
     
     public UUID getTenantId() { return tenantId; }
     public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+    
+    public UUID getDefaultTenantId() { return defaultTenantId; }
+    public void setDefaultTenantId(UUID defaultTenantId) { this.defaultTenantId = defaultTenantId; }
     
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
