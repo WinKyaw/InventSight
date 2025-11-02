@@ -1,0 +1,32 @@
+# Offline Mode Profile Configuration
+# Activate this profile with: --spring.profiles.active=offline
+# This enables local login fallback when internet/IdP are unavailable
+
+inventsight:
+  security:
+    # Enable local login endpoints for offline mode
+    local-login:
+      enabled: true
+    
+    # Disable OAuth2 login (IdP unavailable offline)
+    oauth2:
+      login:
+        enabled: false
+      # Disable resource server to avoid JwtDecoder dependency
+      resource-server:
+        enabled: false
+    
+    # JWT token expiration - can be extended for offline windows
+    jwt:
+      expiration: 86400000 # 24 hours (86,400,000 ms) for offline mode
+      refresh-expiration: 604800000 # 7 days
+  
+  # JWT-only tenancy (still required in offline mode)
+  tenancy:
+    header:
+      enabled: false
+      validate-against-jwt: true
+
+# OAuth2 Resource Server - URIs not needed offline (falls back to defaults from application.yml)
+# spring.security.oauth2.resourceserver.jwt.issuer-uri and jwk-set-uri
+# default to ${JWT_ISSUER_URI:#{null}} and ${JWT_JWK_SET_URI:#{null}} which are safe

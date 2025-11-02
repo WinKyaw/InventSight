@@ -241,21 +241,48 @@ public class CompanyTenantFilter implements Filter {
     
     /**
      * Check if the endpoint is public (doesn't require tenant context)
+     * Note: Local login endpoints (/auth/login, /auth/register) are public when enabled,
+     * but they're gated at SecurityConfig level by @ConditionalOnProperty on controllers.
      * @param requestUri the request URI
      * @return true if public endpoint, false otherwise
      */
     private boolean isPublicEndpoint(String requestUri) {
-        return requestUri.startsWith("/auth/") ||
-               requestUri.startsWith("/api/register") ||
-               requestUri.startsWith("/api/auth/register") ||
-               requestUri.startsWith("/api/auth/signup") ||
-               requestUri.startsWith("/register") ||
-               requestUri.startsWith("/health") ||
-               requestUri.startsWith("/actuator") ||
-               requestUri.startsWith("/swagger-ui") ||
-               requestUri.startsWith("/v3/api-docs") ||
-               requestUri.startsWith("/docs") ||
-               requestUri.equals("/favicon.ico");
+        // OAuth2 endpoints - always public
+        if (requestUri.startsWith("/oauth2/") || requestUri.startsWith("/login/")) {
+            return true;
+        }
+        
+        // Local authentication endpoints - public (controller availability gated by @ConditionalOnProperty)
+        if (requestUri.startsWith("/auth/login") ||
+            requestUri.startsWith("/auth/register") ||
+            requestUri.startsWith("/auth/signup") ||
+            requestUri.startsWith("/auth/check-email") ||
+            requestUri.startsWith("/auth/verify-email") ||
+            requestUri.startsWith("/auth/resend-verification") ||
+            requestUri.startsWith("/auth/validate-password")) {
+            return true;
+        }
+        
+        // Registration endpoints - public (controller availability gated by @ConditionalOnProperty)
+        if (requestUri.startsWith("/api/register") ||
+            requestUri.startsWith("/api/auth/register") ||
+            requestUri.startsWith("/api/auth/signup") ||
+            requestUri.startsWith("/register")) {
+            return true;
+        }
+        
+        // Health, monitoring, and documentation endpoints
+        if (requestUri.startsWith("/health") ||
+            requestUri.startsWith("/actuator") ||
+            requestUri.startsWith("/swagger-ui") ||
+            requestUri.startsWith("/v3/api-docs") ||
+            requestUri.startsWith("/docs") ||
+            requestUri.startsWith("/dashboard/live-data") ||
+            requestUri.equals("/favicon.ico")) {
+            return true;
+        }
+        
+        return false;
     }
     
     /**

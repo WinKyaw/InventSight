@@ -73,14 +73,20 @@ public class SecurityConfig {
     @Autowired(required = false)
     private com.pos.inventsight.service.CustomOAuth2UserService customOAuth2UserService;
     
+    @Autowired(required = false)
+    private org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
+    
     @Value("${inventsight.security.oauth2.resource-server.enabled:false}")
     private boolean oauth2Enabled;
     
-    @Value("${inventsight.security.oauth2.login.enabled:false}")
+    @Value("${inventsight.security.oauth2.login.enabled:true}")
     private boolean oauth2LoginEnabled;
     
     @Value("${inventsight.security.saml.enabled:false}")
     private boolean samlEnabled;
+    
+    @Value("${inventsight.security.local-login.enabled:false}")
+    private boolean localLoginEnabled;
     
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -110,14 +116,34 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> 
-                auth
-                    // Authentication endpoints - PUBLIC ACCESS (no JWT required)
-                    .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers("/api/register").permitAll()      // Direct /api/register endpoint
-                    .requestMatchers("/api/auth/register").permitAll() // Full context path registration
-                    .requestMatchers("/api/auth/signup").permitAll()   // Signup alias endpoint
-                    .requestMatchers("/register").permitAll()          // Alternative register route
+            .authorizeHttpRequests(auth -> {
+                // Local login endpoints - only permit if local login is enabled
+                if (localLoginEnabled) {
+                    auth.requestMatchers("/auth/login", "/auth/login/**").permitAll()
+                        .requestMatchers("/auth/register", "/auth/signup").permitAll()
+                        .requestMatchers("/api/register").permitAll()
+                        .requestMatchers("/api/auth/register").permitAll()
+                        .requestMatchers("/api/auth/signup").permitAll()
+                        .requestMatchers("/register").permitAll();
+                } else {
+                    // Explicitly deny local login endpoints when disabled
+                    auth.requestMatchers("/auth/login", "/auth/login/**").denyAll()
+                        .requestMatchers("/auth/register", "/auth/signup").denyAll()
+                        .requestMatchers("/api/register").denyAll()
+                        .requestMatchers("/api/auth/register").denyAll()
+                        .requestMatchers("/api/auth/signup").denyAll()
+                        .requestMatchers("/register").denyAll();
+                }
+                
+                // Other authentication endpoints - always permit
+                auth.requestMatchers("/auth/check-email").permitAll()
+                    .requestMatchers("/auth/verify-email").permitAll()
+                    .requestMatchers("/auth/resend-verification").permitAll()
+                    .requestMatchers("/auth/validate-password").permitAll()
+                    
+                    // OAuth2 login endpoints - permit when OAuth2 login is enabled
+                    .requestMatchers("/oauth2/**").permitAll()
+                    .requestMatchers("/login/**").permitAll()
                     
                     // Other public endpoints
                     .requestMatchers("/dashboard/live-data").permitAll() // Allow live sync for React Native
@@ -127,8 +153,8 @@ public class SecurityConfig {
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/docs/**").permitAll()
                     .requestMatchers("/favicon.ico").permitAll()
-                    .anyRequest().authenticated()
-            );
+                    .anyRequest().authenticated();
+            });
         
         // Configure OAuth2 Resource Server if enabled
         if (oauth2Enabled && jwtDecoder != null) {
@@ -138,14 +164,18 @@ public class SecurityConfig {
             );
         }
         
-        // Configure OAuth2 Login if enabled
-        if (oauth2LoginEnabled && customOAuth2UserService != null) {
+        // Configure OAuth2 Login if enabled and client registrations are available
+        // OAuth2 login requires the 'oauth-login' profile with proper client credentials
+        if (oauth2LoginEnabled && customOAuth2UserService != null && clientRegistrationRepository != null) {
             System.out.println("✅ Enabling OAuth2 Login (Google, Microsoft, Okta)");
             http.oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService)
                 )
             );
+        } else if (oauth2LoginEnabled) {
+            System.out.println("⚠️ OAuth2 Login requested but client registrations not configured");
+            System.out.println("⚠️ To enable OAuth2: use --spring.profiles.active=oauth-login and set provider credentials");
         }
         
         // SAML2 Login support disabled - dependency not available
