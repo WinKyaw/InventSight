@@ -41,6 +41,51 @@ public class AuthControllerTest {
 
     @MockBean
     private ActivityLogService activityLogService;
+    
+    @MockBean
+    private com.pos.inventsight.service.MfaService mfaService;
+    
+    @MockBean
+    private com.pos.inventsight.repository.sql.CompanyRepository companyRepository;
+    
+    @MockBean
+    private com.pos.inventsight.repository.sql.CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @MockBean
+    private com.pos.inventsight.service.EmailVerificationService emailVerificationService;
+    
+    @MockBean
+    private com.pos.inventsight.service.PasswordValidationService passwordValidationService;
+    
+    @MockBean
+    private com.pos.inventsight.service.RateLimitingService rateLimitingService;
+    
+    @MockBean
+    private com.pos.inventsight.service.IdempotencyService idempotencyService;
+    
+    @MockBean
+    private com.pos.inventsight.service.AuditService auditService;
+    
+    @MockBean
+    private com.pos.inventsight.config.AuthEntryPointJwt authEntryPointJwt;
+    
+    @MockBean
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    
+    @MockBean
+    private com.pos.inventsight.tenant.CompanyTenantFilter companyTenantFilter;
+    
+    @MockBean
+    private com.pos.inventsight.filter.RateLimitingFilter rateLimitingFilter;
+    
+    @MockBean
+    private com.pos.inventsight.filter.IdempotencyKeyFilter idempotencyKeyFilter;
+    
+    @MockBean
+    private com.pos.inventsight.repository.MfaSecretRepository mfaSecretRepository;
+    
+    @MockBean
+    private com.pos.inventsight.repository.MfaBackupCodeRepository mfaBackupCodeRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -59,11 +104,13 @@ public class AuthControllerTest {
         mockUser.setFirstName("Test");
         mockUser.setLastName("User");
         mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
 
         Authentication mockAuth = mock(Authentication.class);
         when(mockAuth.getPrincipal()).thenReturn(mockUser);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
         when(jwtUtils.generateJwtToken(any(User.class))).thenReturn("mock-jwt-token");
 
         // When & Then
@@ -230,5 +277,270 @@ public class AuthControllerTest {
         // Verify logout was logged
         verify(activityLogService).logActivity(eq("1"), eq("testuser"), 
                 eq("USER_LOGOUT"), eq("AUTHENTICATION"), anyString());
+    }
+    
+    @Test
+    public void testLoginWithMfaRequiredButCodeMissing() throws Exception {
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("mfa@inventsight.com");
+        loginRequest.setPassword("password123");
+        // totpCode is null
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("mfa@inventsight.com");
+        mockUser.setUsername("mfauser");
+        mockUser.setFirstName("MFA");
+        mockUser.setLastName("User");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(true);
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("MFA_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Multi-factor authentication code is required"));
+
+        // Verify MFA required was logged
+        verify(activityLogService).logActivity(eq("1"), eq("mfauser"), 
+                eq("MFA_REQUIRED"), eq("AUTHENTICATION"), anyString());
+        
+        // Verify that last login was NOT updated
+        verify(userService, never()).updateLastLogin(anyLong());
+    }
+    
+    @Test
+    public void testLoginWithMfaInvalidCode() throws Exception {
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("mfa@inventsight.com");
+        loginRequest.setPassword("password123");
+        loginRequest.setTotpCode(123456); // Invalid code
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("mfa@inventsight.com");
+        mockUser.setUsername("mfauser");
+        mockUser.setFirstName("MFA");
+        mockUser.setLastName("User");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(true);
+        when(mfaService.verifyCode(mockUser, 123456)).thenReturn(false);
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("MFA_INVALID_CODE"))
+                .andExpect(jsonPath("$.message").value("Invalid multi-factor authentication code"));
+
+        // Verify MFA failure was logged
+        verify(activityLogService).logActivity(eq("1"), eq("mfauser"), 
+                eq("MFA_FAILED"), eq("AUTHENTICATION"), anyString());
+        
+        // Verify that last login was NOT updated
+        verify(userService, never()).updateLastLogin(anyLong());
+    }
+    
+    @Test
+    public void testLoginWithMfaSuccessNoTenant() throws Exception {
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("mfa@inventsight.com");
+        loginRequest.setPassword("password123");
+        loginRequest.setTotpCode(123456); // Valid code
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("mfa@inventsight.com");
+        mockUser.setUsername("mfauser");
+        mockUser.setFirstName("MFA");
+        mockUser.setLastName("User");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(true);
+        when(mfaService.verifyCode(mockUser, 123456)).thenReturn(true);
+        when(jwtUtils.generateJwtToken(any(User.class))).thenReturn("mock-jwt-token-mfa");
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("mock-jwt-token-mfa"))
+                .andExpect(jsonPath("$.email").value("mfa@inventsight.com"));
+
+        // Verify MFA verification success was logged
+        verify(activityLogService).logActivity(eq("1"), eq("mfauser"), 
+                eq("MFA_VERIFIED"), eq("AUTHENTICATION"), anyString());
+        
+        // Verify user login was logged
+        verify(activityLogService).logActivityWithMetadata(eq("1"), eq("mfauser"), 
+                eq("USER_LOGIN"), eq("AUTHENTICATION"), anyString(), any());
+        
+        // Verify last login was updated
+        verify(userService).updateLastLogin(1L);
+    }
+    
+    @Test
+    public void testLoginWithTenantIdSuccess() throws Exception {
+        // Given
+        String tenantId = "123e4567-e89b-12d3-a456-426614174000";
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("tenant@inventsight.com");
+        loginRequest.setPassword("password123");
+        loginRequest.setTenantId(tenantId);
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("tenant@inventsight.com");
+        mockUser.setUsername("tenantuser");
+        mockUser.setFirstName("Tenant");
+        mockUser.setLastName("User");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
+        when(companyRepository.existsById(any())).thenReturn(true);
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(mockUser))
+                .thenReturn(java.util.Arrays.asList(createMockCompanyStoreUser(mockUser, tenantId)));
+        when(jwtUtils.generateJwtToken(any(User.class), eq(tenantId)))
+                .thenReturn("mock-jwt-token-tenant");
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("mock-jwt-token-tenant"));
+
+        // Verify tenant-bound JWT was generated
+        verify(jwtUtils).generateJwtToken(any(User.class), eq(tenantId));
+    }
+    
+    @Test
+    public void testLoginWithInvalidTenantId() throws Exception {
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("tenant@inventsight.com");
+        loginRequest.setPassword("password123");
+        loginRequest.setTenantId("invalid-uuid");
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("tenant@inventsight.com");
+        mockUser.setUsername("tenantuser");
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid tenant ID format. Must be a valid UUID."));
+    }
+    
+    @Test
+    public void testLoginWithTenantNotFound() throws Exception {
+        // Given
+        String tenantId = "123e4567-e89b-12d3-a456-426614174000";
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("tenant@inventsight.com");
+        loginRequest.setPassword("password123");
+        loginRequest.setTenantId(tenantId);
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("tenant@inventsight.com");
+        mockUser.setUsername("tenantuser");
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
+        when(companyRepository.existsById(any())).thenReturn(false);
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Company not found for the specified tenant ID."));
+    }
+    
+    @Test
+    public void testLoginWithNoTenantMembership() throws Exception {
+        // Given
+        String tenantId = "123e4567-e89b-12d3-a456-426614174000";
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("tenant@inventsight.com");
+        loginRequest.setPassword("password123");
+        loginRequest.setTenantId(tenantId);
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("tenant@inventsight.com");
+        mockUser.setUsername("tenantuser");
+        mockUser.setEmailVerified(true);
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
+        when(companyRepository.existsById(any())).thenReturn(true);
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(mockUser))
+                .thenReturn(java.util.Collections.emptyList()); // No membership
+
+        // When & Then
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied: user is not a member of the specified company."));
+    }
+    
+    // Helper method to create mock CompanyStoreUser
+    private com.pos.inventsight.model.sql.CompanyStoreUser createMockCompanyStoreUser(User user, String companyId) {
+        com.pos.inventsight.model.sql.CompanyStoreUser csu = mock(com.pos.inventsight.model.sql.CompanyStoreUser.class);
+        com.pos.inventsight.model.sql.Company company = mock(com.pos.inventsight.model.sql.Company.class);
+        when(company.getId()).thenReturn(java.util.UUID.fromString(companyId));
+        when(csu.getCompany()).thenReturn(company);
+        when(csu.getIsActive()).thenReturn(true);
+        when(csu.getUser()).thenReturn(user);
+        return csu;
     }
 }

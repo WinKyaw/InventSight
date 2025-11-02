@@ -36,3 +36,5 @@ inventsight:
     jwt:
       secret: test-secret-key
       expiration: 86400000
+    local-login:
+      enabled: true
