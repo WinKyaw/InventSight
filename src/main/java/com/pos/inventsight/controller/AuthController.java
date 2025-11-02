@@ -89,6 +89,9 @@ public class AuthController {
     @Autowired
     private com.pos.inventsight.repository.sql.CompanyStoreUserRepository companyStoreUserRepository;
     
+    @Autowired
+    private com.pos.inventsight.service.MfaService mfaService;
+    
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private Long jwtExpirationMs;
     
@@ -127,6 +130,59 @@ public class AuthController {
                 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new AuthResponse("Email not verified. Please verify your email before logging in."));
+            }
+            
+            // Check MFA status and validate TOTP code if enabled
+            boolean mfaEnabled = mfaService.isMfaEnabled(user);
+            if (mfaEnabled) {
+                // MFA is enabled - TOTP code is required
+                if (loginRequest.getTotpCode() == null) {
+                    System.out.println("❌ Login blocked - MFA code required for: " + loginRequest.getEmail());
+                    
+                    // Log MFA required event
+                    activityLogService.logActivity(
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "MFA_REQUIRED",
+                        "AUTHENTICATION",
+                        "Login attempt without MFA code: " + loginRequest.getEmail()
+                    );
+                    
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("error", "MFA_REQUIRED");
+                    errorResponse.put("message", "Multi-factor authentication code is required");
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                }
+                
+                // Validate TOTP code
+                boolean codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
+                if (!codeValid) {
+                    System.out.println("❌ Login blocked - invalid MFA code for: " + loginRequest.getEmail());
+                    
+                    // Log MFA validation failure
+                    activityLogService.logActivity(
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "MFA_FAILED",
+                        "AUTHENTICATION",
+                        "Login attempt with invalid MFA code: " + loginRequest.getEmail()
+                    );
+                    
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("error", "MFA_INVALID_CODE");
+                    errorResponse.put("message", "Invalid multi-factor authentication code");
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                }
+                
+                // MFA verification successful
+                System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail());
+                activityLogService.logActivity(
+                    user.getId().toString(),
+                    user.getUsername(),
+                    "MFA_VERIFIED",
+                    "AUTHENTICATION",
+                    "MFA code verified successfully: " + loginRequest.getEmail()
+                );
             }
             
             // Handle tenant-bound JWT for offline mode
@@ -239,6 +295,57 @@ public class AuthController {
                 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new StructuredAuthResponse("Email not verified. Please verify your email before logging in.", false));
+            }
+            
+            // Check MFA status and validate TOTP code if enabled
+            boolean mfaEnabled = mfaService.isMfaEnabled(user);
+            if (mfaEnabled) {
+                // MFA is enabled - TOTP code is required
+                if (loginRequest.getTotpCode() == null) {
+                    System.out.println("❌ Login blocked - MFA code required for: " + loginRequest.getEmail());
+                    
+                    // Log MFA required event
+                    activityLogService.logActivity(
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "MFA_REQUIRED",
+                        "AUTHENTICATION",
+                        "Login attempt without MFA code (structured): " + loginRequest.getEmail()
+                    );
+                    
+                    StructuredAuthResponse errorResponse = new StructuredAuthResponse(
+                        "Multi-factor authentication code is required", false);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                }
+                
+                // Validate TOTP code
+                boolean codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
+                if (!codeValid) {
+                    System.out.println("❌ Login blocked - invalid MFA code for: " + loginRequest.getEmail());
+                    
+                    // Log MFA validation failure
+                    activityLogService.logActivity(
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "MFA_FAILED",
+                        "AUTHENTICATION",
+                        "Login attempt with invalid MFA code (structured): " + loginRequest.getEmail()
+                    );
+                    
+                    StructuredAuthResponse errorResponse = new StructuredAuthResponse(
+                        "Invalid multi-factor authentication code", false);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                }
+                
+                // MFA verification successful
+                System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail());
+                activityLogService.logActivity(
+                    user.getId().toString(),
+                    user.getUsername(),
+                    "MFA_VERIFIED",
+                    "AUTHENTICATION",
+                    "MFA code verified successfully (structured): " + loginRequest.getEmail()
+                );
             }
             
             // Handle tenant-bound JWT for offline mode

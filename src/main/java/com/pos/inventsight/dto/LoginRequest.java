@@ -17,6 +17,9 @@ public class LoginRequest {
              message = "Tenant ID must be a valid UUID format")
     private String tenantId;
     
+    // Optional TOTP code for MFA (required when user has MFA enabled)
+    private Integer totpCode;
+    
     // Constructors
     public LoginRequest() {}
     
@@ -31,6 +34,13 @@ public class LoginRequest {
         this.tenantId = tenantId;
     }
     
+    public LoginRequest(String email, String password, String tenantId, Integer totpCode) {
+        this.email = email;
+        this.password = password;
+        this.tenantId = tenantId;
+        this.totpCode = totpCode;
+    }
+    
     // Getters and Setters
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -41,12 +51,16 @@ public class LoginRequest {
     public String getTenantId() { return tenantId; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     
+    public Integer getTotpCode() { return totpCode; }
+    public void setTotpCode(Integer totpCode) { this.totpCode = totpCode; }
+    
     @Override
     public String toString() {
         return "InventSight LoginRequest{" +
                 "email='" + email + '\'' +
                 ", password='[PROTECTED]'" +
                 ", tenantId='" + (tenantId != null ? tenantId : "none") + '\'' +
+                ", totpCode='" + (totpCode != null ? "[PROVIDED]" : "none") + '\'' +
                 '}';
     }
 }

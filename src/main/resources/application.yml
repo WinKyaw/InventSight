@@ -95,9 +95,9 @@ inventsight:
     saml:
       enabled: false
     
-    # Local login/registration endpoints (disabled by default, OAuth2-only mode)
+    # Local login/registration endpoints (enabled by default for local authentication)
     local-login:
-      enabled: false
+      enabled: true
       
   system:
     name: "InventSight - Intelligent Inventory & POS System"
