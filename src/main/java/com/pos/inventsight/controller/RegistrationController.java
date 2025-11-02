@@ -128,8 +128,9 @@ public class RegistrationController {
             // Save user to database (includes password hashing and validation)
             User savedUser = userService.createUser(user);
             
-            // Generate JWT token for immediate authentication after registration
-            String jwt = jwtUtils.generateJwtToken(savedUser);
+            // Generate tenant-bound JWT token for immediate authentication with default tenant
+            // User now has defaultTenantId set automatically by createUser
+            String jwt = jwtUtils.generateJwtToken(savedUser, savedUser.getDefaultTenantId().toString());
             
             // Log successful registration activity for audit trail
             activityLogService.logActivity(

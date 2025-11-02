@@ -517,8 +517,9 @@ public class AuthController {
             
             User savedUser = userService.createUser(user);
             
-            // Generate JWT token for immediate login
-            String jwt = jwtUtils.generateJwtToken(savedUser);
+            // Generate tenant-bound JWT token for immediate login with default tenant
+            // User now has defaultTenantId set automatically by createUser
+            String jwt = jwtUtils.generateJwtToken(savedUser, savedUser.getDefaultTenantId().toString());
             
             // Log registration activity
             activityLogService.logActivity(
@@ -615,8 +616,9 @@ public class AuthController {
             
             User savedUser = userService.createUser(user);
             
-            // Generate JWT tokens
-            String accessToken = jwtUtils.generateJwtToken(savedUser);
+            // Generate tenant-bound JWT tokens with default tenant
+            // User now has defaultTenantId set automatically by createUser
+            String accessToken = jwtUtils.generateJwtToken(savedUser, savedUser.getDefaultTenantId().toString());
             String refreshToken = jwtUtils.generateRefreshToken(savedUser);
             
             // Log registration activity
