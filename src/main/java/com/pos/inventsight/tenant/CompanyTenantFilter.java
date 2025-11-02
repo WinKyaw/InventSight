@@ -256,6 +256,7 @@ public class CompanyTenantFilter implements Filter {
         if (requestUri.startsWith("/auth/login") ||
             requestUri.startsWith("/auth/register") ||
             requestUri.startsWith("/auth/signup") ||
+            requestUri.startsWith("/auth/invite/accept") ||
             requestUri.startsWith("/auth/check-email") ||
             requestUri.startsWith("/auth/verify-email") ||
             requestUri.startsWith("/auth/resend-verification") ||
