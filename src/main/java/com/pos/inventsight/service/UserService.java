@@ -103,6 +103,8 @@ public class UserService implements UserDetailsService {
             user.setEmailVerified(false);
         }
         
+        // Note: We save the user initially, then update with default_tenant_id after company creation
+        // This is necessary because company creation depends on the saved user entity
         User savedUser = userRepository.save(user);
         
         // Auto-create company for new user with founder role
@@ -136,6 +138,7 @@ public class UserService implements UserDetailsService {
         userStoreRoleRepository.save(userStoreRole);
         
         // Set default tenant to the newly created company for automatic tenant binding
+        // Update in single operation to minimize database round-trips
         savedUser.setDefaultTenantId(savedCompany.getId());
         savedUser = userRepository.save(savedUser);
         

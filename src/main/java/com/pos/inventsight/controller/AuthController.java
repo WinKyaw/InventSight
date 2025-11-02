@@ -197,7 +197,7 @@ public class AuthController {
             // Check for error messages
             if (tenantResolutionResult instanceof String) {
                 String errorMsg = (String) tenantResolutionResult;
-                if (errorMsg.contains("No active tenant membership")) {
+                if (errorMsg.startsWith("NO_TENANT_MEMBERSHIP")) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new AuthResponse(errorMsg));
                 }
@@ -1018,9 +1018,10 @@ public class AuthController {
         
         try {
             // TODO: Implement invite token validation and resolution
-            // For now, return a placeholder response indicating this endpoint is ready but needs invite service
-            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(new AuthResponse("Invite acceptance endpoint is ready but requires invite service implementation"));
+            // Returning 503 Service Unavailable until invite service is fully integrated
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "3600") // Suggest retry after 1 hour
+                .body(new AuthResponse("Invite acceptance service is under development. Please contact support for manual invite processing."));
             
         } catch (Exception e) {
             System.out.println("❌ Invite acceptance error: " + e.getMessage());
