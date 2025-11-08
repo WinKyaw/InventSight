@@ -7,6 +7,7 @@ import com.pos.inventsight.dto.MfaStatusResponse;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.service.MfaService;
 import com.pos.inventsight.service.UserService;
+import com.pos.inventsight.service.RateLimitingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,9 @@ public class MfaController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private RateLimitingService rateLimitingService;
     
     /**
      * Initialize MFA setup for authenticated user
@@ -78,9 +82,27 @@ public class MfaController {
                                                        Authentication authentication) {
         try {
             User user = userService.getUserByUsername(authentication.getName());
+            
+            // Check rate limiting for MFA verification
+            if (!rateLimitingService.isMfaVerificationAllowed(user.getEmail())) {
+                RateLimitingService.RateLimitStatus rateLimitStatus = 
+                    rateLimitingService.getRateLimitStatus("", user.getEmail(), "mfa-verification");
+                
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new MfaSetupResponse(false, 
+                        String.format("Too many verification attempts. Please try again after %s.", 
+                            rateLimitStatus.getResetTime())));
+            }
+            
+            // Record verification attempt
+            rateLimitingService.recordMfaVerificationAttempt(user.getEmail());
+            
             boolean isValid = mfaService.verifyAndEnable(user, request.getCode());
             
             if (isValid) {
+                // Clear rate limit attempts on successful verification
+                rateLimitingService.clearMfaVerificationAttempts(user.getEmail());
+                
                 return ResponseEntity.ok(new MfaSetupResponse(
                     true,
                     "MFA enabled successfully. Your account is now secured with two-factor authentication."
