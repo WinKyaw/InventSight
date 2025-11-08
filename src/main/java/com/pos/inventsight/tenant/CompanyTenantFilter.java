@@ -260,7 +260,8 @@ public class CompanyTenantFilter implements Filter {
             requestUri.startsWith("/auth/check-email") ||
             requestUri.startsWith("/auth/verify-email") ||
             requestUri.startsWith("/auth/resend-verification") ||
-            requestUri.startsWith("/auth/validate-password")) {
+            requestUri.startsWith("/auth/validate-password") ||
+            requestUri.startsWith("/auth/mfa")) {  // MFA endpoints don't require tenant context
             return true;
         }
         
