@@ -254,14 +254,23 @@ public class CompanyTenantFilter implements Filter {
         
         // Local authentication endpoints - public (controller availability gated by @ConditionalOnProperty)
         if (requestUri.startsWith("/auth/login") ||
+            requestUri.startsWith("/api/auth/login") ||
             requestUri.startsWith("/auth/register") ||
             requestUri.startsWith("/auth/signup") ||
             requestUri.startsWith("/auth/invite/accept") ||
+            requestUri.startsWith("/api/auth/invite/accept") ||
             requestUri.startsWith("/auth/check-email") ||
+            requestUri.startsWith("/api/auth/check-email") ||
             requestUri.startsWith("/auth/verify-email") ||
+            requestUri.startsWith("/api/auth/verify-email") ||
             requestUri.startsWith("/auth/resend-verification") ||
+            requestUri.startsWith("/api/auth/resend-verification") ||
             requestUri.startsWith("/auth/validate-password") ||
-            requestUri.startsWith("/auth/mfa")) {  // MFA endpoints don't require tenant context
+            requestUri.startsWith("/api/auth/validate-password") ||
+            requestUri.startsWith("/auth/tenant-select") ||
+            requestUri.startsWith("/api/auth/tenant-select") ||
+            requestUri.startsWith("/auth/mfa") ||
+            requestUri.startsWith("/api/auth/mfa")) {  // MFA endpoints don't require tenant context
             return true;
         }
         
