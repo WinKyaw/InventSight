@@ -65,6 +65,10 @@ class MfaServiceTest {
         assertNotNull(response.getQrCodeUrl());
         assertTrue(response.getQrCodeUrl().contains("otpauth://totp/"));
         
+        // Verify QR code image is generated (Base64 encoded PNG)
+        assertNotNull(response.getQrCodeImage());
+        assertTrue(response.getQrCodeImage().length() > 0);
+        
         verify(mfaSecretRepository, times(1)).save(any(MfaSecret.class));
         verify(auditService, times(1)).logAsync(anyString(), anyLong(), eq("MFA_SETUP_INITIATED"), anyString(), anyString(), any());
     }

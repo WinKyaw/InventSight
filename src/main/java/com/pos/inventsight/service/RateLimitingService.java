@@ -14,6 +14,7 @@ public class RateLimitingService {
     
     private static final int MAX_REGISTRATION_ATTEMPTS = 5;
     private static final int MAX_EMAIL_VERIFICATION_ATTEMPTS = 10;
+    private static final int MAX_MFA_VERIFICATION_ATTEMPTS = 5;
     private static final int RATE_LIMIT_WINDOW_MINUTES = 60;
     
     public boolean isRegistrationAllowed(String ipAddress, String email) {
@@ -34,6 +35,21 @@ public class RateLimitingService {
     public void recordEmailVerificationAttempt(String ipAddress, String email) {
         String key = "email-verification:" + ipAddress + ":" + email;
         recordAttempt(key);
+    }
+    
+    public boolean isMfaVerificationAllowed(String email) {
+        String key = "mfa-verification:" + email;
+        return checkRateLimit(key, MAX_MFA_VERIFICATION_ATTEMPTS);
+    }
+    
+    public void recordMfaVerificationAttempt(String email) {
+        String key = "mfa-verification:" + email;
+        recordAttempt(key);
+    }
+    
+    public void clearMfaVerificationAttempts(String email) {
+        String key = "mfa-verification:" + email;
+        attempts.remove(key);
     }
     
     public RateLimitStatus getRateLimitStatus(String ipAddress, String email, String operation) {
@@ -95,6 +111,7 @@ public class RateLimitingService {
         switch (operation) {
             case "registration": return MAX_REGISTRATION_ATTEMPTS;
             case "email-verification": return MAX_EMAIL_VERIFICATION_ATTEMPTS;
+            case "mfa-verification": return MAX_MFA_VERIFICATION_ATTEMPTS;
             default: return 5;
         }
     }

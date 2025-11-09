@@ -154,6 +154,27 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
                 }
                 
+                // Check rate limiting for MFA login attempts
+                if (!rateLimitingService.isMfaVerificationAllowed(user.getEmail())) {
+                    System.out.println("❌ Login blocked - MFA rate limit exceeded for: " + loginRequest.getEmail());
+                    
+                    activityLogService.logActivity(
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "MFA_RATE_LIMITED",
+                        "AUTHENTICATION",
+                        "MFA login rate limit exceeded: " + loginRequest.getEmail()
+                    );
+                    
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("error", "MFA_RATE_LIMITED");
+                    errorResponse.put("message", "Too many MFA verification attempts. Please try again later.");
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+                }
+                
+                // Record MFA verification attempt
+                rateLimitingService.recordMfaVerificationAttempt(user.getEmail());
+                
                 // Validate TOTP code
                 boolean codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
                 if (!codeValid) {
@@ -174,7 +195,9 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
                 }
                 
-                // MFA verification successful
+                // MFA verification successful - clear rate limit
+                rateLimitingService.clearMfaVerificationAttempts(user.getEmail());
+                
                 System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail());
                 activityLogService.logActivity(
                     user.getId().toString(),
@@ -324,6 +347,26 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
                 }
                 
+                // Check rate limiting for MFA login attempts
+                if (!rateLimitingService.isMfaVerificationAllowed(user.getEmail())) {
+                    System.out.println("❌ Login blocked - MFA rate limit exceeded for: " + loginRequest.getEmail());
+                    
+                    activityLogService.logActivity(
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "MFA_RATE_LIMITED",
+                        "AUTHENTICATION",
+                        "MFA login rate limit exceeded (structured): " + loginRequest.getEmail()
+                    );
+                    
+                    StructuredAuthResponse errorResponse = new StructuredAuthResponse(
+                        "Too many MFA verification attempts. Please try again later.", false);
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+                }
+                
+                // Record MFA verification attempt
+                rateLimitingService.recordMfaVerificationAttempt(user.getEmail());
+                
                 // Validate TOTP code
                 boolean codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
                 if (!codeValid) {
@@ -342,6 +385,9 @@ public class AuthController {
                         "Invalid multi-factor authentication code", false);
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
                 }
+                
+                // MFA verification successful - clear rate limit
+                rateLimitingService.clearMfaVerificationAttempts(user.getEmail());
                 
                 // MFA verification successful
                 System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail());

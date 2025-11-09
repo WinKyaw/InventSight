@@ -8,6 +8,10 @@ import com.pos.inventsight.repository.MfaSecretRepository;
 import com.warrenstrange.googleauth.GoogleAuthenticator;
 import com.warrenstrange.googleauth.GoogleAuthenticatorKey;
 import com.warrenstrange.googleauth.GoogleAuthenticatorQRGenerator;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,9 +20,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -82,10 +88,29 @@ public class MfaService {
                 key
         );
         
+        // Generate QR code image (Base64 encoded PNG)
+        String qrCodeImage = null;
+        try {
+            qrCodeImage = generateQrCodeImage(qrCodeUrl, 300, 300);
+        } catch (Exception e) {
+            logger.warn("Failed to generate QR code image for user: {}", user.getEmail(), e);
+        }
+        
         logger.info("MFA setup initiated for user: {}", user.getEmail());
         auditService.logAsync(user.getEmail(), user.getId(), "MFA_SETUP_INITIATED", "User", user.getId().toString(), null);
         
-        return new MfaSetupResponse(secret, qrCodeUrl);
+        return new MfaSetupResponse(secret, qrCodeUrl, qrCodeImage);
+    }
+    
+    /**
+     * Generate QR code image as Base64 encoded PNG
+     */
+    private String generateQrCodeImage(String text, int width, int height) throws Exception {
+        BitMatrix bitMatrix = new MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, width, height);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        MatrixToImageWriter.writeToStream(bitMatrix, "PNG", outputStream);
+        byte[] imageBytes = outputStream.toByteArray();
+        return Base64.getEncoder().encodeToString(imageBytes);
     }
     
     /**
@@ -242,13 +267,16 @@ public class MfaService {
     public static class MfaSetupResponse {
         private final String secret;
         private final String qrCodeUrl;
+        private final String qrCodeImage; // Base64 encoded PNG
         
-        public MfaSetupResponse(String secret, String qrCodeUrl) {
+        public MfaSetupResponse(String secret, String qrCodeUrl, String qrCodeImage) {
             this.secret = secret;
             this.qrCodeUrl = qrCodeUrl;
+            this.qrCodeImage = qrCodeImage;
         }
         
         public String getSecret() { return secret; }
         public String getQrCodeUrl() { return qrCodeUrl; }
+        public String getQrCodeImage() { return qrCodeImage; }
     }
 }
