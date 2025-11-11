@@ -3,6 +3,7 @@ package com.pos.inventsight.service;
 import com.pos.inventsight.model.sql.MfaBackupCode;
 import com.pos.inventsight.model.sql.MfaSecret;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.OtpCode;
 import com.pos.inventsight.repository.MfaBackupCodeRepository;
 import com.pos.inventsight.repository.MfaSecretRepository;
 import com.warrenstrange.googleauth.GoogleAuthenticator;
@@ -51,6 +52,15 @@ public class MfaService {
     
     @Autowired
     private AuditService auditService;
+    
+    @Autowired
+    private OtpService otpService;
+    
+    @Autowired
+    private EmailService emailService;
+    
+    @Autowired
+    private SmsService smsService;
     
     @Value("${inventsight.mfa.issuer:InventSight}")
     private String issuer;
@@ -259,6 +269,185 @@ public class MfaService {
             logger.info("MFA disabled for user: {}", user.getEmail());
             auditService.logAsync(user.getEmail(), user.getId(), "MFA_DISABLED", "User", user.getId().toString(), null);
         });
+    }
+    
+    /**
+     * Send OTP code via email or SMS
+     */
+    @Transactional
+    public void sendOtpCode(User user, MfaSecret.DeliveryMethod deliveryMethod, String ipAddress) {
+        // Get or create MFA secret
+        MfaSecret mfaSecret = mfaSecretRepository.findByUser(user).orElse(null);
+        if (mfaSecret == null || !mfaSecret.getEnabled()) {
+            throw new IllegalStateException("MFA is not enabled for this user");
+        }
+        
+        String sentTo;
+        OtpCode.DeliveryMethod otpDeliveryMethod;
+        
+        if (deliveryMethod == MfaSecret.DeliveryMethod.EMAIL) {
+            sentTo = user.getEmail();
+            otpDeliveryMethod = OtpCode.DeliveryMethod.EMAIL;
+        } else if (deliveryMethod == MfaSecret.DeliveryMethod.SMS) {
+            if (mfaSecret.getPhoneNumber() == null || !mfaSecret.getPhoneVerified()) {
+                throw new IllegalStateException("Phone number not verified for SMS delivery");
+            }
+            sentTo = mfaSecret.getPhoneNumber();
+            otpDeliveryMethod = OtpCode.DeliveryMethod.SMS;
+        } else {
+            throw new IllegalArgumentException("Invalid delivery method for OTP: " + deliveryMethod);
+        }
+        
+        // Generate OTP code
+        OtpCode otpCode = otpService.createOtpCode(user, otpDeliveryMethod, sentTo, ipAddress);
+        String plainCode = otpCode.getCode(); // This is the plain code before it was hashed
+        
+        // Send OTP code
+        if (deliveryMethod == MfaSecret.DeliveryMethod.EMAIL) {
+            emailService.sendLoginOtpCode(sentTo, plainCode);
+        } else if (deliveryMethod == MfaSecret.DeliveryMethod.SMS) {
+            smsService.sendOtpCode(sentTo, plainCode);
+        }
+        
+        logger.info("OTP code sent via {} to user: {}", deliveryMethod, user.getEmail());
+    }
+    
+    /**
+     * Verify OTP code for login
+     */
+    @Transactional
+    public boolean verifyOtpCode(User user, String otpCode, MfaSecret.DeliveryMethod deliveryMethod) {
+        OtpCode.DeliveryMethod otpDeliveryMethod = deliveryMethod == MfaSecret.DeliveryMethod.EMAIL 
+            ? OtpCode.DeliveryMethod.EMAIL 
+            : OtpCode.DeliveryMethod.SMS;
+        
+        return otpService.verifyOtpCode(user, otpCode, otpDeliveryMethod);
+    }
+    
+    /**
+     * Get user's preferred MFA delivery method
+     */
+    @Transactional(readOnly = true)
+    public MfaSecret.DeliveryMethod getPreferredDeliveryMethod(User user) {
+        return mfaSecretRepository.findByUser(user)
+                .map(MfaSecret::getPreferredDeliveryMethod)
+                .orElse(MfaSecret.DeliveryMethod.TOTP);
+    }
+    
+    /**
+     * Update user's preferred MFA delivery method
+     */
+    @Transactional
+    public void updateDeliveryMethod(User user, MfaSecret.DeliveryMethod deliveryMethod, String phoneNumber) {
+        MfaSecret mfaSecret = mfaSecretRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalStateException("MFA not set up for this user"));
+        
+        if (!mfaSecret.getEnabled()) {
+            throw new IllegalStateException("MFA must be enabled before changing delivery method");
+        }
+        
+        // Validate phone number for SMS
+        if (deliveryMethod == MfaSecret.DeliveryMethod.SMS) {
+            if (phoneNumber == null || phoneNumber.isEmpty()) {
+                throw new IllegalArgumentException("Phone number required for SMS delivery");
+            }
+            
+            // Validate and format phone number
+            String formattedPhone = smsService.formatPhoneNumber(phoneNumber);
+            if (!smsService.isValidPhoneNumber(formattedPhone)) {
+                throw new IllegalArgumentException("Invalid phone number format");
+            }
+            
+            mfaSecret.setPhoneNumber(formattedPhone);
+            mfaSecret.setPhoneVerified(false); // Require re-verification
+        }
+        
+        mfaSecret.setPreferredDeliveryMethod(deliveryMethod);
+        mfaSecretRepository.save(mfaSecret);
+        
+        logger.info("MFA delivery method updated to {} for user: {}", deliveryMethod, user.getEmail());
+        auditService.logAsync(user.getEmail(), user.getId(), "MFA_DELIVERY_METHOD_UPDATED", 
+            "User", user.getId().toString(), "Delivery method: " + deliveryMethod);
+    }
+    
+    /**
+     * Verify phone number for SMS delivery
+     */
+    @Transactional
+    public void verifyPhoneNumber(User user, String verificationCode) {
+        MfaSecret mfaSecret = mfaSecretRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalStateException("MFA not set up for this user"));
+        
+        if (mfaSecret.getPhoneNumber() == null) {
+            throw new IllegalStateException("No phone number registered");
+        }
+        
+        // Verify OTP code sent to phone
+        boolean isValid = otpService.verifyOtpCode(user, verificationCode, OtpCode.DeliveryMethod.SMS);
+        
+        if (isValid) {
+            mfaSecret.setPhoneVerified(true);
+            mfaSecretRepository.save(mfaSecret);
+            
+            logger.info("Phone number verified for user: {}", user.getEmail());
+            auditService.logAsync(user.getEmail(), user.getId(), "PHONE_VERIFIED", 
+                "User", user.getId().toString(), null);
+        } else {
+            throw new IllegalArgumentException("Invalid verification code");
+        }
+    }
+    
+    /**
+     * Get MFA status including delivery method
+     */
+    @Transactional(readOnly = true)
+    public MfaStatusDetails getMfaStatus(User user) {
+        Optional<MfaSecret> mfaSecretOpt = mfaSecretRepository.findByUser(user);
+        
+        if (mfaSecretOpt.isEmpty()) {
+            return new MfaStatusDetails(false, null, false, null);
+        }
+        
+        MfaSecret mfaSecret = mfaSecretOpt.get();
+        return new MfaStatusDetails(
+            mfaSecret.getEnabled(),
+            mfaSecret.getPreferredDeliveryMethod(),
+            mfaSecret.getPhoneVerified(),
+            mfaSecret.getPhoneNumber() != null ? maskPhoneNumber(mfaSecret.getPhoneNumber()) : null
+        );
+    }
+    
+    /**
+     * Mask phone number for display (show only last 4 digits)
+     */
+    private String maskPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() < 4) {
+            return phoneNumber;
+        }
+        return "****" + phoneNumber.substring(phoneNumber.length() - 4);
+    }
+    
+    /**
+     * Response DTO for MFA status with delivery method
+     */
+    public static class MfaStatusDetails {
+        private final boolean enabled;
+        private final MfaSecret.DeliveryMethod preferredMethod;
+        private final boolean phoneVerified;
+        private final String maskedPhoneNumber;
+        
+        public MfaStatusDetails(boolean enabled, MfaSecret.DeliveryMethod preferredMethod, 
+                               boolean phoneVerified, String maskedPhoneNumber) {
+            this.enabled = enabled;
+            this.preferredMethod = preferredMethod;
+            this.phoneVerified = phoneVerified;
+            this.maskedPhoneNumber = maskedPhoneNumber;
+        }
+        
+        public boolean isEnabled() { return enabled; }
+        public MfaSecret.DeliveryMethod getPreferredMethod() { return preferredMethod; }
+        public boolean isPhoneVerified() { return phoneVerified; }
+        public String getMaskedPhoneNumber() { return maskedPhoneNumber; }
     }
     
     /**

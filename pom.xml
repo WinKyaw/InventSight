@@ -156,6 +156,20 @@
             <version>3.5.3</version>
         </dependency>
         
+        <!-- Twilio SDK for SMS -->
+        <dependency>
+            <groupId>com.twilio.sdk</groupId>
+            <artifactId>twilio</artifactId>
+            <version>10.0.0</version>
+        </dependency>
+        
+        <!-- libphonenumber for phone validation -->
+        <dependency>
+            <groupId>com.googlecode.libphonenumber</groupId>
+            <artifactId>libphonenumber</artifactId>
+            <version>8.13.26</version>
+        </dependency>
+        
         <!-- Utilities -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
