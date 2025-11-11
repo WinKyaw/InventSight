@@ -176,6 +176,22 @@ inventsight:
     issuer: "InventSight"
     totp:
       window-size: 3 # Allow 3 time windows for clock skew
+    otp:
+      enabled: true
+      expiry-minutes: 5 # OTP code validity period
+      code-length: 6 # Length of OTP code
+      max-attempts: 3 # Maximum verification attempts
+      rate-limit-window-minutes: 10 # Rate limiting time window
+      max-sends-per-window: 3 # Maximum OTP codes that can be sent in time window
+      
+  # SMS Configuration
+  sms:
+    enabled: ${SMS_ENABLED:false}
+    provider: ${SMS_PROVIDER:twilio} # Options: twilio, aws-sns, nexmo
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      from-number: ${TWILIO_FROM_NUMBER:}
       
   # Sales Configuration
   sales:

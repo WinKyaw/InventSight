@@ -129,4 +129,46 @@ public class EmailService {
         
         sendEmail(to, subject, body);
     }
+    
+    /**
+     * Send OTP code via email
+     */
+    public void sendOtpCode(String to, String otpCode, int expiryMinutes) {
+        String subject = "Your InventSight Verification Code";
+        String body = String.format(
+                "Hello,\n\n" +
+                "Your InventSight verification code is:\n\n" +
+                "%s\n\n" +
+                "This code will expire in %d minutes.\n\n" +
+                "If you didn't request this code, please ignore this email and ensure your account is secure.\n\n" +
+                "Best regards,\n" +
+                "The InventSight Team",
+                otpCode,
+                expiryMinutes
+        );
+        
+        sendEmail(to, subject, body);
+        logger.info("OTP code sent via email to: {}", to);
+    }
+    
+    /**
+     * Send OTP code for login verification
+     */
+    public void sendLoginOtpCode(String to, String otpCode) {
+        String subject = "Your InventSight Login Verification Code";
+        String body = String.format(
+                "Hello,\n\n" +
+                "Someone is trying to log in to your InventSight account.\n\n" +
+                "Your verification code is:\n\n" +
+                "%s\n\n" +
+                "This code will expire in 5 minutes.\n\n" +
+                "If this wasn't you, please secure your account immediately.\n\n" +
+                "Best regards,\n" +
+                "The InventSight Team",
+                otpCode
+        );
+        
+        sendEmail(to, subject, body);
+        logger.info("Login OTP code sent via email to: {}", to);
+    }
 }

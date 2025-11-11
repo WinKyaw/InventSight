@@ -20,6 +20,13 @@ public class LoginRequest {
     // Optional TOTP code for MFA (required when user has MFA enabled)
     private Integer totpCode;
     
+    // Optional OTP code for email/SMS MFA
+    @Pattern(regexp = "^\\d{6}$", message = "OTP code must be 6 digits")
+    private String otpCode;
+    
+    // Optional MFA method override (to use specific method instead of user's preference)
+    private String mfaMethod; // TOTP, EMAIL, or SMS
+    
     // Constructors
     public LoginRequest() {}
     
@@ -54,6 +61,12 @@ public class LoginRequest {
     public Integer getTotpCode() { return totpCode; }
     public void setTotpCode(Integer totpCode) { this.totpCode = totpCode; }
     
+    public String getOtpCode() { return otpCode; }
+    public void setOtpCode(String otpCode) { this.otpCode = otpCode; }
+    
+    public String getMfaMethod() { return mfaMethod; }
+    public void setMfaMethod(String mfaMethod) { this.mfaMethod = mfaMethod; }
+    
     @Override
     public String toString() {
         return "InventSight LoginRequest{" +
@@ -61,6 +74,8 @@ public class LoginRequest {
                 ", password='[PROTECTED]'" +
                 ", tenantId='" + (tenantId != null ? tenantId : "none") + '\'' +
                 ", totpCode='" + (totpCode != null ? "[PROVIDED]" : "none") + '\'' +
+                ", otpCode='" + (otpCode != null ? "[PROVIDED]" : "none") + '\'' +
+                ", mfaMethod='" + (mfaMethod != null ? mfaMethod : "none") + '\'' +
                 '}';
     }
 }
