@@ -242,19 +242,30 @@ public class AuthController {
                     .body(tenantResolutionResult);
             }
             
-            // Check for error messages
+            // Check for error messages or valid tenant UUID
+            String tenantId;
             if (tenantResolutionResult instanceof String) {
-                String errorMsg = (String) tenantResolutionResult;
-                if (errorMsg.startsWith("NO_TENANT_MEMBERSHIP")) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new AuthResponse(errorMsg));
+                String resultString = (String) tenantResolutionResult;
+                
+                // Try to parse as UUID - if successful, it's a tenant ID
+                try {
+                    java.util.UUID.fromString(resultString);
+                    // Valid UUID - this is the tenant ID
+                    tenantId = resultString;
+                } catch (IllegalArgumentException e) {
+                    // Not a valid UUID - treat as error message
+                    if (resultString.startsWith("NO_TENANT_MEMBERSHIP")) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(new AuthResponse(resultString));
+                    }
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new AuthResponse(resultString));
                 }
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new AuthResponse(errorMsg));
+            } else {
+                // Unexpected type - should not happen
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponse("Unexpected tenant resolution result"));
             }
-            
-            // tenantResolutionResult is the tenant UUID string
-            String tenantId = (String) tenantResolutionResult;
             String jwt = jwtUtils.generateJwtToken(user, tenantId);
             
             // Update last login
@@ -458,19 +469,30 @@ public class AuthController {
                     .body(tenantResolutionResult);
             }
             
-            // Check for error messages
+            // Check for error messages or valid tenant UUID
+            String tenantId;
             if (tenantResolutionResult instanceof String) {
-                String errorMsg = (String) tenantResolutionResult;
-                if (errorMsg.contains("NO_TENANT_MEMBERSHIP")) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new StructuredAuthResponse(errorMsg, false));
+                String resultString = (String) tenantResolutionResult;
+                
+                // Try to parse as UUID - if successful, it's a tenant ID
+                try {
+                    java.util.UUID.fromString(resultString);
+                    // Valid UUID - this is the tenant ID
+                    tenantId = resultString;
+                } catch (IllegalArgumentException e) {
+                    // Not a valid UUID - treat as error message
+                    if (resultString.startsWith("NO_TENANT_MEMBERSHIP")) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(new StructuredAuthResponse(resultString, false));
+                    }
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new StructuredAuthResponse(resultString, false));
                 }
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new StructuredAuthResponse(errorMsg, false));
+            } else {
+                // Unexpected type - should not happen
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new StructuredAuthResponse("Unexpected tenant resolution result", false));
             }
-            
-            // tenantResolutionResult is the tenant UUID string
-            String tenantId = (String) tenantResolutionResult;
             String accessToken = jwtUtils.generateJwtToken(user, tenantId);
             
             String refreshToken = jwtUtils.generateRefreshToken(user);

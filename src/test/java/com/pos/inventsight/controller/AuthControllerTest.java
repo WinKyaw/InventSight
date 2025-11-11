@@ -533,6 +533,89 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Access denied: user is not a member of the specified company."));
     }
     
+    @Test
+    public void testLoginWithDefaultTenantReturnsSuccessNotError() throws Exception {
+        // This test validates the fix for the bug where tenant UUIDs were being treated as error messages
+        // Given
+        String validTenantUuid = "24ad4dc1-806b-4736-8213-104f4190258b";
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("windaybunce@gmail.com");
+        loginRequest.setPassword("password123");
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("windaybunce@gmail.com");
+        mockUser.setUsername("Jennie1");
+        mockUser.setFirstName("JJ");
+        mockUser.setLastName("Win");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
+        mockUser.setDefaultTenantId(java.util.UUID.fromString(validTenantUuid));
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
+        when(companyRepository.existsById(java.util.UUID.fromString(validTenantUuid))).thenReturn(true);
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(mockUser))
+                .thenReturn(java.util.Arrays.asList(createMockCompanyStoreUser(mockUser, validTenantUuid)));
+        when(jwtUtils.generateJwtToken(any(User.class), eq(validTenantUuid)))
+                .thenReturn("mock-jwt-token-with-tenant");
+
+        // When & Then
+        // The fix ensures that a valid UUID string is NOT treated as an error
+        // Before fix: would return 400 BAD_REQUEST with tenant UUID as error message
+        // After fix: should return 200 OK with JWT token
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("mock-jwt-token-with-tenant"))
+                .andExpect(jsonPath("$.email").value("windaybunce@gmail.com"))
+                .andExpect(jsonPath("$.username").value("Jennie1"))
+                .andExpect(jsonPath("$.role").value("USER"));
+
+        // Verify tenant-bound JWT was generated with the correct UUID
+        verify(jwtUtils).generateJwtToken(any(User.class), eq(validTenantUuid));
+        verify(userService).updateLastLogin(1L);
+    }
+    
+    @Test
+    public void testLoginWithNoTenantMembershipReturnsProperError() throws Exception {
+        // This test ensures error messages are still properly handled
+        // Given
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("notenant@inventsight.com");
+        loginRequest.setPassword("password123");
+
+        User mockUser = new User();
+        mockUser.setId(2L);
+        mockUser.setEmail("notenant@inventsight.com");
+        mockUser.setUsername("notenantuser");
+        mockUser.setFirstName("No");
+        mockUser.setLastName("Tenant");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setEmailVerified(true);
+        mockUser.setDefaultTenantId(null); // No default tenant
+
+        Authentication mockAuth = mock(Authentication.class);
+        when(mockAuth.getPrincipal()).thenReturn(mockUser);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(mockAuth);
+        when(mfaService.isMfaEnabled(mockUser)).thenReturn(false);
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(mockUser))
+                .thenReturn(java.util.Collections.emptyList()); // No memberships
+
+        // When & Then
+        // Should return 403 FORBIDDEN with proper error message
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("NO_TENANT_MEMBERSHIP")));
+    }
+    
     // Helper method to create mock CompanyStoreUser
     private com.pos.inventsight.model.sql.CompanyStoreUser createMockCompanyStoreUser(User user, String companyId) {
         com.pos.inventsight.model.sql.CompanyStoreUser csu = mock(com.pos.inventsight.model.sql.CompanyStoreUser.class);
