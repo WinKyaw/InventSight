@@ -132,11 +132,18 @@ public class AuthController {
                     .body(new AuthResponse("Email not verified. Please verify your email before logging in."));
             }
             
-            // Check MFA status and validate TOTP code if enabled
+            // Check MFA status and validate code if enabled
             boolean mfaEnabled = mfaService.isMfaEnabled(user);
             if (mfaEnabled) {
-                // MFA is enabled - TOTP code is required
-                if (loginRequest.getTotpCode() == null) {
+                // Get user's preferred MFA delivery method
+                com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod preferredMethod = 
+                    mfaService.getPreferredDeliveryMethod(user);
+                
+                // Check if any MFA code is provided
+                boolean hasTotpCode = loginRequest.getTotpCode() != null;
+                boolean hasOtpCode = loginRequest.getOtpCode() != null && !loginRequest.getOtpCode().isEmpty();
+                
+                if (!hasTotpCode && !hasOtpCode) {
                     System.out.println("❌ Login blocked - MFA code required for: " + loginRequest.getEmail());
                     
                     // Log MFA required event
@@ -151,6 +158,7 @@ public class AuthController {
                     Map<String, Object> errorResponse = new HashMap<>();
                     errorResponse.put("error", "MFA_REQUIRED");
                     errorResponse.put("message", "Multi-factor authentication code is required");
+                    errorResponse.put("preferredMethod", preferredMethod.toString());
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
                 }
                 
@@ -175,8 +183,25 @@ public class AuthController {
                 // Record MFA verification attempt
                 rateLimitingService.recordMfaVerificationAttempt(user.getEmail());
                 
-                // Validate TOTP code
-                boolean codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
+                boolean codeValid = false;
+                String methodUsed = null;
+                
+                // Verify based on the code type provided
+                if (hasOtpCode) {
+                    // OTP code provided - verify as email/SMS OTP
+                    com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod deliveryMethod = 
+                        preferredMethod == com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.SMS
+                            ? com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.SMS
+                            : com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.EMAIL;
+                    
+                    codeValid = mfaService.verifyOtpCode(user, loginRequest.getOtpCode(), deliveryMethod);
+                    methodUsed = deliveryMethod.toString();
+                } else if (hasTotpCode) {
+                    // TOTP code provided - verify as TOTP
+                    codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
+                    methodUsed = "TOTP";
+                }
+                
                 if (!codeValid) {
                     System.out.println("❌ Login blocked - invalid MFA code for: " + loginRequest.getEmail());
                     
@@ -198,13 +223,13 @@ public class AuthController {
                 // MFA verification successful - clear rate limit
                 rateLimitingService.clearMfaVerificationAttempts(user.getEmail());
                 
-                System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail());
+                System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail() + " via " + methodUsed);
                 activityLogService.logActivity(
                     user.getId().toString(),
                     user.getUsername(),
                     "MFA_VERIFIED",
                     "AUTHENTICATION",
-                    "MFA code verified successfully: " + loginRequest.getEmail()
+                    "MFA code verified successfully via " + methodUsed + ": " + loginRequest.getEmail()
                 );
             }
             
@@ -326,11 +351,18 @@ public class AuthController {
                     .body(new StructuredAuthResponse("Email not verified. Please verify your email before logging in.", false));
             }
             
-            // Check MFA status and validate TOTP code if enabled
+            // Check MFA status and validate code if enabled
             boolean mfaEnabled = mfaService.isMfaEnabled(user);
             if (mfaEnabled) {
-                // MFA is enabled - TOTP code is required
-                if (loginRequest.getTotpCode() == null) {
+                // Get user's preferred MFA delivery method
+                com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod preferredMethod = 
+                    mfaService.getPreferredDeliveryMethod(user);
+                
+                // Check if any MFA code is provided
+                boolean hasTotpCode = loginRequest.getTotpCode() != null;
+                boolean hasOtpCode = loginRequest.getOtpCode() != null && !loginRequest.getOtpCode().isEmpty();
+                
+                if (!hasTotpCode && !hasOtpCode) {
                     System.out.println("❌ Login blocked - MFA code required for: " + loginRequest.getEmail());
                     
                     // Log MFA required event
@@ -343,7 +375,7 @@ public class AuthController {
                     );
                     
                     StructuredAuthResponse errorResponse = new StructuredAuthResponse(
-                        "Multi-factor authentication code is required", false);
+                        "Multi-factor authentication code is required. Preferred method: " + preferredMethod, false);
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
                 }
                 
@@ -367,8 +399,25 @@ public class AuthController {
                 // Record MFA verification attempt
                 rateLimitingService.recordMfaVerificationAttempt(user.getEmail());
                 
-                // Validate TOTP code
-                boolean codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
+                boolean codeValid = false;
+                String methodUsed = null;
+                
+                // Verify based on the code type provided
+                if (hasOtpCode) {
+                    // OTP code provided - verify as email/SMS OTP
+                    com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod deliveryMethod = 
+                        preferredMethod == com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.SMS
+                            ? com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.SMS
+                            : com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.EMAIL;
+                    
+                    codeValid = mfaService.verifyOtpCode(user, loginRequest.getOtpCode(), deliveryMethod);
+                    methodUsed = deliveryMethod.toString();
+                } else if (hasTotpCode) {
+                    // TOTP code provided - verify as TOTP
+                    codeValid = mfaService.verifyCode(user, loginRequest.getTotpCode());
+                    methodUsed = "TOTP";
+                }
+                
                 if (!codeValid) {
                     System.out.println("❌ Login blocked - invalid MFA code for: " + loginRequest.getEmail());
                     
@@ -390,13 +439,13 @@ public class AuthController {
                 rateLimitingService.clearMfaVerificationAttempts(user.getEmail());
                 
                 // MFA verification successful
-                System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail());
+                System.out.println("✅ MFA verified successfully for: " + loginRequest.getEmail() + " via " + methodUsed);
                 activityLogService.logActivity(
                     user.getId().toString(),
                     user.getUsername(),
                     "MFA_VERIFIED",
                     "AUTHENTICATION",
-                    "MFA code verified successfully (structured): " + loginRequest.getEmail()
+                    "MFA code verified successfully via " + methodUsed + " (structured): " + loginRequest.getEmail()
                 );
             }
             
