@@ -256,6 +256,14 @@ class CompanyTenantFilterTest {
         // Given requests to public endpoints
         String[] publicEndpoints = {
             "/auth/login",
+            "/api/auth/login",
+            "/api/auth/mfa",
+            "/api/auth/tenant-select",
+            "/api/auth/verify-email",
+            "/api/auth/resend-verification",
+            "/api/auth/check-email",
+            "/api/auth/validate-password",
+            "/api/auth/invite/accept",
             "/api/register",
             "/api/auth/register",
             "/api/auth/signup",
@@ -509,5 +517,38 @@ class CompanyTenantFilterTest {
         verify(filterChain).doFilter(request, response);
         verify(companyRepository).existsById(companyUuid);
         verify(companyRepository, never()).existsById(differentCompanyUuid);
+    }
+    
+    @Test
+    void testJwtOnlyMode_PublicEndpointsWithApiPrefix() throws Exception {
+        // Given JWT-only mode is enabled
+        companyTenantFilter.setHeaderEnabled(false);
+        
+        // Test public endpoints with /api prefix don't require tenant_id
+        String[] publicApiEndpoints = {
+            "/api/auth/login",
+            "/api/auth/mfa",
+            "/api/auth/tenant-select",
+            "/api/auth/verify-email",
+            "/api/auth/resend-verification",
+            "/api/auth/check-email",
+            "/api/auth/validate-password",
+            "/api/auth/invite/accept"
+        };
+        
+        for (String endpoint : publicApiEndpoints) {
+            // Reset mocks
+            reset(request, response, filterChain, jwtUtils);
+            
+            when(request.getRequestURI()).thenReturn(endpoint);
+            
+            // When processing the filter
+            companyTenantFilter.doFilter(request, response, filterChain);
+            
+            // Then verify filter chain was called without tenant validation
+            verify(filterChain).doFilter(request, response);
+            verify(jwtUtils, never()).hasTenantId(any());
+            verify(companyRepository, never()).existsById(any());
+        }
     }
 }
