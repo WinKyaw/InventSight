@@ -4,7 +4,11 @@ import com.pos.inventsight.dto.MfaVerifyRequest;
 import com.pos.inventsight.dto.MfaSetupResponse;
 import com.pos.inventsight.dto.MfaBackupCodesResponse;
 import com.pos.inventsight.dto.MfaStatusResponse;
+import com.pos.inventsight.dto.MfaSendOtpRequest;
+import com.pos.inventsight.dto.MfaVerifyOtpRequest;
+import com.pos.inventsight.dto.MfaDeliveryMethodRequest;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.MfaSecret;
 import com.pos.inventsight.service.MfaService;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.RateLimitingService;
@@ -12,13 +16,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller for Multi-Factor Authentication (MFA) operations.
@@ -206,6 +213,192 @@ public class MfaController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new MfaSetupResponse(false, "Error disabling MFA: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Send OTP code via email or SMS
+     */
+    @PostMapping("/send-otp")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Send OTP Code", description = "Send OTP code via email or SMS for MFA")
+    public ResponseEntity<?> sendOtpCode(@Valid @RequestBody MfaSendOtpRequest request,
+                                          Authentication authentication,
+                                          HttpServletRequest httpRequest) {
+        try {
+            User user = userService.getUserByUsername(authentication.getName());
+            
+            // Convert DTO delivery method to entity enum
+            MfaSecret.DeliveryMethod deliveryMethod = request.getDeliveryMethod() == MfaSendOtpRequest.DeliveryMethod.EMAIL
+                ? MfaSecret.DeliveryMethod.EMAIL
+                : MfaSecret.DeliveryMethod.SMS;
+            
+            // Get IP address
+            String ipAddress = httpRequest.getRemoteAddr();
+            
+            // Send OTP code
+            mfaService.sendOtpCode(user, deliveryMethod, ipAddress);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "OTP code sent successfully via " + request.getDeliveryMethod());
+            response.put("deliveryMethod", request.getDeliveryMethod());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error sending OTP code: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    /**
+     * Verify OTP code
+     */
+    @PostMapping("/verify-otp")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Verify OTP Code", description = "Verify OTP code received via email or SMS")
+    public ResponseEntity<?> verifyOtpCode(@Valid @RequestBody MfaVerifyOtpRequest request,
+                                            Authentication authentication) {
+        try {
+            User user = userService.getUserByUsername(authentication.getName());
+            
+            // Convert DTO delivery method to entity enum
+            MfaSecret.DeliveryMethod deliveryMethod = request.getDeliveryMethod() == MfaVerifyOtpRequest.DeliveryMethod.EMAIL
+                ? MfaSecret.DeliveryMethod.EMAIL
+                : MfaSecret.DeliveryMethod.SMS;
+            
+            // Verify OTP code
+            boolean isValid = mfaService.verifyOtpCode(user, request.getOtpCode(), deliveryMethod);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", isValid);
+            response.put("message", isValid ? "OTP code verified successfully" : "Invalid OTP code");
+            
+            return isValid ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error verifying OTP code: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    /**
+     * Update MFA delivery method preference
+     */
+    @PutMapping("/delivery-method")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update MFA Delivery Method", description = "Update preferred MFA delivery method (TOTP/EMAIL/SMS)")
+    public ResponseEntity<?> updateDeliveryMethod(@Valid @RequestBody MfaDeliveryMethodRequest request,
+                                                    Authentication authentication) {
+        try {
+            User user = userService.getUserByUsername(authentication.getName());
+            
+            // Convert DTO delivery method to entity enum
+            MfaSecret.DeliveryMethod deliveryMethod;
+            switch (request.getDeliveryMethod()) {
+                case EMAIL:
+                    deliveryMethod = MfaSecret.DeliveryMethod.EMAIL;
+                    break;
+                case SMS:
+                    deliveryMethod = MfaSecret.DeliveryMethod.SMS;
+                    break;
+                default:
+                    deliveryMethod = MfaSecret.DeliveryMethod.TOTP;
+            }
+            
+            // Update delivery method
+            mfaService.updateDeliveryMethod(user, deliveryMethod, request.getPhoneNumber());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "MFA delivery method updated successfully");
+            response.put("deliveryMethod", request.getDeliveryMethod());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error updating delivery method: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    /**
+     * Verify phone number for SMS delivery
+     */
+    @PostMapping("/verify-phone")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Verify Phone Number", description = "Verify phone number for SMS OTP delivery")
+    public ResponseEntity<?> verifyPhoneNumber(@RequestParam("code") String verificationCode,
+                                                 Authentication authentication) {
+        try {
+            User user = userService.getUserByUsername(authentication.getName());
+            
+            // Verify phone number
+            mfaService.verifyPhoneNumber(user, verificationCode);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Phone number verified successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error verifying phone number: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    /**
+     * Get available MFA delivery methods
+     */
+    @GetMapping("/delivery-methods")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Get MFA Delivery Methods", description = "Get available MFA delivery methods and current preference")
+    public ResponseEntity<?> getDeliveryMethods(Authentication authentication) {
+        try {
+            User user = userService.getUserByUsername(authentication.getName());
+            
+            MfaService.MfaStatusDetails status = mfaService.getMfaStatus(user);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("enabled", status.isEnabled());
+            response.put("preferredMethod", status.getPreferredMethod());
+            response.put("phoneVerified", status.isPhoneVerified());
+            response.put("maskedPhoneNumber", status.getMaskedPhoneNumber());
+            response.put("availableMethods", new String[]{"TOTP", "EMAIL", "SMS"});
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error retrieving delivery methods: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }
