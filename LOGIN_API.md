@@ -57,16 +57,40 @@ Main user login endpoint with **automatic tenant binding**, email verification c
 ```
 
 **Response (MFA Required - 401 Unauthorized):**
-When user has MFA enabled but `totpCode` is not provided:
+When user has MFA enabled but no MFA code is provided:
 ```json
 {
     "error": "MFA_REQUIRED",
-    "message": "Multi-factor authentication code is required"
+    "message": "Multi-factor authentication code is required",
+    "preferredMethod": "EMAIL"
+}
+```
+
+**Note on MFA Delivery Methods:**
+- `preferredMethod` indicates the user's preferred MFA method: `TOTP`, `EMAIL`, or `SMS`
+- For TOTP: Provide `totpCode` (6-digit number) from authenticator app
+- For EMAIL/SMS: Provide `otpCode` (6-digit string) received via email or SMS
+
+**Request Body with OTP (Email/SMS):**
+```json
+{
+    "email": "user@example.com",
+    "password": "userpassword",
+    "otpCode": "123456"
+}
+```
+
+**Request Body with TOTP (Authenticator App):**
+```json
+{
+    "email": "user@example.com",
+    "password": "userpassword",
+    "totpCode": 123456
 }
 ```
 
 **Response (Invalid MFA Code - 401 Unauthorized):**
-When user has MFA enabled and `totpCode` is invalid:
+When user has MFA enabled and the provided code (TOTP or OTP) is invalid:
 ```json
 {
     "error": "MFA_INVALID_CODE",
@@ -422,3 +446,191 @@ All login attempts are logged with appropriate activity types:
 - New user registrations automatically set default tenant to created company
 - For detailed tenant binding information, see [TENANT_BINDING.md](./TENANT_BINDING.md)
 - Users with unverified emails cannot obtain JWT tokens through login endpoints
+## MFA OTP Support (Email and SMS)
+
+InventSight now supports three MFA delivery methods:
+- **TOTP**: Time-based One-Time Password using authenticator apps (Google Authenticator, Authy)
+- **Email OTP**: 6-digit codes sent via email
+- **SMS OTP**: 6-digit codes sent via SMS/text message
+
+### MFA OTP Endpoints
+
+#### POST /auth/mfa/send-otp - Send OTP Code
+
+Send OTP code via email or SMS.
+
+**Request:**
+```json
+{
+    "deliveryMethod": "EMAIL",
+    "email": "user@example.com"
+}
+```
+or
+```json
+{
+    "deliveryMethod": "SMS",
+    "phoneNumber": "+1234567890"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "OTP code sent successfully via EMAIL",
+    "deliveryMethod": "EMAIL"
+}
+```
+
+#### POST /auth/mfa/verify-otp - Verify OTP Code
+
+Verify an OTP code.
+
+**Request:**
+```json
+{
+    "otpCode": "123456",
+    "deliveryMethod": "EMAIL"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "OTP code verified successfully"
+}
+```
+
+#### PUT /auth/mfa/delivery-method - Update MFA Delivery Method
+
+Change preferred MFA delivery method.
+
+**Request:**
+```json
+{
+    "deliveryMethod": "EMAIL"
+}
+```
+or (for SMS):
+```json
+{
+    "deliveryMethod": "SMS",
+    "phoneNumber": "+1234567890"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "MFA delivery method updated successfully",
+    "deliveryMethod": "EMAIL"
+}
+```
+
+#### POST /auth/mfa/verify-phone - Verify Phone Number
+
+Verify phone number for SMS OTP delivery.
+
+**Request:**
+```
+POST /auth/mfa/verify-phone?code=123456
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Phone number verified successfully"
+}
+```
+
+#### GET /auth/mfa/delivery-methods - Get Available Methods
+
+Get available MFA delivery methods and current settings.
+
+**Response:**
+```json
+{
+    "success": true,
+    "enabled": true,
+    "preferredMethod": "EMAIL",
+    "phoneVerified": false,
+    "maskedPhoneNumber": "****1234",
+    "availableMethods": ["TOTP", "EMAIL", "SMS"]
+}
+```
+
+### OTP Login Flow
+
+1. **Attempt login with credentials only**:
+   ```bash
+   POST /auth/login
+   {
+     "email": "user@example.com",
+     "password": "password123"
+   }
+   ```
+
+2. **Receive MFA_REQUIRED response**:
+   ```json
+   {
+     "error": "MFA_REQUIRED",
+     "message": "Multi-factor authentication code is required",
+     "preferredMethod": "EMAIL"
+   }
+   ```
+
+3. **Complete login with OTP code** (received via email/SMS):
+   ```bash
+   POST /auth/login
+   {
+     "email": "user@example.com",
+     "password": "password123",
+     "otpCode": "123456"
+   }
+   ```
+
+### OTP Security Features
+
+- **5-minute expiration**: OTP codes are valid for 5 minutes only
+- **One-time use**: Each OTP code can only be used once
+- **Rate limiting**: Maximum 3 OTP requests per 10 minutes
+- **Hashed storage**: OTP codes are hashed with BCrypt before storage
+- **Audit logging**: All OTP operations are logged for security monitoring
+
+### Configuration
+
+OTP and SMS settings in `application.yml`:
+
+```yaml
+inventsight:
+  mfa:
+    otp:
+      enabled: true
+      expiry-minutes: 5
+      code-length: 6
+      max-attempts: 3
+      rate-limit-window-minutes: 10
+      max-sends-per-window: 3
+  
+  sms:
+    enabled: true
+    provider: twilio
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID}
+      auth-token: ${TWILIO_AUTH_TOKEN}
+      from-number: ${TWILIO_FROM_NUMBER}
+```
+
+For detailed MFA OTP setup and usage, see [MFA_OTP_GUIDE.md](./MFA_OTP_GUIDE.md).
+
+## Backward Compatibility
+
+All existing TOTP users continue to work without any changes:
+- `totpCode` parameter remains supported
+- Default delivery method is TOTP for existing users
+- Users can switch to Email/SMS OTP at any time
+- No breaking changes to existing API contracts
