@@ -8,6 +8,7 @@ import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,12 @@ public class EmailVerificationService {
     
     @Autowired
     private ActivityLogService activityLogService;
+    
+    @Autowired
+    private EmailService emailService;
+    
+    @Value("${inventsight.email.verification-url:http://localhost:3000/verify-email}")
+    private String verificationBaseUrl;
     
     private static final int TOKEN_EXPIRY_HOURS = 24;
     private static final String TOKEN_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -132,23 +139,61 @@ public class EmailVerificationService {
         return token.toString();
     }
     
-    // For mock email sending (to be replaced with real email service)
+    // Send verification email using EmailService
     public void sendVerificationEmail(String email, String token) {
-        System.out.println("📨 InventSight - Mock sending verification email to: " + email);
-        System.out.println("🔗 Verification token: " + token);
-        System.out.println("📝 Verification link: http://localhost:3000/verify-email?token=" + token + "&email=" + email);
+        System.out.println("📨 InventSight - Sending verification email to: " + email);
         
-        // Log activity
-        activityLogService.logActivity(
-            null,
-            "WinKyaw",
-            "EMAIL_VERIFICATION_SENT",
-            "AUTHENTICATION",
-            "Verification email sent to: " + email
-        );
-        
-        // In a real implementation, this would integrate with an email service
-        // like SendGrid, AWS SES, or SMTP server
-        System.out.println("📧 Mock email sent successfully to: " + email);
+        try {
+            // Build verification link
+            String verificationLink = String.format("%s?token=%s&email=%s", 
+                verificationBaseUrl, token, email);
+            
+            // Email subject
+            String subject = "Email Verification - InventSight";
+            
+            // Email body
+            String body = String.format(
+                "Hello,\n\n" +
+                "Thank you for registering with InventSight!\n\n" +
+                "Please verify your email address by clicking the link below:\n\n" +
+                "%s\n\n" +
+                "This link will expire in %d hours.\n\n" +
+                "If you did not create an account with InventSight, please ignore this email.\n\n" +
+                "Best regards,\n" +
+                "The InventSight Team",
+                verificationLink,
+                TOKEN_EXPIRY_HOURS
+            );
+            
+            // Send email via EmailService
+            emailService.sendEmail(email, subject, body);
+            
+            System.out.println("✅ Verification email sent successfully to: " + email);
+            
+            // Log activity
+            activityLogService.logActivity(
+                null,
+                "WinKyaw",
+                "EMAIL_VERIFICATION_SENT",
+                "AUTHENTICATION",
+                "Verification email sent to: " + email
+            );
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send verification email to: " + email);
+            System.err.println("Error: " + e.getMessage());
+            
+            // Log activity for failed email
+            activityLogService.logActivity(
+                null,
+                "WinKyaw",
+                "EMAIL_VERIFICATION_FAILED",
+                "AUTHENTICATION",
+                "Failed to send verification email to: " + email + ". Error: " + e.getMessage()
+            );
+            
+            // Re-throw as runtime exception to inform caller
+            throw new RuntimeException("Failed to send verification email: " + e.getMessage(), e);
+        }
     }
 }
