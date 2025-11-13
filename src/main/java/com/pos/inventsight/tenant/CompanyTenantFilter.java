@@ -180,9 +180,17 @@ public class CompanyTenantFilter implements Filter {
             }
             
             // Get authenticated user
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            logger.debug("Authentication object: {}", authentication);
+            logger.debug("Is authenticated: {}", authentication != null ? authentication.isAuthenticated() : "null");
+            logger.debug("Principal type: {}", authentication != null && authentication.getPrincipal() != null ? 
+                                               authentication.getPrincipal().getClass().getSimpleName() : "null");
+            
             User authenticatedUser = getAuthenticatedUser();
             if (authenticatedUser == null) {
                 logger.warn("No authenticated user found for company tenant request");
+                logger.warn("Request URI: {}", requestUri);
+                logger.warn("Authorization header present: {}", authHeader != null);
                 sendError(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, 
                          "Authentication required");
                 return;

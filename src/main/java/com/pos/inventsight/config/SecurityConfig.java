@@ -188,14 +188,14 @@ public class SecurityConfig {
         http.authenticationProvider(authenticationProvider());
         
         // Add filters in correct order:
-        // 1. RateLimitingFilter (earliest - before any processing)
-        // 2. CompanyTenantFilter (tenant context)
-        // 3. Auth layer (JWT filter)
-        // 4. IdempotencyKeyFilter (after auth/tenant, so cache keys include tenant)
+        // 1. RateLimitingFilter (earliest - rate limiting check before any processing)
+        // 2. AuthTokenFilter (JWT authentication - MUST run before CompanyTenantFilter)
+        // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
+        // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(companyTenantFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
-        http.addFilterAfter(idempotencyKeyFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(companyTenantFilter, AuthTokenFilter.class);
+        http.addFilterAfter(idempotencyKeyFilter, CompanyTenantFilter.class);
         
         System.out.println("✅ InventSight Spring Security Configuration completed with all filters");
         return http.build();
