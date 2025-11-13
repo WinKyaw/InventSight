@@ -87,7 +87,7 @@ inventsight:
   security:
     jwt:
       secret: inventsight-super-secret-jwt-key-winkyaw-2025-08-26
-      expiration: 300000 # 5 minutes (300,000 ms) for enhanced security
+      expiration: 900000 # 15 minutes (900,000 ms) - balance between security and usability
       refresh-expiration: 604800000 # 7 days
       
     oauth2:

@@ -90,6 +90,7 @@ public class SecurityConfig {
     
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
+        System.out.println("🔧 InventSight - Creating AuthTokenFilter bean");
         return new AuthTokenFilter();
     }
     
@@ -192,11 +193,16 @@ public class SecurityConfig {
         // 2. AuthTokenFilter (JWT authentication - MUST run before CompanyTenantFilter)
         // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
         // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
+        
+        // Create a single instance of AuthTokenFilter to ensure consistent bean reference
+        AuthTokenFilter authTokenFilter = authenticationJwtTokenFilter();
+        
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
-        http.addFilterAfter(companyTenantFilter, AuthTokenFilter.class);
+        http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(companyTenantFilter, authTokenFilter.getClass());
         http.addFilterAfter(idempotencyKeyFilter, CompanyTenantFilter.class);
         
+        System.out.println("✅ InventSight - Filter chain configured: RateLimiting -> AuthToken -> CompanyTenant -> Idempotency");
         System.out.println("✅ InventSight Spring Security Configuration completed with all filters");
         return http.build();
     }
