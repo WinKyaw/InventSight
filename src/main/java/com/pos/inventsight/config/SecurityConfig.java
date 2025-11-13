@@ -67,6 +67,9 @@ public class SecurityConfig {
     @Autowired
     private IdempotencyKeyFilter idempotencyKeyFilter;
     
+    @Autowired
+    private AuthTokenFilter authTokenFilter;
+    
     @Autowired(required = false)
     private JwtDecoder jwtDecoder;
     
@@ -87,12 +90,6 @@ public class SecurityConfig {
     
     @Value("${inventsight.security.local-login.enabled:false}")
     private boolean localLoginEnabled;
-    
-    @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter() {
-        System.out.println("🔧 InventSight - Creating AuthTokenFilter bean");
-        return new AuthTokenFilter();
-    }
     
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -193,9 +190,6 @@ public class SecurityConfig {
         // 2. AuthTokenFilter (JWT authentication - MUST run before CompanyTenantFilter)
         // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
         // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
-        
-        // Create a single instance of AuthTokenFilter to ensure consistent bean reference
-        AuthTokenFilter authTokenFilter = authenticationJwtTokenFilter();
         
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
