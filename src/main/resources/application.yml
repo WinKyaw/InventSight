@@ -59,6 +59,12 @@ spring:
           starttls:
             enable: true
             required: true
+    # Email configuration notes:
+    # - For Gmail: host=smtp.gmail.com, port=587, use App Password (not regular password)
+    # - For Outlook: host=smtp-mail.outlook.com, port=587
+    # - For SendGrid: host=smtp.sendgrid.net, port=587, username=apikey
+    # - For AWS SES: host=email-smtp.{region}.amazonaws.com, port=587
+    # See EMAIL_SETUP.md for detailed configuration instructions
   
   # OAuth2 Resource Server Configuration  
   security:
@@ -157,6 +163,11 @@ inventsight:
     provider: ${EMAIL_PROVIDER:smtp} # Options: smtp, ses, sendgrid
     from-address: ${EMAIL_FROM:noreply@inventsight.com}
     from-name: "InventSight"
+    verification-url: ${EMAIL_VERIFICATION_URL:http://localhost:3000/verify-email}
+    # Email provider setup:
+    # - smtp: Use spring.mail properties above for SMTP configuration
+    # - ses: Requires AWS credentials and SES setup (see EMAIL_SETUP.md)
+    # - sendgrid: Requires SendGrid API key (see EMAIL_SETUP.md)
     
   # Data Retention Policy
   data:

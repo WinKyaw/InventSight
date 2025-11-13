@@ -257,6 +257,9 @@ public class AuthController {
                     if (resultString.startsWith("NO_TENANT_MEMBERSHIP")) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                             .body(new AuthResponse(resultString));
+                    } else if (resultString.startsWith("TENANT_CREATION_FAILED")) {
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(new AuthResponse(resultString));
                     }
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new AuthResponse(resultString));
@@ -981,8 +984,18 @@ public class AuthController {
             companyStoreUserRepository.findByUserAndIsActiveTrue(user);
         
         if (memberships.isEmpty()) {
-            System.out.println("❌ User has no active tenant memberships");
-            return "NO_TENANT_MEMBERSHIP: No active tenant membership found. Please contact your administrator.";
+            System.out.println("⚠️ User has no active tenant memberships - creating default company");
+            // Create a default company for the user
+            try {
+                com.pos.inventsight.model.sql.Company defaultCompany = createDefaultCompanyForUser(user);
+                user.setDefaultTenantId(defaultCompany.getId());
+                userService.saveUser(user);
+                System.out.println("✅ Created default company and set as default tenant: " + defaultCompany.getId());
+                return defaultCompany.getId().toString();
+            } catch (Exception e) {
+                System.out.println("❌ Failed to create default company for user: " + e.getMessage());
+                return "TENANT_CREATION_FAILED: Unable to create default tenant. Please contact your administrator. Error: " + e.getMessage();
+            }
         }
         
         // Step 3: If exactly one membership, auto-set as default and use it
@@ -1013,6 +1026,143 @@ public class AuthController {
             "Multiple tenant memberships found. Please select a tenant to continue.",
             companies
         );
+    }
+    
+    /**
+     * Create a default company for a user who has no company memberships
+     */
+    private com.pos.inventsight.model.sql.Company createDefaultCompanyForUser(User user) {
+        // Create company with user's information
+        com.pos.inventsight.model.sql.Company company = new com.pos.inventsight.model.sql.Company();
+        company.setName(user.getFullName() + "'s Company");
+        company.setEmail(user.getEmail());
+        company.setIsActive(true);
+        company.setCreatedBy(user.getUsername());
+        company.setUpdatedBy(user.getUsername());
+        company.setCreatedAt(java.time.LocalDateTime.now());
+        company.setUpdatedAt(java.time.LocalDateTime.now());
+        
+        // Save the company
+        company = companyRepository.save(company);
+        
+        // Create company-user membership with FOUNDER role
+        com.pos.inventsight.model.sql.CompanyStoreUser membership = 
+            new com.pos.inventsight.model.sql.CompanyStoreUser(
+                company, 
+                user, 
+                com.pos.inventsight.model.sql.CompanyRole.FOUNDER,
+                "SYSTEM"
+            );
+        membership.setIsActive(true);
+        companyStoreUserRepository.save(membership);
+        
+        // Log activity
+        activityLogService.logActivity(
+            user.getId().toString(),
+            user.getUsername(),
+            "DEFAULT_COMPANY_CREATED",
+            "AUTHENTICATION",
+            "Default company created for user: " + user.getEmail() + ", Company: " + company.getName()
+        );
+        
+        return company;
+    }
+    
+    /**
+     * Send OTP code for login flow (public endpoint - no authentication required)
+     * This endpoint allows users to receive OTP codes during the login process before they have a valid JWT token.
+     */
+    @PostMapping("/mfa/send-login-otp")
+    public ResponseEntity<?> sendLoginOtp(@Valid @RequestBody com.pos.inventsight.dto.MfaSendOtpRequest request,
+                                           HttpServletRequest httpRequest) {
+        try {
+            System.out.println("📨 Sending login OTP to: " + request.getEmail());
+            
+            // Validate that email is provided for EMAIL delivery method
+            if (request.getDeliveryMethod() == com.pos.inventsight.dto.MfaSendOtpRequest.DeliveryMethod.EMAIL) {
+                if (request.getEmail() == null || request.getEmail().isEmpty()) {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("success", false);
+                    errorResponse.put("message", "Email address is required for EMAIL delivery method");
+                    return ResponseEntity.badRequest().body(errorResponse);
+                }
+            }
+            
+            // Validate that phone number is provided for SMS delivery method
+            if (request.getDeliveryMethod() == com.pos.inventsight.dto.MfaSendOtpRequest.DeliveryMethod.SMS) {
+                if (request.getPhoneNumber() == null || request.getPhoneNumber().isEmpty()) {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("success", false);
+                    errorResponse.put("message", "Phone number is required for SMS delivery method");
+                    return ResponseEntity.badRequest().body(errorResponse);
+                }
+            }
+            
+            // Find user by email or phone number
+            User user = null;
+            if (request.getDeliveryMethod() == com.pos.inventsight.dto.MfaSendOtpRequest.DeliveryMethod.EMAIL) {
+                user = userService.getUserByEmail(request.getEmail());
+            } else {
+                // For SMS, we need to find user by phone number
+                // This might require a new method in UserService if not already available
+                throw new IllegalStateException("SMS delivery method not yet implemented for login OTP");
+            }
+            
+            if (user == null) {
+                // Don't reveal if user exists - return generic success message for security
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("message", "If an account exists with that information, an OTP code will be sent");
+                response.put("deliveryMethod", request.getDeliveryMethod());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Check if MFA is enabled for this user
+            if (!mfaService.isMfaEnabled(user)) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "MFA is not enabled for this account");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            // Convert DTO delivery method to entity enum
+            com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod deliveryMethod = 
+                request.getDeliveryMethod() == com.pos.inventsight.dto.MfaSendOtpRequest.DeliveryMethod.EMAIL
+                    ? com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.EMAIL
+                    : com.pos.inventsight.model.sql.MfaSecret.DeliveryMethod.SMS;
+            
+            // Get IP address
+            String ipAddress = httpRequest.getRemoteAddr();
+            
+            // Send OTP code
+            mfaService.sendOtpCode(user, deliveryMethod, ipAddress);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "OTP code sent successfully via " + request.getDeliveryMethod());
+            response.put("deliveryMethod", request.getDeliveryMethod());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (com.pos.inventsight.exception.ResourceNotFoundException e) {
+            // Don't reveal if user exists - return generic success message for security
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "If an account exists with that information, an OTP code will be sent");
+            response.put("deliveryMethod", request.getDeliveryMethod());
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            System.err.println("❌ Error sending login OTP: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error sending OTP code. Please try again later.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
     
     // Helper method to get client IP address
