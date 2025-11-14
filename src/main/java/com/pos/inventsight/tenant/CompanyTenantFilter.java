@@ -287,6 +287,11 @@ public class CompanyTenantFilter implements Filter {
      * @return true if public endpoint, false otherwise
      */
     private boolean isPublicEndpoint(String requestUri) {
+        // Handle null requestUri gracefully (e.g., in tests)
+        if (requestUri == null) {
+            return false;
+        }
+        
         // OAuth2 endpoints - always public
         if (requestUri.startsWith("/oauth2/") || requestUri.startsWith("/login/")) {
             return true;
