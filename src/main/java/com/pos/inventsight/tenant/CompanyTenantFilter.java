@@ -79,6 +79,9 @@ public class CompanyTenantFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         
         String requestUri = httpRequest.getRequestURI();
+        String method = httpRequest.getMethod();
+        
+        logger.debug("=== CompanyTenantFilter START === Request: {} {}", method, requestUri);
         
         // Skip filter for public endpoints
         if (isPublicEndpoint(requestUri)) {
@@ -88,15 +91,28 @@ public class CompanyTenantFilter implements Filter {
         }
         
         try {
+            // Log authentication state at the start of this filter
+            Authentication authAtStart = SecurityContextHolder.getContext().getAuthentication();
+            logger.debug("Authentication at CompanyTenantFilter entry: {}", authAtStart != null ? "present" : "null");
+            if (authAtStart != null) {
+                logger.debug("  - Principal type: {}", authAtStart.getPrincipal().getClass().getSimpleName());
+                logger.debug("  - Is authenticated: {}", authAtStart.isAuthenticated());
+                logger.debug("  - Authorities: {}", authAtStart.getAuthorities());
+            }
+            
             // Extract tenant_id from JWT claim if present
             String jwtTenantId = null;
             String authHeader = httpRequest.getHeader("Authorization");
+            logger.debug("Authorization header present: {}", authHeader != null);
+            
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 try {
                     String token = authHeader.substring(7);
                     if (jwtUtils.hasTenantId(token)) {
                         jwtTenantId = jwtUtils.getTenantIdFromJwtToken(token);
                         logger.debug("Extracted tenant_id from JWT: {}", jwtTenantId);
+                    } else {
+                        logger.debug("JWT token does not contain tenant_id claim");
                     }
                 } catch (Exception e) {
                     logger.debug("Could not extract tenant_id from JWT: {}", e.getMessage());
@@ -108,8 +124,9 @@ public class CompanyTenantFilter implements Filter {
             
             if (!headerEnabled) {
                 // JWT-only mode: require tenant_id from JWT claim
+                logger.debug("Operating in JWT-only mode");
                 if (jwtTenantId == null || jwtTenantId.isEmpty()) {
-                    logger.warn("JWT-only mode: tenant_id claim is required but not found in JWT for request: {}", requestUri);
+                    logger.warn("JWT-only mode: tenant_id claim is required but not found in JWT for request: {} {}", method, requestUri);
                     sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
                              "tenant_id claim is required in JWT token");
                     return;
@@ -126,6 +143,7 @@ public class CompanyTenantFilter implements Filter {
                 }
             } else {
                 // Header mode: allow X-Tenant-ID header with optional JWT validation
+                logger.debug("Operating in header mode");
                 String tenantHeader = httpRequest.getHeader(TENANT_HEADER_NAME);
                 
                 // If JWT has tenant_id, use it as source of truth
@@ -153,7 +171,7 @@ public class CompanyTenantFilter implements Filter {
                 } else {
                     // Fall back to X-Tenant-ID header if no JWT tenant_id
                     if (tenantHeader == null || tenantHeader.trim().isEmpty()) {
-                        logger.warn("Missing X-Tenant-ID header and no tenant_id in JWT for request: {}", requestUri);
+                        logger.warn("Missing X-Tenant-ID header and no tenant_id in JWT for request: {} {}", method, requestUri);
                         sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
                                  "X-Tenant-ID header is required or tenant_id must be present in JWT");
                         return;
@@ -162,6 +180,7 @@ public class CompanyTenantFilter implements Filter {
                     // Parse and validate company UUID from header
                     try {
                         companyUuid = UUID.fromString(tenantHeader.trim());
+                        logger.debug("Using tenant_id from X-Tenant-ID header: {}", companyUuid);
                     } catch (IllegalArgumentException e) {
                         logger.warn("Invalid company UUID in X-Tenant-ID header: {}", tenantHeader);
                         sendError(httpResponse, HttpServletResponse.SC_BAD_REQUEST, 
@@ -172,33 +191,43 @@ public class CompanyTenantFilter implements Filter {
             }
             
             // Verify company exists and is active
+            logger.debug("Verifying company exists: {}", companyUuid);
             if (!companyRepository.existsById(companyUuid)) {
                 logger.warn("Company not found for UUID: {}", companyUuid);
                 sendError(httpResponse, HttpServletResponse.SC_NOT_FOUND, 
                          "Company not found");
                 return;
             }
+            logger.debug("Company verified: {}", companyUuid);
             
             // Get authenticated user
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            logger.debug("Authentication object: {}", authentication);
-            logger.debug("Is authenticated: {}", authentication != null ? authentication.isAuthenticated() : "null");
-            logger.debug("Principal type: {}", authentication != null && authentication.getPrincipal() != null ? 
-                                               authentication.getPrincipal().getClass().getSimpleName() : "null");
+            logger.debug("SecurityContext Authentication: {}", authentication != null ? "present" : "null");
+            if (authentication != null) {
+                logger.debug("  - Is authenticated: {}", authentication.isAuthenticated());
+                logger.debug("  - Principal type: {}", authentication.getPrincipal().getClass().getSimpleName());
+                logger.debug("  - Principal: {}", authentication.getPrincipal());
+            }
             
             User authenticatedUser = getAuthenticatedUser();
             if (authenticatedUser == null) {
                 logger.warn("No authenticated user found for company tenant request");
-                logger.warn("Request URI: {}", requestUri);
-                logger.warn("Authorization header present: {}", authHeader != null);
+                logger.warn("  Request URI: {}", requestUri);
+                logger.warn("  Authorization header present: {}", authHeader != null);
+                logger.warn("  SecurityContext has authentication: {}", authentication != null);
                 sendError(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, 
                          "Authentication required");
                 return;
             }
             
+            logger.debug("Authenticated user: {} (ID: {})", authenticatedUser.getUsername(), authenticatedUser.getId());
+            
             // Verify user membership in company
+            logger.debug("Verifying user membership in company: {}", companyUuid);
             List<CompanyStoreUser> memberships = companyStoreUserRepository
                 .findByUserAndIsActiveTrue(authenticatedUser);
+            
+            logger.debug("User has {} active company memberships", memberships.size());
             
             boolean hasMembership = memberships.stream()
                 .anyMatch(m -> m.getCompany().getId().equals(companyUuid) && m.getIsActive());
@@ -211,11 +240,14 @@ public class CompanyTenantFilter implements Filter {
                 return;
             }
             
+            logger.debug("User membership verified for company: {}", companyUuid);
+            
             // Set tenant context to company schema (company_<uuid>)
             String companySchema = buildCompanySchemaName(companyUuid);
             logger.debug("Setting company tenant context to schema: {}", companySchema);
             TenantContext.setCurrentTenant(companySchema);
             
+            logger.debug("=== CompanyTenantFilter END === Proceeding to next filter");
             // Continue with the filter chain
             chain.doFilter(request, response);
             
@@ -255,6 +287,11 @@ public class CompanyTenantFilter implements Filter {
      * @return true if public endpoint, false otherwise
      */
     private boolean isPublicEndpoint(String requestUri) {
+        // Handle null requestUri gracefully (e.g., in tests)
+        if (requestUri == null) {
+            return false;
+        }
+        
         // OAuth2 endpoints - always public
         if (requestUri.startsWith("/oauth2/") || requestUri.startsWith("/login/")) {
             return true;

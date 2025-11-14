@@ -4,6 +4,8 @@ import com.pos.inventsight.filter.IdempotencyKeyFilter;
 import com.pos.inventsight.filter.RateLimitingFilter;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.tenant.CompanyTenantFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -48,6 +50,8 @@ import java.util.Arrays;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     
     @Autowired
     private UserService userService;
@@ -106,9 +110,10 @@ public class SecurityConfig {
     
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        System.out.println("🔒 InventSight - Initializing Spring Security Configuration");
-        System.out.println("📅 OAuth2 Resource Server enabled: " + oauth2Enabled);
-        System.out.println("👤 Current User's Login: WinKyaw");
+        logger.info("=== Initializing Spring Security Configuration ===");
+        logger.info("OAuth2 Resource Server enabled: {}", oauth2Enabled);
+        logger.info("OAuth2 Login enabled: {}", oauth2LoginEnabled);
+        logger.info("Local Login enabled: {}", localLoginEnabled);
         
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -157,7 +162,7 @@ public class SecurityConfig {
         
         // Configure OAuth2 Resource Server if enabled
         if (oauth2Enabled && jwtDecoder != null) {
-            System.out.println("✅ Enabling OAuth2 Resource Server with JWKS validation");
+            logger.info("Enabling OAuth2 Resource Server with JWKS validation");
             http.oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.decoder(jwtDecoder))
             );
@@ -166,21 +171,21 @@ public class SecurityConfig {
         // Configure OAuth2 Login if enabled and client registrations are available
         // OAuth2 login requires the 'oauth-login' profile with proper client credentials
         if (oauth2LoginEnabled && customOAuth2UserService != null && clientRegistrationRepository != null) {
-            System.out.println("✅ Enabling OAuth2 Login (Google, Microsoft, Okta)");
+            logger.info("Enabling OAuth2 Login (Google, Microsoft, Okta)");
             http.oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService)
                 )
             );
         } else if (oauth2LoginEnabled) {
-            System.out.println("⚠️ OAuth2 Login requested but client registrations not configured");
-            System.out.println("⚠️ To enable OAuth2: use --spring.profiles.active=oauth-login and set provider credentials");
+            logger.warn("OAuth2 Login requested but client registrations not configured");
+            logger.warn("To enable OAuth2: use --spring.profiles.active=oauth-login and set provider credentials");
         }
         
         // SAML2 Login support disabled - dependency not available
         // To enable SAML2, add spring-security-saml2-service-provider dependency
         if (samlEnabled) {
-            System.out.println("⚠️ SAML2 Login requested but dependency not available");
+            logger.warn("SAML2 Login requested but dependency not available");
         }
         
         http.authenticationProvider(authenticationProvider());
@@ -191,19 +196,26 @@ public class SecurityConfig {
         // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
         // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
         
+        logger.info("Adding RateLimitingFilter before UsernamePasswordAuthenticationFilter");
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
+        
+        logger.info("Adding AuthTokenFilter before UsernamePasswordAuthenticationFilter");
         http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        
+        logger.info("Adding CompanyTenantFilter after AuthTokenFilter");
         http.addFilterAfter(companyTenantFilter, authTokenFilter.getClass());
+        
+        logger.info("Adding IdempotencyKeyFilter after CompanyTenantFilter");
         http.addFilterAfter(idempotencyKeyFilter, CompanyTenantFilter.class);
         
-        System.out.println("✅ InventSight - Filter chain configured: RateLimiting -> AuthToken -> CompanyTenant -> Idempotency");
-        System.out.println("✅ InventSight Spring Security Configuration completed with all filters");
+        logger.info("=== Filter chain configured: RateLimiting -> AuthToken -> CompanyTenant -> Idempotency ===");
+        logger.info("Spring Security Configuration completed");
         return http.build();
     }
     
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        System.out.println("🌐 InventSight - Configuring CORS for React Native app");
+        logger.debug("Configuring CORS for React Native app");
         
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
@@ -215,7 +227,7 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
         
-        System.out.println("✅ InventSight CORS configuration completed for all origins");
+        logger.debug("CORS configuration completed for all origins");
         return source;
     }
 
