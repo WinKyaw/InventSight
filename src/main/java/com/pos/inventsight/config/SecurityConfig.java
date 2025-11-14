@@ -20,7 +20,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -196,21 +198,31 @@ public class SecurityConfig {
         // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
         // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
         
-        logger.info("Adding RateLimitingFilter before UsernamePasswordAuthenticationFilter");
-        http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
+        logger.info("Adding RateLimitingFilter before SecurityContextHolderFilter");
+        http.addFilterBefore(rateLimitingFilter, SecurityContextHolderFilter.class);
         
-        logger.info("Adding AuthTokenFilter before UsernamePasswordAuthenticationFilter");
-        http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        logger.info("Adding AuthTokenFilter before AnonymousAuthenticationFilter");
+        http.addFilterBefore(authTokenFilter, AnonymousAuthenticationFilter.class);
         
         logger.info("Adding CompanyTenantFilter after AuthTokenFilter");
-        http.addFilterAfter(companyTenantFilter, authTokenFilter.getClass());
+        http.addFilterAfter(companyTenantFilter, AuthTokenFilter.class);
         
         logger.info("Adding IdempotencyKeyFilter after CompanyTenantFilter");
         http.addFilterAfter(idempotencyKeyFilter, CompanyTenantFilter.class);
         
         logger.info("=== Filter chain configured: RateLimiting -> AuthToken -> CompanyTenant -> Idempotency ===");
         logger.info("Spring Security Configuration completed");
-        return http.build();
+        
+        // Build and log filter chain for verification
+        SecurityFilterChain chain = http.build();
+        logger.info("=== Spring Security Filter Chain Verification ===");
+        logger.info("Total filters in chain: {}", chain.getFilters().size());
+        for (int i = 0; i < chain.getFilters().size(); i++) {
+            jakarta.servlet.Filter filter = chain.getFilters().get(i);
+            logger.info("  {}. {}", i + 1, filter.getClass().getSimpleName());
+        }
+        logger.info("=== End Filter Chain Verification ===");
+        return chain;
     }
     
     @Bean

@@ -33,14 +33,18 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String requestUri = request.getRequestURI();
+        String method = request.getMethod();
+        
+        // Log every invocation
+        logger.info("🔍 shouldNotFilter() called for: {} {}", method, requestUri);
         
         // Skip filter for truly public endpoints only
         boolean shouldSkip = isPublicEndpoint(requestUri);
         
         if (shouldSkip) {
-            logger.debug("AuthTokenFilter: Skipping filter for public endpoint: {}", requestUri);
+            logger.info("⏭️  WILL SKIP request (public endpoint): {} {}", method, requestUri);
         } else {
-            logger.debug("AuthTokenFilter: Will process request for endpoint: {}", requestUri);
+            logger.info("⚡ WILL PROCESS request (protected endpoint): {} {}", method, requestUri);
         }
         
         return shouldSkip;
@@ -102,18 +106,17 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             
             if (jwt != null) {
                 logger.debug("JWT token extracted from Authorization header (length: {})", jwt.length());
-                logger.debug("Validating JWT token...");
+                logger.info("🔐 Validating JWT token...");
                 
                 if (jwtUtils.validateJwtToken(jwt)) {
                     String username = jwtUtils.getUsernameFromJwtToken(jwt);
                     String tenantId = jwtUtils.getTenantIdFromJwtToken(jwt);
                     
-                    logger.debug("JWT validation successful");
-                    logger.debug("Username from JWT: {}", username);
+                    logger.info("✅ JWT validation successful for user: {}", username);
                     logger.debug("Tenant ID from JWT: {}", tenantId);
                     
                     if (username == null || username.isEmpty()) {
-                        logger.warn("Username is null or empty in JWT token");
+                        logger.warn("❌ Username is null or empty in JWT token");
                         filterChain.doFilter(request, response);
                         return;
                     }
@@ -122,7 +125,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     UserDetails userDetails = userService.loadUserByUsername(username);
                     
                     if (userDetails == null) {
-                        logger.warn("User not found in database: {}", username);
+                        logger.warn("❌ User not found in database: {}", username);
                         filterChain.doFilter(request, response);
                         return;
                     }
@@ -135,26 +138,26 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     
-                    logger.debug("Setting authentication in SecurityContext");
+                    logger.info("🔑 Setting authentication in SecurityContext");
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     
                     // Verify authentication was set
                     boolean isSet = SecurityContextHolder.getContext().getAuthentication() != null;
-                    logger.debug("Authentication set in SecurityContext: {}", isSet);
+                    logger.info("✅ Authentication SET in SecurityContext: {}", isSet);
                     logger.debug("Principal type: {}", 
                         SecurityContextHolder.getContext().getAuthentication() != null ? 
                         SecurityContextHolder.getContext().getAuthentication().getPrincipal().getClass().getSimpleName() : "null");
-                    logger.info("Authentication successful for user: {} on {} {}", username, method, requestUri);
+                    logger.info("✅ Authentication successful for user: {} on {} {}", username, method, requestUri);
                 } else {
-                    logger.warn("JWT token validation failed for request: {} {}", method, requestUri);
+                    logger.warn("❌ JWT token validation failed for request: {} {}", method, requestUri);
                 }
             } else {
                 logger.debug("No JWT token found in Authorization header for: {} {}", method, requestUri);
             }
         } catch (UsernameNotFoundException e) {
-            logger.error("User not found during authentication: {}", e.getMessage());
+            logger.error("❌ User not found during authentication: {}", e.getMessage());
         } catch (Exception e) {
-            logger.error("Authentication error: {} - {}", e.getClass().getSimpleName(), e.getMessage(), e);
+            logger.error("❌ Authentication error: {} - {}", e.getClass().getSimpleName(), e.getMessage(), e);
         }
         
         logger.debug("=== AuthTokenFilter END === Proceeding to next filter");
