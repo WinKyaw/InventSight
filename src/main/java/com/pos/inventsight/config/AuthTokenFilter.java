@@ -31,6 +31,63 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     private UserService userService;
     
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String requestUri = request.getRequestURI();
+        
+        // Skip filter for truly public endpoints only
+        boolean shouldSkip = isPublicEndpoint(requestUri);
+        
+        if (shouldSkip) {
+            logger.debug("AuthTokenFilter: Skipping filter for public endpoint: {}", requestUri);
+        } else {
+            logger.debug("AuthTokenFilter: Will process request for endpoint: {}", requestUri);
+        }
+        
+        return shouldSkip;
+    }
+    
+    /**
+     * Check if the endpoint is public (doesn't require authentication)
+     * This should match the permitAll() rules in SecurityConfig
+     * @param requestUri the request URI
+     * @return true if public endpoint, false otherwise
+     */
+    private boolean isPublicEndpoint(String requestUri) {
+        // Handle null requestUri gracefully
+        if (requestUri == null) {
+            return false;
+        }
+        
+        // Authentication endpoints - public
+        if (requestUri.startsWith("/auth/") || 
+            requestUri.startsWith("/api/auth/") ||
+            requestUri.startsWith("/register")) {
+            return true;
+        }
+        
+        // OAuth2 and login endpoints - public
+        if (requestUri.startsWith("/oauth2/") || 
+            requestUri.startsWith("/login/")) {
+            return true;
+        }
+        
+        // Health, monitoring, and documentation endpoints - public
+        if (requestUri.startsWith("/health") ||
+            requestUri.startsWith("/actuator") ||
+            requestUri.startsWith("/swagger-ui") ||
+            requestUri.startsWith("/v3/api-docs") ||
+            requestUri.startsWith("/docs") ||
+            requestUri.startsWith("/dashboard/live-data") ||
+            requestUri.equals("/favicon.ico")) {
+            return true;
+        }
+        
+        // All other endpoints require authentication (including business APIs)
+        // Such as: /products, /stores, /sales, /inventory, etc.
+        return false;
+    }
+    
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
                                   FilterChain filterChain) throws ServletException, IOException {
         
