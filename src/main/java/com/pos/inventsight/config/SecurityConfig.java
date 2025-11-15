@@ -97,6 +97,9 @@ public class SecurityConfig {
     @Value("${inventsight.security.local-login.enabled:false}")
     private boolean localLoginEnabled;
     
+    @Value("${inventsight.security.offline-mode.enabled:false}")
+    private boolean offlineModeEnabled;
+    
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -113,9 +116,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         logger.info("=== Initializing Spring Security Configuration ===");
+        logger.info("Offline Mode enabled: {}", offlineModeEnabled);
         logger.info("OAuth2 Resource Server enabled: {}", oauth2Enabled);
         logger.info("OAuth2 Login enabled: {}", oauth2LoginEnabled);
         logger.info("Local Login enabled: {}", localLoginEnabled);
+        
+        if (offlineModeEnabled) {
+            logger.warn("⚠️ WARNING: Security is DISABLED (Offline Mode) - ALL endpoints are accessible without authentication!");
+            
+            http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            
+            return http.build();
+        }
         
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -198,6 +213,14 @@ public class SecurityConfig {
         // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
         // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
         
+        logger.info("=== Configuring Security Filter Chain ===");
+        logger.info("Filter Order:");
+        logger.info("  1. RateLimitingFilter (before SecurityContextHolderFilter)");
+        logger.info("  2. Spring Security Internal Filters");
+        logger.info("  3. AuthTokenFilter (before AnonymousAuthenticationFilter)");
+        logger.info("  4. CompanyTenantFilter (after AuthTokenFilter)");
+        logger.info("  5. IdempotencyKeyFilter (after CompanyTenantFilter)");
+        
         logger.info("Adding RateLimitingFilter before SecurityContextHolderFilter");
         http.addFilterBefore(rateLimitingFilter, SecurityContextHolderFilter.class);
         
@@ -210,7 +233,7 @@ public class SecurityConfig {
         logger.info("Adding IdempotencyKeyFilter after CompanyTenantFilter");
         http.addFilterAfter(idempotencyKeyFilter, CompanyTenantFilter.class);
         
-        logger.info("=== Filter chain configured: RateLimiting -> AuthToken -> CompanyTenant -> Idempotency ===");
+        logger.info("=== Filter chain configured successfully ===");
         logger.info("Spring Security Configuration completed");
         
         // Build and log filter chain for verification

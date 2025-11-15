@@ -16,11 +16,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,9 +34,10 @@ import java.util.UUID;
  *   Requires tenant_id claim in JWT token. X-Tenant-ID header is ignored.
  * - Header mode (inventsight.tenancy.header.enabled=true): 
  *   Accepts X-Tenant-ID header with optional validation against JWT tenant_id claim.
+ * 
+ * NOTE: This filter is ONLY registered in SecurityConfig, NOT as a @Component.
+ * This prevents double registration which would cause authentication to be lost.
  */
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 5)
 public class CompanyTenantFilter implements Filter {
     
     private static final Logger logger = LoggerFactory.getLogger(CompanyTenantFilter.class);
@@ -82,6 +81,22 @@ public class CompanyTenantFilter implements Filter {
         String method = httpRequest.getMethod();
         
         logger.debug("=== CompanyTenantFilter START === Request: {} {}", method, requestUri);
+        logger.debug("Filter instance hashCode: {}", System.identityHashCode(this));
+        
+        // Log SecurityContext state IMMEDIATELY
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        Authentication authAtStart = securityContext.getAuthentication();
+        logger.debug("SecurityContext hashCode: {}", System.identityHashCode(securityContext));
+        logger.debug("Authentication at CompanyTenantFilter entry: {}", authAtStart != null ? "PRESENT" : "NULL");
+        
+        if (authAtStart != null) {
+            logger.debug("  - Principal class: {}", authAtStart.getPrincipal().getClass().getName());
+            logger.debug("  - Is authenticated: {}", authAtStart.isAuthenticated());
+            logger.debug("  - Authorities: {}", authAtStart.getAuthorities());
+        } else {
+            logger.warn("⚠️ WARNING: Authentication is NULL at CompanyTenantFilter entry!");
+            logger.warn("  This indicates SecurityContext was cleared between AuthTokenFilter and CompanyTenantFilter");
+        }
         
         // Skip filter for public endpoints
         if (isPublicEndpoint(requestUri)) {
@@ -91,15 +106,6 @@ public class CompanyTenantFilter implements Filter {
         }
         
         try {
-            // Log authentication state at the start of this filter
-            Authentication authAtStart = SecurityContextHolder.getContext().getAuthentication();
-            logger.debug("Authentication at CompanyTenantFilter entry: {}", authAtStart != null ? "present" : "null");
-            if (authAtStart != null) {
-                logger.debug("  - Principal type: {}", authAtStart.getPrincipal().getClass().getSimpleName());
-                logger.debug("  - Is authenticated: {}", authAtStart.isAuthenticated());
-                logger.debug("  - Authorities: {}", authAtStart.getAuthorities());
-            }
-            
             // Extract tenant_id from JWT claim if present
             String jwtTenantId = null;
             String authHeader = httpRequest.getHeader("Authorization");
