@@ -447,6 +447,19 @@ public class UserService implements UserDetailsService {
         // Ensure user has at least one active store
         List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(user);
         if (userStoreRoles.isEmpty()) {
+            // Get current tenant context and link store to company
+            String tenantId = TenantContext.getCurrentTenant();
+            final UUID companyId;
+            
+            if (tenantId != null && tenantId.startsWith("company_")) {
+                // Extract company UUID from tenant context
+                String uuidPart = tenantId.substring("company_".length());
+                String uuidString = uuidPart.replace("_", "-");
+                companyId = UUID.fromString(uuidString);
+            } else {
+                companyId = null;
+            }
+            
             // Auto-create default store if none exists
             Store defaultStore = new Store();
             defaultStore.setStoreName("My Store");
@@ -455,6 +468,14 @@ public class UserService implements UserDetailsService {
             defaultStore.setCreatedAt(LocalDateTime.now());
             defaultStore.setUpdatedAt(LocalDateTime.now());
             defaultStore.setIsActive(true);
+            
+            // Link store to company if tenant context is set
+            if (companyId != null) {
+                Company company = companyRepository.findById(companyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found: " + companyId));
+                defaultStore.setCompany(company);
+                System.out.println("🏢 Auto-created store linked to company: " + company.getName() + " (ID: " + companyId + ")");
+            }
             
             Store savedStore = storeRepository.save(defaultStore);
             

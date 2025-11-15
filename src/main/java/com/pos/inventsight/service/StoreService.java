@@ -36,6 +36,9 @@ public class StoreService {
     
     @Autowired
     private ActivityLogService activityLogService;
+    
+    @Autowired
+    private com.pos.inventsight.repository.sql.CompanyRepository companyRepository;
 
     /**
      * Create a new store for the authenticated user
@@ -51,6 +54,19 @@ public class StoreService {
         // Check if store name already exists for this user
         if (storeRepository.existsByStoreName(storeRequest.getStoreName())) {
             throw new DuplicateResourceException("Store with name '" + storeRequest.getStoreName() + "' already exists");
+        }
+        
+        // Get current tenant context and link store to company
+        String tenantId = TenantContext.getCurrentTenant();
+        final UUID companyId;
+        
+        if (tenantId != null && tenantId.startsWith("company_")) {
+            // Extract company UUID from tenant context
+            String uuidPart = tenantId.substring("company_".length());
+            String uuidString = uuidPart.replace("_", "-");
+            companyId = UUID.fromString(uuidString);
+        } else {
+            companyId = null;
         }
         
         // Create new store
@@ -70,6 +86,14 @@ public class StoreService {
         store.setCreatedAt(LocalDateTime.now());
         store.setUpdatedAt(LocalDateTime.now());
         store.setIsActive(true);
+        
+        // Link store to company if tenant context is set
+        if (companyId != null) {
+            com.pos.inventsight.model.sql.Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found: " + companyId));
+            store.setCompany(company);
+            System.out.println("🏢 Linking store to company: " + company.getName() + " (ID: " + companyId + ")");
+        }
         
         Store savedStore = storeRepository.save(store);
         
@@ -265,6 +289,19 @@ public class StoreService {
         if (userStoreRoles.isEmpty()) {
             System.out.println("⚠️ No active store found for user: " + user.getUsername() + ", creating default store");
             
+            // Get current tenant context and link store to company
+            String tenantId = TenantContext.getCurrentTenant();
+            final UUID companyId;
+            
+            if (tenantId != null && tenantId.startsWith("company_")) {
+                // Extract company UUID from tenant context
+                String uuidPart = tenantId.substring("company_".length());
+                String uuidString = uuidPart.replace("_", "-");
+                companyId = UUID.fromString(uuidString);
+            } else {
+                companyId = null;
+            }
+            
             // Auto-create default store for user
             Store defaultStore = new Store();
             defaultStore.setStoreName("My Store");
@@ -273,6 +310,14 @@ public class StoreService {
             defaultStore.setCreatedAt(LocalDateTime.now());
             defaultStore.setUpdatedAt(LocalDateTime.now());
             defaultStore.setIsActive(true);
+            
+            // Link store to company if tenant context is set
+            if (companyId != null) {
+                com.pos.inventsight.model.sql.Company company = companyRepository.findById(companyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found: " + companyId));
+                defaultStore.setCompany(company);
+                System.out.println("🏢 Auto-created store linked to company: " + company.getName() + " (ID: " + companyId + ")");
+            }
             
             Store savedStore = storeRepository.save(defaultStore);
             

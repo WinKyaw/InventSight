@@ -45,6 +45,14 @@ public class ProductService {
             }
             product.setStore(currentStore);
             System.out.println("🏪 Associated product with store: " + currentStore.getStoreName());
+            
+            // Log store-company relationship for verification
+            if (currentStore.getCompany() != null) {
+                System.out.println("🏢 Store is linked to company: " + currentStore.getCompany().getName() + 
+                                 " (ID: " + currentStore.getCompany().getId() + ")");
+            } else {
+                System.out.println("⚠️ WARNING: Store is NOT linked to any company - may cause cross-schema FK issues");
+            }
         }
         
         // Generate SKU if not provided
@@ -56,6 +64,7 @@ public class ProductService {
         product.setCreatedAt(LocalDateTime.now());
         
         Product savedProduct = productRepository.save(product);
+        System.out.println("✅ Product saved to database: " + savedProduct.getName() + " (ID: " + savedProduct.getId() + ")");
         
         // Log activity
         activityLogService.logActivity(
