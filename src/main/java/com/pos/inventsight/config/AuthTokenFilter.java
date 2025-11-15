@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -141,12 +142,15 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     logger.info("🔑 Setting authentication in SecurityContext");
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     
-                    // Verify authentication was set
-                    boolean isSet = SecurityContextHolder.getContext().getAuthentication() != null;
-                    logger.info("✅ Authentication SET in SecurityContext: {}", isSet);
-                    logger.debug("Principal type: {}", 
-                        SecurityContextHolder.getContext().getAuthentication() != null ? 
-                        SecurityContextHolder.getContext().getAuthentication().getPrincipal().getClass().getSimpleName() : "null");
+                    // Enhanced verification logging
+                    Authentication verifyAuth = SecurityContextHolder.getContext().getAuthentication();
+                    logger.info("✅ Authentication SET and VERIFIED in SecurityContext: {}", verifyAuth != null);
+                    if (verifyAuth != null) {
+                        logger.debug("  - Principal class: {}", verifyAuth.getPrincipal().getClass().getName());
+                        logger.debug("  - Is authenticated: {}", verifyAuth.isAuthenticated());
+                        logger.debug("  - Authorities: {}", verifyAuth.getAuthorities());
+                        logger.debug("  - SecurityContext hashCode: {}", System.identityHashCode(SecurityContextHolder.getContext()));
+                    }
                     logger.info("✅ Authentication successful for user: {} on {} {}", username, method, requestUri);
                 } else {
                     logger.warn("❌ JWT token validation failed for request: {} {}", method, requestUri);

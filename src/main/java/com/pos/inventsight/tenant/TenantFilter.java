@@ -48,7 +48,7 @@ public class TenantFilter implements Filter {
         
         // Skip all protected endpoints - CompanyTenantFilter handles these
         if (isProtectedEndpoint(requestUri)) {
-            logger.debug("Skipping TenantFilter for protected endpoint: {} - CompanyTenantFilter handles this", requestUri);
+            logger.debug("TenantFilter: Skipping protected endpoint: {} - CompanyTenantFilter handles this", requestUri);
             chain.doFilter(request, response);
             return;
         }
