@@ -2,6 +2,8 @@ package com.pos.inventsight.config;
 
 import com.pos.inventsight.filter.IdempotencyKeyFilter;
 import com.pos.inventsight.filter.RateLimitingFilter;
+import com.pos.inventsight.repository.sql.CompanyRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.tenant.CompanyTenantFilter;
 import org.slf4j.Logger;
@@ -65,9 +67,6 @@ public class SecurityConfig {
     private PasswordEncoder passwordEncoder;
     
     @Autowired
-    private CompanyTenantFilter companyTenantFilter;
-    
-    @Autowired
     private RateLimitingFilter rateLimitingFilter;
     
     @Autowired
@@ -113,8 +112,21 @@ public class SecurityConfig {
         return authConfig.getAuthenticationManager();
     }
     
+    /**
+     * Create CompanyTenantFilter as a bean to prevent double registration.
+     * This filter validates company tenant identification and user membership.
+     */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public CompanyTenantFilter companyTenantFilter(
+            CompanyStoreUserRepository companyStoreUserRepository,
+            CompanyRepository companyRepository,
+            JwtUtils jwtUtils) {
+        logger.info("Creating CompanyTenantFilter bean");
+        return new CompanyTenantFilter(companyStoreUserRepository, companyRepository, jwtUtils);
+    }
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, CompanyTenantFilter companyTenantFilter) throws Exception {
         logger.info("=== Initializing Spring Security Configuration ===");
         logger.info("Offline Mode enabled: {}", offlineModeEnabled);
         logger.info("OAuth2 Resource Server enabled: {}", oauth2Enabled);
