@@ -17,6 +17,7 @@ import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -304,19 +305,61 @@ public class UserService implements UserDetailsService {
             return null;
         }
         
-        // Extract UUID from tenant ID (handles both formats)
-        UUID tenantUuid;
-        try {
-            tenantUuid = extractUuidFromTenantId(tenantId);
-            logger.info("✅ Extracted UUID from tenant '{}': {}", tenantId, tenantUuid);
-        } catch (IllegalArgumentException e) {
-            logger.error("❌ Failed to extract UUID from tenant: {}", tenantId, e);
-            throw new ResourceNotFoundException("Invalid UUID format for tenant: " + tenantId + " - " + e.getMessage());
-        }
+        // Determine which tenancy mode we're in
+        User user;
         
-        // Find user by UUID (tenant ID)
-        User user = userRepository.findByUuid(tenantUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found for tenant: " + tenantId));
+        if (tenantId.startsWith("company_")) {
+            // Company-based tenancy: Get user from SecurityContext
+            logger.debug("Company-based tenancy detected");
+            user = getAuthenticatedUser();
+            
+            if (user == null) {
+                throw new ResourceNotFoundException("No authenticated user found in SecurityContext");
+            }
+            
+            logger.info("✅ Using authenticated user from SecurityContext: {} (UUID: {})", 
+                       user.getUsername(), user.getUuid());
+            
+            // Extract company UUID from tenant ID for verification
+            UUID companyUuid;
+            try {
+                String uuidPart = tenantId.substring("company_".length());
+                String uuidString = uuidPart.replace("_", "-");
+                companyUuid = UUID.fromString(uuidString);
+                logger.debug("Company UUID from tenant: {}", companyUuid);
+            } catch (Exception e) {
+                throw new ResourceNotFoundException("Invalid company schema format: " + tenantId);
+            }
+            
+            // Verify user has membership in this company
+            List<CompanyStoreUser> companyMemberships = companyStoreUserRepository
+                .findByUserAndCompanyIdAndIsActiveTrue(user, companyUuid);
+            
+            if (companyMemberships.isEmpty()) {
+                throw new ResourceNotFoundException("User " + user.getUsername() + 
+                    " does not have access to company: " + companyUuid);
+            }
+            
+            logger.info("✅ User {} has {} active membership(s) in company {}", 
+                       user.getUsername(), companyMemberships.size(), companyUuid);
+            
+        } else {
+            // Legacy user-based tenancy: tenant ID IS the user UUID
+            logger.debug("User-based tenancy detected");
+            UUID userUuid;
+            try {
+                userUuid = UUID.fromString(tenantId);
+                logger.debug("User UUID from tenant: {}", userUuid);
+            } catch (IllegalArgumentException e) {
+                throw new ResourceNotFoundException("Invalid UUID format for tenant: " + tenantId + " - " + e.getMessage());
+            }
+            
+            // Find user by UUID
+            user = userRepository.findByUuid(userUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found for tenant: " + tenantId));
+            
+            logger.info("✅ Found user from tenant UUID: {} (ID: {})", user.getUsername(), user.getId());
+        }
         
         // Get user's primary store role
         List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(user);
@@ -324,8 +367,32 @@ public class UserService implements UserDetailsService {
             throw new ResourceNotFoundException("No active store found for user: " + user.getUsername());
         }
         
-        // Return the first active store
-        return userStoreRoles.get(0).getStore();
+        Store store = userStoreRoles.get(0).getStore();
+        logger.info("✅ Returning store: {} (ID: {}) for user: {}", 
+                   store.getStoreName(), store.getId(), user.getUsername());
+        
+        return store;
+    }
+    
+    /**
+     * Get the currently authenticated user from SecurityContext
+     * @return the authenticated User object, or null if not authenticated
+     */
+    private User getAuthenticatedUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication != null && 
+                authentication.isAuthenticated() && 
+                authentication.getPrincipal() instanceof User) {
+                
+                return (User) authentication.getPrincipal();
+            }
+        } catch (Exception e) {
+            logger.debug("Error getting authenticated user: {}", e.getMessage());
+        }
+        
+        return null;
     }
     
     /**

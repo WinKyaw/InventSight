@@ -1,10 +1,12 @@
 package com.pos.inventsight.service;
 
 import com.pos.inventsight.exception.ResourceNotFoundException;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.model.sql.UserRole;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.tenant.TenantContext;
@@ -14,7 +16,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +39,9 @@ class UserServiceTest {
     
     @Mock
     private UserStoreRoleRepository userStoreRoleRepository;
+    
+    @Mock
+    private CompanyStoreUserRepository companyStoreUserRepository;
     
     @Mock
     private ActivityLogService activityLogService;
@@ -82,9 +91,21 @@ class UserServiceTest {
         String companySchema = "company_87b6a00e_896a_4f69_b9cd_3349d50c1578";
         TenantContext.setCurrentTenant(companySchema);
         
-        // Setup mocks
+        // Mock SecurityContext to return authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(testUser);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // Setup mocks for company membership verification
+        CompanyStoreUser companyMembership = mock(CompanyStoreUser.class);
+        when(companyStoreUserRepository.findByUserAndCompanyIdAndIsActiveTrue(testUser, testUuid))
+            .thenReturn(List.of(companyMembership));
+        
+        // Setup mocks for store retrieval
         UserStoreRole userStoreRole = new UserStoreRole(testUser, testStore, UserRole.OWNER, "testuser");
-        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.of(testUser));
         when(userStoreRoleRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(List.of(userStoreRole));
         
@@ -95,8 +116,11 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(testStore.getId(), result.getId());
         
-        // Verify the UUID was extracted correctly (testUuid should match what was looked up)
-        verify(userRepository).findByUuid(testUuid);
+        // Verify company membership was checked
+        verify(companyStoreUserRepository).findByUserAndCompanyIdAndIsActiveTrue(testUser, testUuid);
+        
+        // Verify user was NOT looked up by UUID (we got it from SecurityContext)
+        verify(userRepository, never()).findByUuid(any());
     }
     
     @Test
@@ -130,9 +154,21 @@ class UserServiceTest {
         String companySchema = "company_87b6a00e_896a_4f69_b9cd_3349d50c1578";
         TenantContext.setCurrentTenant(companySchema);
         
-        // Setup mocks
+        // Mock SecurityContext to return authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(testUser);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // Setup mocks for company membership verification
+        CompanyStoreUser companyMembership = mock(CompanyStoreUser.class);
+        when(companyStoreUserRepository.findByUserAndCompanyIdAndIsActiveTrue(testUser, testUuid))
+            .thenReturn(List.of(companyMembership));
+        
+        // Setup mocks for store retrieval
         UserStoreRole userStoreRole = new UserStoreRole(testUser, testStore, UserRole.OWNER, "testuser");
-        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.of(testUser));
         when(userStoreRoleRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(List.of(userStoreRole));
         
@@ -202,8 +238,20 @@ class UserServiceTest {
         String companySchema = "company_87b6a00e_896a_4f69_b9cd_3349d50c1578";
         TenantContext.setCurrentTenant(companySchema);
         
-        // Setup mocks
-        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.of(testUser));
+        // Mock SecurityContext to return authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(testUser);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // Setup mocks for company membership verification
+        CompanyStoreUser companyMembership = mock(CompanyStoreUser.class);
+        when(companyStoreUserRepository.findByUserAndCompanyIdAndIsActiveTrue(testUser, testUuid))
+            .thenReturn(List.of(companyMembership));
+        
+        // Setup mocks - no active stores
         when(userStoreRoleRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(Collections.emptyList());
         
@@ -229,9 +277,21 @@ class UserServiceTest {
         user.setId(1L);
         user.setUuid(expectedUuid);
         
-        // Setup mocks
+        // Mock SecurityContext to return authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(user);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // Setup mocks for company membership verification
+        CompanyStoreUser companyMembership = mock(CompanyStoreUser.class);
+        when(companyStoreUserRepository.findByUserAndCompanyIdAndIsActiveTrue(user, expectedUuid))
+            .thenReturn(List.of(companyMembership));
+        
+        // Setup mocks for store retrieval
         UserStoreRole userStoreRole = new UserStoreRole(user, testStore, UserRole.OWNER, "testuser");
-        when(userRepository.findByUuid(expectedUuid)).thenReturn(Optional.of(user));
         when(userStoreRoleRepository.findByUserAndIsActiveTrue(user))
             .thenReturn(List.of(userStoreRole));
         
@@ -240,6 +300,109 @@ class UserServiceTest {
         
         // Then should extract UUID correctly
         assertNotNull(result);
-        verify(userRepository).findByUuid(expectedUuid);
+        verify(companyStoreUserRepository).findByUserAndCompanyIdAndIsActiveTrue(user, expectedUuid);
+    }
+    
+    @Test
+    @DisplayName("Test Company-Based Tenancy - No Authenticated User")
+    void testCompanyBasedTenancy_NoAuthenticatedUser() {
+        // Given a company schema but no authenticated user in SecurityContext
+        String companySchema = "company_87b6a00e_896a_4f69_b9cd_3349d50c1578";
+        TenantContext.setCurrentTenant(companySchema);
+        
+        // Mock SecurityContext with no authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(false);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // When/Then should throw ResourceNotFoundException
+        ResourceNotFoundException exception = assertThrows(
+            ResourceNotFoundException.class,
+            () -> userService.getCurrentUserStore()
+        );
+        
+        assertTrue(exception.getMessage().contains("No authenticated user found in SecurityContext"));
+    }
+    
+    @Test
+    @DisplayName("Test Company-Based Tenancy - User Not Member of Company")
+    void testCompanyBasedTenancy_UserNotMemberOfCompany() {
+        // Given a company schema with authenticated user who is NOT a member
+        String companySchema = "company_87b6a00e_896a_4f69_b9cd_3349d50c1578";
+        TenantContext.setCurrentTenant(companySchema);
+        
+        // Mock SecurityContext to return authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(testUser);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // Setup mocks - user has NO membership in this company
+        when(companyStoreUserRepository.findByUserAndCompanyIdAndIsActiveTrue(testUser, testUuid))
+            .thenReturn(Collections.emptyList());
+        
+        // When/Then should throw ResourceNotFoundException
+        ResourceNotFoundException exception = assertThrows(
+            ResourceNotFoundException.class,
+            () -> userService.getCurrentUserStore()
+        );
+        
+        assertTrue(exception.getMessage().contains("does not have access to company"));
+        assertTrue(exception.getMessage().contains(testUser.getUsername()));
+    }
+    
+    @Test
+    @DisplayName("Test Company-Based Tenancy - Invalid Company Schema Format")
+    void testCompanyBasedTenancy_InvalidCompanySchemaFormat() {
+        // Given an invalid company schema format
+        String invalidSchema = "company_invalid_uuid_format";
+        TenantContext.setCurrentTenant(invalidSchema);
+        
+        // Mock SecurityContext to return authenticated user
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(testUser);
+        SecurityContextHolder.setContext(securityContext);
+        
+        // When/Then should throw ResourceNotFoundException
+        ResourceNotFoundException exception = assertThrows(
+            ResourceNotFoundException.class,
+            () -> userService.getCurrentUserStore()
+        );
+        
+        assertTrue(exception.getMessage().contains("Invalid company schema format"));
+    }
+    
+    @Test
+    @DisplayName("Test Legacy User-Based Tenancy - Success")
+    void testLegacyUserBasedTenancy_Success() {
+        // Given a raw UUID as tenant (legacy mode)
+        String userUuidTenant = "87b6a00e-896a-4f69-b9cd-3349d50c1578";
+        TenantContext.setCurrentTenant(userUuidTenant);
+        
+        // Setup mocks
+        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.of(testUser));
+        UserStoreRole userStoreRole = new UserStoreRole(testUser, testStore, UserRole.OWNER, "testuser");
+        when(userStoreRoleRepository.findByUserAndIsActiveTrue(testUser))
+            .thenReturn(List.of(userStoreRole));
+        
+        // When getting current user store
+        Store result = userService.getCurrentUserStore();
+        
+        // Then should find the store successfully via legacy path
+        assertNotNull(result);
+        assertEquals(testStore.getId(), result.getId());
+        
+        // Verify user was looked up by UUID (legacy mode)
+        verify(userRepository).findByUuid(testUuid);
+        
+        // Verify company membership was NOT checked (legacy mode)
+        verify(companyStoreUserRepository, never()).findByUserAndCompanyIdAndIsActiveTrue(any(), any());
     }
 }

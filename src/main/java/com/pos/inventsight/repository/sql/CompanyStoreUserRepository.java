@@ -93,6 +93,12 @@ public interface CompanyStoreUserRepository extends JpaRepository<CompanyStoreUs
     List<CompanyStoreUser> findByUserAndCompanyAndIsActiveTrue(User user, Company company);
     
     /**
+     * Find active company memberships for a user in a specific company by company ID
+     */
+    @Query("SELECT csu FROM CompanyStoreUser csu WHERE csu.user = :user AND csu.company.id = :companyId AND csu.isActive = true")
+    List<CompanyStoreUser> findByUserAndCompanyIdAndIsActiveTrue(@Param("user") User user, @Param("companyId") UUID companyId);
+    
+    /**
      * Count active users in company
      */
     @Query("SELECT COUNT(DISTINCT csu.user) FROM CompanyStoreUser csu WHERE csu.company = :company AND csu.isActive = true")
