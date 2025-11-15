@@ -23,6 +23,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +34,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class UserService implements UserDetailsService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     
     @Autowired
     private UserRepository userRepository;
@@ -262,25 +266,55 @@ public class UserService implements UserDetailsService {
     // Tenant-related methods
     
     /**
+     * Extract UUID from tenant ID (handles both formats)
+     * @param tenantId either a raw UUID or company schema name (company_uuid_with_underscores)
+     * @return the extracted UUID
+     * @throws IllegalArgumentException if format is invalid
+     */
+    private UUID extractUuidFromTenantId(String tenantId) {
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tenant ID cannot be null or empty");
+        }
+        
+        // Check if it's a company schema format: "company_uuid-with-underscores"
+        if (tenantId.startsWith("company_")) {
+            // Extract UUID from company schema name
+            // Format: "company_87b6a00e_896a_4f69_b9cd_3349d50c1578"
+            // Convert to: "87b6a00e-896a-4f69-b9cd-3349d50c1578"
+            String uuidPart = tenantId.substring("company_".length()); // Remove "company_" prefix
+            String uuidString = uuidPart.replace("_", "-"); // Replace underscores with hyphens
+            return UUID.fromString(uuidString);
+        } else {
+            // Direct UUID format
+            return UUID.fromString(tenantId);
+        }
+    }
+    
+    /**
      * Get the current user's primary store based on tenant context
-     * The tenant ID should correspond to a user's UUID
+     * Handles both user UUID tenancy and company schema tenancy
      */
     public Store getCurrentUserStore() {
         String tenantId = TenantContext.getCurrentTenant();
+        logger.info("🏪 getCurrentUserStore() called with tenant: {}", tenantId);
         
         // If using default tenant, return null (no specific store)
         if (TenantContext.DEFAULT_TENANT.equals(tenantId)) {
+            logger.warn("Using default tenant - no specific store available");
             return null;
         }
         
-        // Find user by UUID (tenant ID)
+        // Extract UUID from tenant ID (handles both formats)
         UUID tenantUuid;
         try {
-            tenantUuid = UUID.fromString(tenantId);
+            tenantUuid = extractUuidFromTenantId(tenantId);
+            logger.info("✅ Extracted UUID from tenant '{}': {}", tenantId, tenantUuid);
         } catch (IllegalArgumentException e) {
-            throw new ResourceNotFoundException("Invalid UUID format for tenant: " + tenantId);
+            logger.error("❌ Failed to extract UUID from tenant: {}", tenantId, e);
+            throw new ResourceNotFoundException("Invalid UUID format for tenant: " + tenantId + " - " + e.getMessage());
         }
         
+        // Find user by UUID (tenant ID)
         User user = userRepository.findByUuid(tenantUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for tenant: " + tenantId));
         
@@ -290,7 +324,7 @@ public class UserService implements UserDetailsService {
             throw new ResourceNotFoundException("No active store found for user: " + user.getUsername());
         }
         
-        // Return the first active store (in a real implementation, you might want better logic)
+        // Return the first active store
         return userStoreRoles.get(0).getStore();
     }
     
