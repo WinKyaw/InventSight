@@ -14,9 +14,19 @@ public class ProductRequest {
     
     private String description;
     
-    @NotNull(message = "Price is required")
+    // Legacy price field for backward compatibility
     @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than 0")
     private BigDecimal price;
+    
+    // Tiered pricing fields
+    @DecimalMin(value = "0.0", message = "Original price cannot be negative")
+    private BigDecimal originalPrice;
+    
+    @DecimalMin(value = "0.0", message = "Owner set sell price cannot be negative")
+    private BigDecimal ownerSetSellPrice;
+    
+    @DecimalMin(value = "0.0", message = "Retail price cannot be negative")
+    private BigDecimal retailPrice;
     
     @DecimalMin(value = "0.0", message = "Cost price cannot be negative")
     private BigDecimal costPrice;
@@ -50,6 +60,15 @@ public class ProductRequest {
     
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+    
+    public BigDecimal getOriginalPrice() { return originalPrice; }
+    public void setOriginalPrice(BigDecimal originalPrice) { this.originalPrice = originalPrice; }
+    
+    public BigDecimal getOwnerSetSellPrice() { return ownerSetSellPrice; }
+    public void setOwnerSetSellPrice(BigDecimal ownerSetSellPrice) { this.ownerSetSellPrice = ownerSetSellPrice; }
+    
+    public BigDecimal getRetailPrice() { return retailPrice; }
+    public void setRetailPrice(BigDecimal retailPrice) { this.retailPrice = retailPrice; }
 
     public BigDecimal getCostPrice() { return costPrice; }
     public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
