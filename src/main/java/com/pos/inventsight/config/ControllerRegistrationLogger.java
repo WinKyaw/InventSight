@@ -2,6 +2,8 @@ package com.pos.inventsight.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.stereotype.Component;
@@ -15,16 +17,38 @@ import java.util.Map;
  * Component that logs all registered controller endpoints on application startup.
  * This helps verify that warehouse and sales controllers are properly registered
  * and not being overridden by static resource handlers.
+ * 
+ * Fixed to handle multiple RequestMappingHandlerMapping beans (e.g., when Actuator 
+ * is enabled, controllerEndpointHandlerMapping is also present).
  */
 @Component
 public class ControllerRegistrationLogger implements ApplicationListener<ContextRefreshedEvent> {
     
     private static final Logger logger = LoggerFactory.getLogger(ControllerRegistrationLogger.class);
     
+    @Autowired
+    private ApplicationContext applicationContext;
+    
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
-        RequestMappingHandlerMapping handlerMapping = event.getApplicationContext()
-                .getBean(RequestMappingHandlerMapping.class);
+        // Get all RequestMappingHandlerMapping beans to avoid NoUniqueBeanDefinitionException
+        Map<String, RequestMappingHandlerMapping> mappings = 
+                applicationContext.getBeansOfType(RequestMappingHandlerMapping.class);
+        
+        // Try to get the primary web MVC handler mapping by name
+        RequestMappingHandlerMapping handlerMapping = mappings.get("requestMappingHandlerMapping");
+        
+        if (handlerMapping == null && !mappings.isEmpty()) {
+            // Fallback to first available if primary not found
+            handlerMapping = mappings.values().iterator().next();
+            logger.warn("Primary handler mapping bean 'requestMappingHandlerMapping' not found, using first available: {}", 
+                    handlerMapping.getClass().getName());
+        }
+        
+        if (handlerMapping == null) {
+            logger.warn("No RequestMappingHandlerMapping beans found. Skipping controller registration logging.");
+            return;
+        }
         
         Map<RequestMappingInfo, HandlerMethod> handlerMethods = handlerMapping.getHandlerMethods();
         
