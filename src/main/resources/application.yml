@@ -48,10 +48,10 @@ spring:
   
   # Email Configuration
   mail:
-    host: ${EMAIL_HOST:smtp.example.com}
+    host: ${EMAIL_HOST:smtp.gmail.com}
     port: ${EMAIL_PORT:587}
-    username: ${EMAIL_USERNAME:}
-    password: ${EMAIL_PASSWORD:}
+    username: ${EMAIL_USERNAME:windaybunce@gmail.com}
+    password: ${EMAIL_PASSWORD:12345}
     properties:
       mail:
         smtp:
@@ -59,6 +59,10 @@ spring:
           starttls:
             enable: true
             required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+        from: windaybunce@gmail.com
     # Email configuration notes:
     # - For Gmail: host=smtp.gmail.com, port=587, use App Password (not regular password)
     # - For Outlook: host=smtp-mail.outlook.com, port=587
@@ -161,7 +165,7 @@ inventsight:
   # Email Provider Configuration
   email:
     provider: ${EMAIL_PROVIDER:smtp} # Options: smtp, ses, sendgrid
-    from-address: ${EMAIL_FROM:noreply@inventsight.com}
+    from-address: ${EMAIL_FROM:windaybunce@gmail.com}
     from-name: "InventSight"
     verification-url: ${EMAIL_VERIFICATION_URL:http://localhost:3000/verify-email}
     # Email provider setup:

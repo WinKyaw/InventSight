@@ -12,6 +12,24 @@ spring:
     username: ${DATABASE_USERNAME:inventsight_prod}
     password: ${DATABASE_PASSWORD}
     
+  # Email Configuration for Production
+  mail:
+    host: ${EMAIL_HOST:smtp.gmail.com}
+    port: ${EMAIL_PORT:587}
+    username: ${EMAIL_USERNAME:windaybunce@gmail.com}
+    password: ${EMAIL_PASSWORD:12345}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+        from: ${EMAIL_FROM:windaybunce@gmail.com}
+    
   jpa:
     show-sql: false
     hibernate:
@@ -32,6 +50,11 @@ inventsight:
     jwt:
       secret: ${JWT_SECRET}
       expiration: 3600000 # 1 hour in production
+      
+  # Email Provider Configuration for Production
+  email:
+    from-address: ${EMAIL_FROM:windaybunce@gmail.com}
+    from-name: InventSight
       
   system:
     environment: "Production"
