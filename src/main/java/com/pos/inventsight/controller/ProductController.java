@@ -394,7 +394,37 @@ public class ProductController {
         product.setDescription(request.getDescription());
         product.setSku(request.getSku());
         product.setCategory(request.getCategory());
-        product.setPrice(request.getPrice());
+        
+        // Handle tiered pricing with backward compatibility
+        // If new pricing fields are provided, use them
+        if (request.getOriginalPrice() != null) {
+            product.setOriginalPrice(request.getOriginalPrice());
+        } else if (request.getPrice() != null) {
+            // Backward compatibility: use legacy price as original price
+            product.setOriginalPrice(request.getPrice());
+        }
+        
+        if (request.getOwnerSetSellPrice() != null) {
+            product.setOwnerSetSellPrice(request.getOwnerSetSellPrice());
+        } else if (request.getPrice() != null) {
+            // Backward compatibility: use legacy price as owner set sell price
+            product.setOwnerSetSellPrice(request.getPrice());
+        }
+        
+        if (request.getRetailPrice() != null) {
+            product.setRetailPrice(request.getRetailPrice());
+        } else if (request.getPrice() != null) {
+            // Backward compatibility: use legacy price as retail price
+            product.setRetailPrice(request.getPrice());
+        }
+        
+        // Set legacy price field for backward compatibility
+        if (request.getPrice() != null) {
+            product.setPrice(request.getPrice());
+        } else if (request.getRetailPrice() != null) {
+            product.setPrice(request.getRetailPrice());
+        }
+        
         product.setCostPrice(request.getCostPrice());
         product.setQuantity(request.getQuantity());
         product.setMaxQuantity(request.getMaxQuantity());
