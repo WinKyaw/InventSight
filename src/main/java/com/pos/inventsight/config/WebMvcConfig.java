@@ -54,6 +54,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
     
     /**
      * Configure CORS globally
+     * Note: Controller-level @CrossOrigin annotations take precedence
+     * allowCredentials is not set globally to avoid conflicts with controller-level origins="*"
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -61,10 +63,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
-                .allowCredentials(true)
                 .maxAge(3600);
         
-        System.out.println("🔧 WebMvcConfig: CORS configured for all origins");
+        System.out.println("🔧 WebMvcConfig: CORS configured (origin patterns=*, credentials=controller-level)");
     }
 
     /**
