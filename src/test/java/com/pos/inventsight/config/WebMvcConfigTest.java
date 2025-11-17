@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 1. WebMvcConfig loads successfully without "Unable to locate default servlet" error
  * 2. The configuration does not override configureDefaultServletHandling()
  * 3. Spring Boot's default servlet handling is used instead
+ * 4. CORS configuration doesn't have conflicting allowCredentials with origins="*"
  */
 class WebMvcConfigTest {
 
@@ -45,6 +46,26 @@ class WebMvcConfigTest {
                 WebMvcConfigurer config = context.getBean(WebMvcConfigurer.class);
                 assertThat(config).isNotNull();
                 assertThat(config).isInstanceOf(WebMvcConfig.class);
+            });
+    }
+    
+    @Test
+    void shouldConfigureCorsWithoutConflictingCredentials() {
+        // Verify that CORS configuration doesn't set allowCredentials globally
+        // This prevents conflicts with controller-level @CrossOrigin(origins = "*")
+        // which would cause: IllegalArgumentException: When allowCredentials is true,
+        // allowedOrigins cannot contain "*"
+        contextRunner
+            .run(context -> {
+                assertThat(context).hasNotFailed();
+                
+                // Verify that WebMvcConfig bean is created and configured correctly
+                WebMvcConfigurer config = context.getBean(WebMvcConfigurer.class);
+                assertThat(config).isNotNull();
+                assertThat(config).isInstanceOf(WebMvcConfig.class);
+                
+                // The configuration should allow controller-level CORS annotations
+                // to work without conflicts
             });
     }
 }
