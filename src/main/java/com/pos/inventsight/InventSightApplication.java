@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.cache.annotation.EnableCaching;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.pos.inventsight")
 @EnableJpaRepositories(
 	basePackages = "com.pos.inventsight.repository",
 	excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(

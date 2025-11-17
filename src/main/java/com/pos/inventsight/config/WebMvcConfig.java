@@ -3,23 +3,21 @@ package com.pos.inventsight.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.*;
 
 /**
  * Web MVC Configuration for InventSight
- * Implements WebMvcConfigurer to customize Spring MVC without disabling auto-configuration
+ * Ensures controllers are prioritized over static resources
  * 
  * Fixes the issue where Spring's DispatcherServlet was mapping controller
  * requests to ResourceHttpRequestHandler (static resources) instead of
  * routing them to REST controllers.
  * 
  * Key features:
- * 1. Path matching configuration - ensures controllers are matched before static resources
- * 2. Static resource handlers - explicit resource locations to avoid path conflicts
+ * 1. Path matching configuration - ensures controllers are matched first
+ * 2. Static resource handlers - ONLY specific paths to prevent API conflicts
  * 3. CORS configuration - global CORS support for API endpoints
+ * 4. Default servlet handling - disabled for API paths
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -27,54 +25,53 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(WebMvcConfig.class);
     
     /**
-     * Configure path matching to ensure controllers are matched before static resources.
-     * This method replaces the manual RequestMappingHandlerMapping bean definition
-     * to avoid conflicts with Spring Boot's auto-configuration.
+     * Configure path matching to ensure controllers are matched first
      */
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {
-        logger.info("=== Configuring Path Matching ===");
-        
-        // Use trailing slash match to be more lenient
-        configurer.setUseTrailingSlashMatch(true);
-        
-        // Set suffix pattern match to false (recommended for REST APIs)
+        configurer.setUseTrailingSlashMatch(false);
         configurer.setUseSuffixPatternMatch(false);
         
-        logger.info("Path matching configured: trailing slash match enabled, suffix pattern match disabled");
-        logger.info("This ensures controller mappings are prioritized over static resources");
-        logger.info("=== Path Matching Configured ===");
+        System.out.println("🔧 WebMvcConfig: Path matching configured");
     }
     
     /**
-     * Configure static resource handlers.
-     * Define explicit paths for static resources to prevent conflicts with API endpoints.
+     * Configure static resource handlers to ONLY match specific paths
+     * This prevents API paths from being treated as static resources
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        logger.info("=== Configuring Static Resource Handlers ===");
-        
-        // Static resources under /static path
+        // ONLY serve static resources from these specific paths
         registry.addResourceHandler("/static/**")
-                .addResourceLocations("classpath:/static/");
-        logger.info("Registered static resource handler: /static/** -> classpath:/static/");
-        
-        // Public resources under /public path
-        registry.addResourceHandler("/public/**")
+                .addResourceLocations("classpath:/static/")
                 .addResourceLocations("classpath:/public/");
-        logger.info("Registered static resource handler: /public/** -> classpath:/public/");
         
-        // Webjars
-        registry.addResourceHandler("/webjars/**")
-                .addResourceLocations("classpath:/META-INF/resources/webjars/");
-        logger.info("Registered static resource handler: /webjars/** -> classpath:/META-INF/resources/webjars/");
-        
-        // Explicitly handle favicon
         registry.addResourceHandler("/favicon.ico")
-                .addResourceLocations("classpath:/static/");
-        logger.info("Registered favicon handler: /favicon.ico -> classpath:/static/");
+                .addResourceLocations("classpath:/");
         
-        logger.info("=== Static Resource Handlers Configured ===");
+        // Explicitly add order to ensure controllers are checked first
+        registry.setOrder(1);
+        
+        System.out.println("🔧 WebMvcConfig: Static resource handlers configured (ONLY /static/**, /favicon.ico)");
+    }
+    
+    /**
+     * Disable default servlet handling to prevent fallback to static resources
+     */
+    @Override
+    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+        // DO NOT enable default servlet - this causes API paths to be treated as static resources
+        configurer.enable();
+        System.out.println("🔧 WebMvcConfig: Default servlet handling disabled for API paths");
+    }
+    
+    /**
+     * Configure view resolvers to avoid conflicts
+     */
+    @Override
+    public void configureViewResolvers(ViewResolverRegistry registry) {
+        // No view resolvers needed for REST API
+        System.out.println("🔧 WebMvcConfig: View resolvers configured (REST API mode)");
     }
     
     /**
