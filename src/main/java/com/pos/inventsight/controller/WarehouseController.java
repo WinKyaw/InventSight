@@ -21,7 +21,7 @@ import java.util.UUID;
  * REST Controller for warehouse management
  */
 @RestController
-@RequestMapping("/api/warehouses")
+@RequestMapping("/warehouses")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class WarehouseController {
 

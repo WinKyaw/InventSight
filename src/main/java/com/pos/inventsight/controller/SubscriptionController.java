@@ -13,7 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/subscription")
+@RequestMapping("/subscription")
 @Tag(name = "Subscription Management", description = "User subscription and quota management")
 public class SubscriptionController {
     

@@ -24,7 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/companies")
+@RequestMapping("/companies")
 @Tag(name = "Company Management", description = "Company-centric multi-tenant operations")
 public class CompanyController {
     

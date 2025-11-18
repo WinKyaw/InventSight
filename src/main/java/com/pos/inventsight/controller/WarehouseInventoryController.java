@@ -24,7 +24,7 @@ import java.util.UUID;
  * REST Controller for warehouse inventory management with RBAC
  */
 @RestController
-@RequestMapping("/api/warehouse-inventory")
+@RequestMapping("/warehouse-inventory")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class WarehouseInventoryController {
 

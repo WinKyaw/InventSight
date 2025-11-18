@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping("/products")
 @Tag(name = "Product Pricing", description = "Product price management restricted to CEO, Founder, and General Manager")
 public class ProductPricingController {
     
