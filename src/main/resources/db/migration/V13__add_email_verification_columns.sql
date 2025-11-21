@@ -15,4 +15,7 @@ COMMENT ON COLUMN users.verification_token IS 'Token for email verification';
 COMMENT ON COLUMN users.verification_token_expires_at IS 'Expiration time for verification token (24 hours)';
 
 -- Update existing users to have verified emails (backward compatibility)
-UPDATE users SET is_email_verified = TRUE WHERE is_email_verified IS NULL OR email_verified = TRUE;
+-- Check for email_verified column first
+UPDATE users 
+SET is_email_verified = COALESCE(email_verified, TRUE) 
+WHERE is_email_verified IS NULL;

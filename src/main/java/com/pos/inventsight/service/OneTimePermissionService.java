@@ -3,6 +3,7 @@ package com.pos.inventsight.service;
 import com.pos.inventsight.model.sql.OneTimePermission;
 import com.pos.inventsight.model.sql.PermissionType;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.repository.sql.OneTimePermissionRepository;
@@ -170,20 +171,20 @@ public class OneTimePermissionService {
     
     /**
      * Check if user has manager-level privileges (GM+)
-     * Uses CompanyRole to determine permissions
+     * Uses explicit role matching for robust authorization
      */
     private boolean hasManagerPrivileges(User user) {
         try {
-            // Check user's legacy role first
-            if (user.getRole() != null) {
-                String roleName = user.getRole().name();
-                if (roleName.contains("MANAGER") || 
-                    roleName.contains("OWNER") ||
-                    roleName.contains("ADMIN")) {
-                    return true;
-                }
+            if (user.getRole() == null) {
+                return false;
             }
-            return false;
+            
+            // Check for explicit manager-level roles
+            UserRole role = user.getRole();
+            return role == UserRole.MANAGER ||
+                   role == UserRole.OWNER ||
+                   role == UserRole.CO_OWNER ||
+                   role == UserRole.ADMIN;
         } catch (Exception e) {
             System.out.println("⚠️ Error checking user privileges: " + e.getMessage());
             return false;

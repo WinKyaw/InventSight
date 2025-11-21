@@ -38,7 +38,7 @@ public class ProductController {
     @Autowired
     private ProductService productService;
     
-    @Autowired(required = false)
+    @Autowired
     private OneTimePermissionService permissionService;
     
     @Autowired
@@ -191,7 +191,7 @@ public class ProductController {
             User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
             
-            if (permissionService != null && !permissionService.canPerformAction(user, PermissionType.ADD_ITEM)) {
+            if (!permissionService.canPerformAction(user, PermissionType.ADD_ITEM)) {
                 System.out.println("❌ User lacks permission to add products");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ApiResponse(false, "Insufficient permissions to add products. Contact your manager for temporary permission."));
@@ -201,14 +201,12 @@ public class ProductController {
             Product createdProduct = productService.createProduct(product, username);
             
             // Consume one-time permission if used
-            if (permissionService != null) {
-                try {
-                    permissionService.consumePermission(user.getId(), PermissionType.ADD_ITEM);
-                    System.out.println("✅ One-time ADD_ITEM permission consumed");
-                } catch (Exception e) {
-                    // User had manager role, not a one-time permission
-                    System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
-                }
+            try {
+                permissionService.consumePermission(user.getId(), PermissionType.ADD_ITEM);
+                System.out.println("✅ One-time ADD_ITEM permission consumed");
+            } catch (Exception e) {
+                // User had manager role, not a one-time permission
+                System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
             }
             
             ProductResponse productResponse = convertToResponse(createdProduct);
@@ -242,7 +240,7 @@ public class ProductController {
             User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
             
-            if (permissionService != null && !permissionService.canPerformAction(user, PermissionType.EDIT_ITEM)) {
+            if (!permissionService.canPerformAction(user, PermissionType.EDIT_ITEM)) {
                 System.out.println("❌ User lacks permission to edit products");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ApiResponse(false, "Insufficient permissions to edit products. Contact your manager for temporary permission."));
@@ -252,14 +250,12 @@ public class ProductController {
             Product updatedProduct = productService.updateProduct(id, productUpdates, username);
             
             // Consume one-time permission if used
-            if (permissionService != null) {
-                try {
-                    permissionService.consumePermission(user.getId(), PermissionType.EDIT_ITEM);
-                    System.out.println("✅ One-time EDIT_ITEM permission consumed");
-                } catch (Exception e) {
-                    // User had manager role, not a one-time permission
-                    System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
-                }
+            try {
+                permissionService.consumePermission(user.getId(), PermissionType.EDIT_ITEM);
+                System.out.println("✅ One-time EDIT_ITEM permission consumed");
+            } catch (Exception e) {
+                // User had manager role, not a one-time permission
+                System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
             }
             
             ProductResponse productResponse = convertToResponse(updatedProduct);
@@ -291,7 +287,7 @@ public class ProductController {
             User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
             
-            if (permissionService != null && !permissionService.canPerformAction(user, PermissionType.DELETE_ITEM)) {
+            if (!permissionService.canPerformAction(user, PermissionType.DELETE_ITEM)) {
                 System.out.println("❌ User lacks permission to delete products");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ApiResponse(false, "Insufficient permissions to delete products. Contact your manager for temporary permission."));
@@ -302,14 +298,12 @@ public class ProductController {
             productService.updateProduct(id, product, username);
             
             // Consume one-time permission if used
-            if (permissionService != null) {
-                try {
-                    permissionService.consumePermission(user.getId(), PermissionType.DELETE_ITEM);
-                    System.out.println("✅ One-time DELETE_ITEM permission consumed");
-                } catch (Exception e) {
-                    // User had manager role, not a one-time permission
-                    System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
-                }
+            try {
+                permissionService.consumePermission(user.getId(), PermissionType.DELETE_ITEM);
+                System.out.println("✅ One-time DELETE_ITEM permission consumed");
+            } catch (Exception e) {
+                // User had manager role, not a one-time permission
+                System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
             }
             
             Map<String, Object> response = new HashMap<>();
