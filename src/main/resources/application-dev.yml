@@ -42,6 +42,11 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
+  
+  # Flyway Configuration for Development
+  flyway:
+    enabled: false  # Disable Flyway for H2 in-memory development database
+    # If using PostgreSQL in dev, enable with repair=true for lenient checksum handling
 
 # Server Configuration
 server:
