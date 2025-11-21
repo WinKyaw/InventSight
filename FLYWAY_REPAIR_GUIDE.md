@@ -26,6 +26,13 @@ Migration checksum mismatch for migration version 10
 
 We've enabled `spring.flyway.repair=true` in the Flyway configuration which automatically repairs checksums on application startup. This ensures the checksums in the database match the current migration file content.
 
+> **⚠️ Production Warning:**  
+> While `repair=true` is enabled by default, for production environments you should:
+> 1. Consider disabling automatic repair (`repair=false`)
+> 2. Manually validate and repair migrations using `mvn flyway:repair` after review
+> 3. Never modify migration files after they've been applied to production
+> 4. Use CI/CD pipelines to validate migrations before deployment
+
 ### Configuration Changes
 
 **File: `src/main/resources/application.yml`**
@@ -96,10 +103,18 @@ WHERE version IN ('6', '7', '10');
 ### Option 3: Manual Checksum Update (Advanced)
 ```sql
 -- WARNING: Only use this if you understand the implications
--- Update checksums to match current files
-UPDATE flyway_schema_history 
-SET checksum = [new_checksum] 
-WHERE version = 'X';
+-- This directly modifies migration history and should be used with extreme caution
+
+-- First, get the checksum from Flyway logs or calculate it
+-- Flyway logs show: "Migration checksum mismatch for migration version X"
+-- -> Resolved locally: [checksum_value]
+
+-- Example: Update checksum for version 6
+-- UPDATE flyway_schema_history 
+-- SET checksum = -1619444361  -- Use the "Resolved locally" value from Flyway error
+-- WHERE version = '6';
+
+-- Note: It's better to use spring.flyway.repair=true than manual updates
 ```
 
 ## Verifying the Fix
@@ -155,7 +170,10 @@ After applying the repair configuration:
 ### Issue: Need to start fresh (Development only)
 **Solution**:
 ```bash
-# Drop and recreate database
+# ⚠️ DANGER: THESE COMMANDS DELETE ALL DATA - NEVER USE IN PRODUCTION! ⚠️
+# ⚠️ ONLY use in local development environments! ⚠️
+
+# Drop and recreate database (LOCAL DEVELOPMENT ONLY)
 psql -U inventsight_user -c "DROP DATABASE IF EXISTS inventsight_db;"
 psql -U inventsight_user -c "CREATE DATABASE inventsight_db;"
 

@@ -32,7 +32,10 @@ spring:
     baseline-version: 0
     default-schema: public
     validate-on-migrate: true
-    repair: true  # Automatically repair checksum mismatches on startup
+    # Automatically repair checksum mismatches on startup
+    # Note: This is suitable for development/staging. For production, consider disabling 
+    # repair and manually validating migration changes before deployment
+    repair: true
         
   # MongoDB Configuration (Analytics & Logs)
   data:
