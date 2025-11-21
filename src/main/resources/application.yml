@@ -92,7 +92,9 @@ inventsight:
     jwt:
       secret: inventsight-super-secret-jwt-key-winkyaw-2025-08-26
       expiration: 900000 # 15 minutes (900,000 ms) - balance between security and usability
-      refresh-expiration: 604800000 # 7 days
+      refresh-expiration: 604800000 # 7 days (604,800,000 ms)
+      access-token-expiration: 900000 # 15 minutes for access tokens
+      refresh-token-expiration: 604800000 # 7 days for refresh tokens
       
     oauth2:
       resource-server:
@@ -168,6 +170,9 @@ inventsight:
     from-address: ${EMAIL_FROM:windaybunce@gmail.com}
     from-name: "InventSight"
     verification-url: ${EMAIL_VERIFICATION_URL:http://localhost:3000/verify-email}
+    verification:
+      token:
+        expiry-hours: 24 # Email verification token expiry
     # Email provider setup:
     # - smtp: Use spring.mail properties above for SMTP configuration
     # - ses: Requires AWS credentials and SES setup (see EMAIL_SETUP.md)
@@ -214,6 +219,10 @@ inventsight:
     max-employee-discount-percent: ${SALES_MAX_EMPLOYEE_DISCOUNT:10}
     cross-store:
       employee-requires-approval: ${SALES_CROSS_STORE_APPROVAL:true}
+      
+  # One-Time Permission Configuration
+  permissions:
+    default-expiry-hours: 1 # One-time permissions expire after 1 hour
 
 # Logging Configuration
 logging:
