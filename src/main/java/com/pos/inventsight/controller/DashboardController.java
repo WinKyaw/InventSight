@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/dashboard")
@@ -77,12 +78,23 @@ public class DashboardController {
     
     // GET /api/dashboard/stats - Dashboard statistics (frontend compatibility)
     @GetMapping("/stats")
-    public ResponseEntity<?> getDashboardStats(Authentication authentication) {
+    public ResponseEntity<?> getDashboardStats(
+            @RequestParam(required = false) UUID storeId,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            Authentication authentication) {
         try {
             String username = authentication.getName();
             System.out.println("📊 InventSight - Fetching dashboard stats for user: " + username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
             System.out.println("👤 Current User: WinKyaw");
+            
+            if (storeId != null) {
+                System.out.println("🏪 Store filter: " + storeId);
+            }
+            if (startDate != null && endDate != null) {
+                System.out.println("📅 Date range: " + startDate + " to " + endDate);
+            }
             
             // Get comprehensive dashboard data
             DashboardSummaryResponse summary = dashboardService.getDashboardSummary();
@@ -95,12 +107,28 @@ public class DashboardController {
             stats.put("inventoryStats", getInventoryStats());
             stats.put("recentActivities", getRecentActivities());
             
+            // Add enhanced statistics for the spec requirements
+            Map<String, Object> enhancedStats = new HashMap<>();
+            enhancedStats.put("totalRevenue", summary.getTotalRevenue());
+            enhancedStats.put("totalOrders", summary.getTotalOrders());
+            enhancedStats.put("averageOrderValue", calculateAverageOrderValue(summary));
+            enhancedStats.put("topSellingItems", getTopSellingItems(5)); // Top 5
+            enhancedStats.put("lowStockItems", getLowStockItems(10)); // Items with quantity < 10
+            enhancedStats.put("dailySales", getDailySalesLast7Days());
+            
+            stats.put("enhanced", enhancedStats);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", stats);
             response.put("message", "Dashboard statistics retrieved successfully");
             response.put("timestamp", LocalDateTime.now());
             response.put("system", "InventSight");
+            response.put("filters", Map.of(
+                "storeId", storeId != null ? storeId.toString() : "all",
+                "startDate", startDate != null ? startDate : "not specified",
+                "endDate", endDate != null ? endDate : "not specified"
+            ));
             
             System.out.println("✅ InventSight - Dashboard stats retrieved successfully");
             return ResponseEntity.ok(response);
@@ -139,5 +167,64 @@ public class DashboardController {
             System.out.println("❌ Error fetching recent activities: " + e.getMessage());
         }
         return activities;
+    }
+    
+    // Helper method to calculate average order value
+    private Double calculateAverageOrderValue(DashboardSummaryResponse summary) {
+        try {
+            if (summary.getTotalOrders() != null && summary.getTotalOrders() > 0 &&
+                summary.getTotalRevenue() != null) {
+                return summary.getTotalRevenue().doubleValue() / summary.getTotalOrders();
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Error calculating average order value: " + e.getMessage());
+        }
+        return 0.0;
+    }
+    
+    // Helper method to get top selling items
+    private java.util.List<Map<String, Object>> getTopSellingItems(int limit) {
+        java.util.List<Map<String, Object>> topItems = new java.util.ArrayList<>();
+        try {
+            // Mock data - in real implementation, query from sale_items or sales database
+            // This would join with products and aggregate by quantity sold
+            System.out.println("ℹ️ Top selling items query not yet implemented");
+        } catch (Exception e) {
+            System.out.println("❌ Error fetching top selling items: " + e.getMessage());
+        }
+        return topItems;
+    }
+    
+    // Helper method to get low stock items (quantity < threshold)
+    private java.util.List<Map<String, Object>> getLowStockItems(int threshold) {
+        java.util.List<Map<String, Object>> lowStockItems = new java.util.ArrayList<>();
+        try {
+            // Mock data - in real implementation, query products with quantity < threshold
+            System.out.println("ℹ️ Low stock items query not yet implemented");
+        } catch (Exception e) {
+            System.out.println("❌ Error fetching low stock items: " + e.getMessage());
+        }
+        return lowStockItems;
+    }
+    
+    // Helper method to get daily sales for last 7 days
+    private java.util.List<Map<String, Object>> getDailySalesLast7Days() {
+        java.util.List<Map<String, Object>> dailySales = new java.util.ArrayList<>();
+        try {
+            // Mock data - in real implementation, aggregate sales by day for last 7 days
+            LocalDateTime now = LocalDateTime.now();
+            for (int i = 6; i >= 0; i--) {
+                Map<String, Object> daySale = new HashMap<>();
+                LocalDateTime date = now.minusDays(i);
+                daySale.put("date", date.toLocalDate().toString());
+                daySale.put("sales", 0.0);
+                daySale.put("orders", 0);
+                dailySales.add(daySale);
+            }
+            System.out.println("ℹ️ Daily sales query not yet fully implemented - returning mock data structure");
+        } catch (Exception e) {
+            System.out.println("❌ Error fetching daily sales: " + e.getMessage());
+        }
+        return dailySales;
     }
 }

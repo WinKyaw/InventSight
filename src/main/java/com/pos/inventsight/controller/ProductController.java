@@ -5,7 +5,11 @@ import com.pos.inventsight.dto.ProductRequest;
 import com.pos.inventsight.dto.ProductResponse;
 import com.pos.inventsight.dto.StockUpdateRequest;
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.PermissionType;
+import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.service.ProductService;
+import com.pos.inventsight.service.OneTimePermissionService;
+import com.pos.inventsight.repository.sql.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +37,12 @@ public class ProductController {
     
     @Autowired
     private ProductService productService;
+    
+    @Autowired(required = false)
+    private OneTimePermissionService permissionService;
+    
+    @Autowired
+    private UserRepository userRepository;
     
     // GET /products - Get all products with pagination
     @GetMapping
@@ -177,8 +187,30 @@ public class ProductController {
             System.out.println("➕ InventSight - Creating product for user: " + username);
             System.out.println("📦 Product name: " + productRequest.getName());
             
+            // Check permissions
+            User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            if (permissionService != null && !permissionService.canPerformAction(user, PermissionType.ADD_ITEM)) {
+                System.out.println("❌ User lacks permission to add products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Insufficient permissions to add products. Contact your manager for temporary permission."));
+            }
+            
             Product product = convertFromRequest(productRequest);
             Product createdProduct = productService.createProduct(product, username);
+            
+            // Consume one-time permission if used
+            if (permissionService != null) {
+                try {
+                    permissionService.consumePermission(user.getId(), PermissionType.ADD_ITEM);
+                    System.out.println("✅ One-time ADD_ITEM permission consumed");
+                } catch (Exception e) {
+                    // User had manager role, not a one-time permission
+                    System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
+                }
+            }
+            
             ProductResponse productResponse = convertToResponse(createdProduct);
             
             Map<String, Object> response = new HashMap<>();
@@ -206,8 +238,30 @@ public class ProductController {
             String username = authentication.getName();
             System.out.println("🔄 InventSight - Updating product ID: " + id + " for user: " + username);
             
+            // Check permissions
+            User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            if (permissionService != null && !permissionService.canPerformAction(user, PermissionType.EDIT_ITEM)) {
+                System.out.println("❌ User lacks permission to edit products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Insufficient permissions to edit products. Contact your manager for temporary permission."));
+            }
+            
             Product productUpdates = convertFromRequest(productRequest);
             Product updatedProduct = productService.updateProduct(id, productUpdates, username);
+            
+            // Consume one-time permission if used
+            if (permissionService != null) {
+                try {
+                    permissionService.consumePermission(user.getId(), PermissionType.EDIT_ITEM);
+                    System.out.println("✅ One-time EDIT_ITEM permission consumed");
+                } catch (Exception e) {
+                    // User had manager role, not a one-time permission
+                    System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
+                }
+            }
+            
             ProductResponse productResponse = convertToResponse(updatedProduct);
             
             Map<String, Object> response = new HashMap<>();
@@ -233,9 +287,30 @@ public class ProductController {
             String username = authentication.getName();
             System.out.println("🗑️ InventSight - Soft deleting product ID: " + id + " for user: " + username);
             
+            // Check permissions
+            User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            if (permissionService != null && !permissionService.canPerformAction(user, PermissionType.DELETE_ITEM)) {
+                System.out.println("❌ User lacks permission to delete products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Insufficient permissions to delete products. Contact your manager for temporary permission."));
+            }
+            
             Product product = productService.getProductById(id);
             product.setIsActive(false);
             productService.updateProduct(id, product, username);
+            
+            // Consume one-time permission if used
+            if (permissionService != null) {
+                try {
+                    permissionService.consumePermission(user.getId(), PermissionType.DELETE_ITEM);
+                    System.out.println("✅ One-time DELETE_ITEM permission consumed");
+                } catch (Exception e) {
+                    // User had manager role, not a one-time permission
+                    System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
+                }
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Product deleted successfully");
