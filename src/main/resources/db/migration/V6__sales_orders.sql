@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS sales_orders (
 );
 
 -- Create index on tenant_id and status for efficient queries
-CREATE INDEX idx_sales_orders_tenant_status ON sales_orders(tenant_id, status);
-CREATE INDEX idx_sales_orders_created_at ON sales_orders(created_at);
-CREATE INDEX idx_sales_orders_tenant_created ON sales_orders(tenant_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_tenant_status ON sales_orders(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_created_at ON sales_orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_tenant_created ON sales_orders(tenant_id, created_at);
 
 -- Create sales_order_items table
 CREATE TABLE IF NOT EXISTS sales_order_items (
@@ -40,10 +40,10 @@ CREATE TABLE IF NOT EXISTS sales_order_items (
 );
 
 -- Create indexes for efficient queries
-CREATE INDEX idx_sales_order_items_order ON sales_order_items(order_id);
-CREATE INDEX idx_sales_order_items_warehouse ON sales_order_items(warehouse_id);
-CREATE INDEX idx_sales_order_items_product ON sales_order_items(product_id);
-CREATE INDEX idx_sales_order_items_order_created ON sales_order_items(order_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_order_items_order ON sales_order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_sales_order_items_warehouse ON sales_order_items(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_sales_order_items_product ON sales_order_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_sales_order_items_order_created ON sales_order_items(order_id, created_at);
 
 -- Add comments for documentation
 COMMENT ON TABLE sales_orders IS 'Sales orders created by employees for customer transactions';

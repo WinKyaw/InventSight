@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS preexisting_items (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_preexisting_items_store_id ON preexisting_items(store_id);
-CREATE INDEX idx_preexisting_items_category ON preexisting_items(category);
-CREATE INDEX idx_preexisting_items_is_deleted ON preexisting_items(is_deleted);
-CREATE INDEX idx_preexisting_items_sku ON preexisting_items(sku);
-CREATE INDEX idx_preexisting_items_item_name ON preexisting_items(item_name);
+CREATE INDEX IF NOT EXISTS idx_preexisting_items_store_id ON preexisting_items(store_id);
+CREATE INDEX IF NOT EXISTS idx_preexisting_items_category ON preexisting_items(category);
+CREATE INDEX IF NOT EXISTS idx_preexisting_items_is_deleted ON preexisting_items(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_preexisting_items_sku ON preexisting_items(sku);
+CREATE INDEX IF NOT EXISTS idx_preexisting_items_item_name ON preexisting_items(item_name);
 
 -- Add comments for documentation
 COMMENT ON TABLE preexisting_items IS 'Store-scoped catalog items for inventory management';
