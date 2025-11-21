@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_refresh_token_token ON refresh_tokens(token);
-CREATE INDEX idx_refresh_token_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_token_expires_at ON refresh_tokens(expires_at);
-CREATE INDEX idx_refresh_token_revoked ON refresh_tokens(revoked);
-CREATE INDEX idx_refresh_token_valid ON refresh_tokens(user_id, revoked, expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_token ON refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_revoked ON refresh_tokens(revoked);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_valid ON refresh_tokens(user_id, revoked, expires_at);
 
 -- Add comments for documentation
 COMMENT ON TABLE refresh_tokens IS 'Refresh tokens for JWT token refresh mechanism';

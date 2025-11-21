@@ -2,7 +2,7 @@
 -- Supports multiple roles per (user, company[, store]) membership
 
 -- Create the company_store_user_roles table
-CREATE TABLE company_store_user_roles (
+CREATE TABLE IF NOT EXISTS company_store_user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_store_user_id UUID NOT NULL,
     role VARCHAR(50) NOT NULL,
@@ -26,10 +26,10 @@ CREATE TABLE company_store_user_roles (
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_csur_company_store_user ON company_store_user_roles(company_store_user_id);
-CREATE INDEX idx_csur_role ON company_store_user_roles(role);
-CREATE INDEX idx_csur_active ON company_store_user_roles(is_active);
-CREATE INDEX idx_csur_membership_active ON company_store_user_roles(company_store_user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_csur_company_store_user ON company_store_user_roles(company_store_user_id);
+CREATE INDEX IF NOT EXISTS idx_csur_role ON company_store_user_roles(role);
+CREATE INDEX IF NOT EXISTS idx_csur_active ON company_store_user_roles(is_active);
+CREATE INDEX IF NOT EXISTS idx_csur_membership_active ON company_store_user_roles(company_store_user_id, is_active);
 
 -- Backfill existing roles from company_store_user table
 -- For each existing membership with a role, create a corresponding role mapping entry

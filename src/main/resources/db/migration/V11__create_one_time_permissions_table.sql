@@ -19,14 +19,14 @@ CREATE TABLE IF NOT EXISTS one_time_permissions (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_otp_granted_to_user ON one_time_permissions(granted_to_user_id);
-CREATE INDEX idx_otp_granted_by_user ON one_time_permissions(granted_by_user_id);
-CREATE INDEX idx_otp_permission_type ON one_time_permissions(permission_type);
-CREATE INDEX idx_otp_is_used ON one_time_permissions(is_used);
-CREATE INDEX idx_otp_is_expired ON one_time_permissions(is_expired);
-CREATE INDEX idx_otp_expires_at ON one_time_permissions(expires_at);
-CREATE INDEX idx_otp_store_id ON one_time_permissions(store_id);
-CREATE INDEX idx_otp_active_permissions ON one_time_permissions(granted_to_user_id, permission_type, is_used, is_expired);
+CREATE INDEX IF NOT EXISTS idx_otp_granted_to_user ON one_time_permissions(granted_to_user_id);
+CREATE INDEX IF NOT EXISTS idx_otp_granted_by_user ON one_time_permissions(granted_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_otp_permission_type ON one_time_permissions(permission_type);
+CREATE INDEX IF NOT EXISTS idx_otp_is_used ON one_time_permissions(is_used);
+CREATE INDEX IF NOT EXISTS idx_otp_is_expired ON one_time_permissions(is_expired);
+CREATE INDEX IF NOT EXISTS idx_otp_expires_at ON one_time_permissions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_otp_store_id ON one_time_permissions(store_id);
+CREATE INDEX IF NOT EXISTS idx_otp_active_permissions ON one_time_permissions(granted_to_user_id, permission_type, is_used, is_expired);
 
 -- Add comments for documentation
 COMMENT ON TABLE one_time_permissions IS 'Temporary permissions granted to employees for specific actions';
