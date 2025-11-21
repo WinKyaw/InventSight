@@ -41,8 +41,6 @@ public class DatabaseConfig extends AbstractMongoClientConfiguration {
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         log.info("⚡ InventSight - Configuring Redis connection: {}:{}", redisHost, redisPort);
-        log.info("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
-        log.info("👤 Current User's Login: WinKyaw");
         
         lettuceConnectionFactory = new LettuceConnectionFactory(redisHost, redisPort);
         lettuceConnectionFactory.setShareNativeConnection(false);
@@ -105,28 +103,6 @@ public class DatabaseConfig extends AbstractMongoClientConfiguration {
         
         public DatabaseHealthChecker() {
             log.info("🏥 InventSight Database Health Checker initialized");
-            log.info("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
-            log.info("👤 Current User's Login: WinKyaw");
-            
-            checkDatabaseConnections();
-        }
-        
-        private void checkDatabaseConnections() {
-            log.info("🔍 InventSight - Checking database connections...");
-            
-            // PostgreSQL check
-            log.info("   🐘 PostgreSQL: Checking InventSight core database connection...");
-            log.info("   ✅ PostgreSQL: InventSight database connection ready");
-            
-            // MongoDB check  
-            log.info("   🍃 MongoDB: Checking InventSight analytics database connection...");
-            log.info("   ✅ MongoDB: InventSight analytics connection ready");
-            
-            // Redis check
-            log.info("   ⚡ Redis: Checking InventSight cache connection...");
-            log.info("   ✅ Redis: InventSight cache connection ready");
-            
-            log.info("🎉 All InventSight database connections established successfully!");
         }
     }
 }
