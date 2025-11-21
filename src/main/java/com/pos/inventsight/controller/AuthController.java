@@ -8,13 +8,16 @@ import com.pos.inventsight.dto.ResendVerificationRequest;
 import com.pos.inventsight.dto.StructuredAuthResponse;
 import com.pos.inventsight.dto.UserResponse;
 import com.pos.inventsight.dto.TokenResponse;
+import com.pos.inventsight.dto.RefreshTokenRequest;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
+import com.pos.inventsight.model.sql.RefreshToken;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.ActivityLogService;
 import com.pos.inventsight.service.EmailVerificationService;
 import com.pos.inventsight.service.PasswordValidationService;
 import com.pos.inventsight.service.RateLimitingService;
+import com.pos.inventsight.service.RefreshTokenService;
 import com.pos.inventsight.config.JwtUtils;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -91,6 +94,9 @@ public class AuthController {
     
     @Autowired
     private com.pos.inventsight.service.MfaService mfaService;
+    
+    @Autowired(required = false)
+    private RefreshTokenService refreshTokenService;
     
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private Long jwtExpirationMs;
@@ -1404,13 +1410,14 @@ public class AuthController {
     
     // POST /auth/logout - Logout endpoint
     @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser(HttpServletRequest request) {
+    public ResponseEntity<?> logoutUser(@RequestBody(required = false) RefreshTokenRequest request, 
+                                       HttpServletRequest httpRequest) {
         System.out.println("🚪 InventSight - Processing logout request");
-        System.out.println("📅 Current DateTime (UTC): 2025-08-27 10:27:11");
+        System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
         System.out.println("👤 Current User: WinKyaw");
         
         try {
-            String headerAuth = request.getHeader("Authorization");
+            String headerAuth = httpRequest.getHeader("Authorization");
             
             if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
                 String jwt = headerAuth.substring(7);
@@ -1418,6 +1425,17 @@ public class AuthController {
                 if (jwtUtils.validateJwtToken(jwt)) {
                     String username = jwtUtils.getUsernameFromJwtToken(jwt);
                     User user = userService.getUserByEmail(username);
+                    
+                    // Revoke refresh token if provided
+                    if (refreshTokenService != null && request != null && 
+                        request.getRefreshToken() != null) {
+                        try {
+                            refreshTokenService.revokeToken(request.getRefreshToken());
+                            System.out.println("✅ Refresh token revoked");
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Failed to revoke refresh token: " + e.getMessage());
+                        }
+                    }
                     
                     // Clear security context
                     SecurityContextHolder.clearContext();
@@ -1443,6 +1461,87 @@ public class AuthController {
             System.out.println("❌ Logout error: " + e.getMessage());
             // Always return success for logout to avoid revealing information
             return ResponseEntity.ok(new AuthResponse("Logout completed"));
+        }
+    }
+    
+    // POST /auth/refresh - Refresh access token using refresh token
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request,
+                                         HttpServletRequest httpRequest) {
+        System.out.println("🔄 InventSight - Processing token refresh request");
+        System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
+        
+        try {
+            if (refreshTokenService == null) {
+                System.out.println("⚠️ Refresh token service not available");
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new AuthResponse("Token refresh not available"));
+            }
+            
+            // Validate refresh token
+            RefreshToken refreshToken = refreshTokenService.validateRefreshToken(request.getRefreshToken());
+            User user = refreshToken.getUser();
+            
+            System.out.println("✅ Refresh token valid for user: " + user.getEmail());
+            
+            // Resolve tenant for user
+            Object tenantResolutionResult = resolveTenantForUser(user);
+            
+            // Check if tenant selection is required
+            if (tenantResolutionResult instanceof com.pos.inventsight.dto.TenantSelectionResponse) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(tenantResolutionResult);
+            }
+            
+            // Extract tenant ID
+            String tenantId;
+            if (tenantResolutionResult instanceof String) {
+                String resultString = (String) tenantResolutionResult;
+                try {
+                    java.util.UUID.fromString(resultString);
+                    tenantId = resultString;
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new AuthResponse("Invalid tenant resolution: " + resultString));
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponse("Unexpected tenant resolution result"));
+            }
+            
+            // Generate new access token
+            String newAccessToken = jwtUtils.generateJwtToken(user, tenantId);
+            
+            // Log token refresh activity
+            activityLogService.logActivity(
+                user.getId().toString(),
+                user.getUsername(),
+                "TOKEN_REFRESH",
+                "AUTHENTICATION",
+                "Access token refreshed for user: " + user.getEmail()
+            );
+            
+            // Create response
+            Map<String, Object> response = new HashMap<>();
+            response.put("accessToken", newAccessToken);
+            response.put("tokenType", "Bearer");
+            response.put("expiresIn", jwtExpirationMs / 1000); // seconds
+            response.put("refreshToken", request.getRefreshToken()); // return same refresh token
+            response.put("userId", user.getId());
+            response.put("username", user.getUsername());
+            response.put("email", user.getEmail());
+            
+            System.out.println("✅ New access token generated successfully");
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            System.out.println("❌ Token refresh failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new AuthResponse("Invalid or expired refresh token: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("❌ Token refresh error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponse("Token refresh failed: " + e.getMessage()));
         }
     }
 }
