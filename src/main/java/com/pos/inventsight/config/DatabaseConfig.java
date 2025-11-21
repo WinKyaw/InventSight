@@ -1,5 +1,8 @@
 package com.pos.inventsight.config;
 
+import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +19,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class DatabaseConfig extends AbstractMongoClientConfiguration {
     
+    private static final Logger log = LoggerFactory.getLogger(DatabaseConfig.class);
+    
     @Value("${spring.data.mongodb.database:inventsight_analytics}")
     private String mongoDatabase;
     
@@ -25,6 +30,8 @@ public class DatabaseConfig extends AbstractMongoClientConfiguration {
     @Value("${spring.data.redis.port:6379}")
     private int redisPort;
     
+    private LettuceConnectionFactory lettuceConnectionFactory;
+    
     @Override
     protected String getDatabaseName() {
         return mongoDatabase;
@@ -33,21 +40,22 @@ public class DatabaseConfig extends AbstractMongoClientConfiguration {
     // Redis Configuration
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        System.out.println("⚡ InventSight - Configuring Redis connection: " + redisHost + ":" + redisPort);
-        System.out.println("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
-        System.out.println("👤 Current User's Login: WinKyaw");
+        log.info("⚡ InventSight - Configuring Redis connection: {}:{}", redisHost, redisPort);
+        log.info("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
+        log.info("👤 Current User's Login: WinKyaw");
         
-        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisHost, redisPort);
-        factory.afterPropertiesSet();
+        lettuceConnectionFactory = new LettuceConnectionFactory(redisHost, redisPort);
+        lettuceConnectionFactory.setShareNativeConnection(false);
+        lettuceConnectionFactory.afterPropertiesSet();
         
-        System.out.println("✅ InventSight Redis connection factory configured");
-        return factory;
+        log.info("✅ InventSight Redis connection factory configured");
+        return lettuceConnectionFactory;
     }
     
     @Bean
     @Primary
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        System.out.println("🔧 InventSight - Configuring Redis Template for caching");
+        log.info("🔧 InventSight - Configuring Redis Template for caching");
         
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
@@ -63,7 +71,7 @@ public class DatabaseConfig extends AbstractMongoClientConfiguration {
         template.setEnableTransactionSupport(true);
         template.afterPropertiesSet();
         
-        System.out.println("✅ InventSight Redis Template configured for intelligent caching");
+        log.info("✅ InventSight Redis Template configured for intelligent caching");
         return template;
     }
     
@@ -73,31 +81,52 @@ public class DatabaseConfig extends AbstractMongoClientConfiguration {
         return new DatabaseHealthChecker();
     }
     
+    @PreDestroy
+    public void cleanUp() {
+        log.info("🔄 InventSight - Shutting down database connections...");
+        
+        // Ensure proper cleanup of Redis connection
+        if (lettuceConnectionFactory != null) {
+            try {
+                log.info("⚡ Shutting down Redis connection factory");
+                lettuceConnectionFactory.destroy();
+                log.info("✅ Redis connection factory shut down successfully");
+            } catch (Exception e) {
+                log.error("❌ Error shutting down Redis connection factory", e);
+            }
+        }
+        
+        log.info("✅ InventSight database connections cleanup completed");
+    }
+    
     public static class DatabaseHealthChecker {
+        
+        private static final Logger log = LoggerFactory.getLogger(DatabaseHealthChecker.class);
+        
         public DatabaseHealthChecker() {
-            System.out.println("🏥 InventSight Database Health Checker initialized");
-            System.out.println("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
-            System.out.println("👤 Current User's Login: WinKyaw");
+            log.info("🏥 InventSight Database Health Checker initialized");
+            log.info("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
+            log.info("👤 Current User's Login: WinKyaw");
             
             checkDatabaseConnections();
         }
         
         private void checkDatabaseConnections() {
-            System.out.println("🔍 InventSight - Checking database connections...");
+            log.info("🔍 InventSight - Checking database connections...");
             
             // PostgreSQL check
-            System.out.println("   🐘 PostgreSQL: Checking InventSight core database connection...");
-            System.out.println("   ✅ PostgreSQL: InventSight database connection ready");
+            log.info("   🐘 PostgreSQL: Checking InventSight core database connection...");
+            log.info("   ✅ PostgreSQL: InventSight database connection ready");
             
             // MongoDB check  
-            System.out.println("   🍃 MongoDB: Checking InventSight analytics database connection...");
-            System.out.println("   ✅ MongoDB: InventSight analytics connection ready");
+            log.info("   🍃 MongoDB: Checking InventSight analytics database connection...");
+            log.info("   ✅ MongoDB: InventSight analytics connection ready");
             
             // Redis check
-            System.out.println("   ⚡ Redis: Checking InventSight cache connection...");
-            System.out.println("   ✅ Redis: InventSight cache connection ready");
+            log.info("   ⚡ Redis: Checking InventSight cache connection...");
+            log.info("   ✅ Redis: InventSight cache connection ready");
             
-            System.out.println("🎉 All InventSight database connections established successfully!");
+            log.info("🎉 All InventSight database connections established successfully!");
         }
     }
 }
