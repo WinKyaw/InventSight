@@ -166,23 +166,7 @@ FROM flyway_schema_history
 WHERE version IN ('6', '7', '10');
 ```
 
-### Option 4: Manual Checksum Update (Advanced - Not Recommended)
-```sql
--- ⚠️ WARNING: Only use this if you understand the implications
--- This directly modifies migration history and should be used with extreme caution
--- It's better to use the repair script or spring.flyway.repair=true
-
--- First, get the checksum from Flyway logs or calculate it
--- Flyway logs show: "Migration checksum mismatch for migration version X"
--- -> Resolved locally: [checksum_value]
-
--- Example: Update checksum for version 6
--- UPDATE flyway_schema_history 
--- SET checksum = -1619444361  -- Use the "Resolved locally" value from Flyway error
--- WHERE version = '6';
-
--- Always prefer automated repair methods over manual SQL updates
-```
+> **⚠️ Important:** Never manually modify the `flyway_schema_history` table using SQL UPDATE/DELETE commands. Always use the repair script or Flyway's built-in repair functionality to maintain data integrity.
 
 ## Verifying the Fix
 

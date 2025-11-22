@@ -17,10 +17,6 @@
 #   ./scripts/repair-flyway.sh          # Repair using dev profile
 #   ./scripts/repair-flyway.sh prod     # Repair using prod profile
 #   ./scripts/repair-flyway.sh postgres # Repair using postgres profile
-#
-# Current Date and Time (UTC): 2025-11-22 09:59:12
-# Current User: WinKyaw
-# Repository: WinKyaw/InventSight
 ###############################################################################
 
 set -e  # Exit on error
@@ -88,7 +84,7 @@ echo -e "${YELLOW}- Realign migration history with current files${NC}"
 echo ""
 
 # Run Flyway repair using Spring Boot with the specified profile
-echo -e "${GREEN}Executing: $MVN_CMD spring-boot:run -Dspring-boot.run.arguments=--flyway.repair=true -Dspring-boot.run.profiles=$ENVIRONMENT${NC}"
+echo -e "${GREEN}Executing: $MVN_CMD spring-boot:run -Dspring-boot.run.arguments=--spring.flyway.repair=true -Dspring-boot.run.profiles=$ENVIRONMENT${NC}"
 echo ""
 
 # Actually run the repair
