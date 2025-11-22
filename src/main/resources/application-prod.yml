@@ -34,6 +34,18 @@ spring:
     show-sql: false
     hibernate:
       ddl-auto: validate
+  
+  # Flyway Configuration for Production
+  # Strict validation with manual repair option
+  flyway:
+    enabled: true
+    validate-on-migrate: true  # Strict validation in production
+    repair: false  # Disable automatic repair - require manual intervention
+    clean-disabled: true  # Prevent accidental database wipes
+    # To repair checksums in production:
+    # 1. Run: mvn flyway:repair -Pprod
+    # 2. Or use: scripts/repair-flyway.sh prod
+    # 3. Review changes carefully before proceeding
       
   # Production Logging
 logging:

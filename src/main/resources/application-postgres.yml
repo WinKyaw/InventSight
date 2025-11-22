@@ -8,3 +8,11 @@ spring:
         multiTenancy: SCHEMA
         tenant_identifier_resolver: com.pos.inventsight.tenant.TenantIdentifierResolver
         multi_tenant_connection_provider: com.pos.inventsight.tenant.SchemaBasedMultiTenantConnectionProvider
+  
+  # Flyway Configuration for PostgreSQL Profile
+  # Enables Flyway with lenient settings for development with PostgreSQL
+  flyway:
+    enabled: true
+    validate-on-migrate: false  # Lenient validation for development
+    repair: true  # Auto-repair checksum mismatches
+    clean-disabled: false  # Allow clean for development database resets
