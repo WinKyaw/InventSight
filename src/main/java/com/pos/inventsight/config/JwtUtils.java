@@ -40,13 +40,11 @@ public class JwtUtils {
         }
         
         if (jwtSecret.length() < 32) {
-            logger.warn("JWT secret is shorter than recommended 32 characters. " +
-                "Current length: {} characters. " +
-                "Please use a longer secret for production environments.", jwtSecret.length());
+            logger.warn("JWT secret is shorter than recommended minimum length. " +
+                "Please use a longer secret for production environments.");
         }
         
         logger.info("JWT configuration validated successfully");
-        logger.debug("JWT secret length: {} characters", jwtSecret.length());
         logger.debug("Access token expiration: {} minutes", jwtExpirationMs / 1000 / 60);
         logger.debug("Refresh token expiration: {} days", jwtRefreshExpirationMs / 1000 / 60 / 60 / 24);
     }
