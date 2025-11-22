@@ -1,4 +1,4 @@
-package com.pos.inventsight.repository;
+package com.pos.inventsight.repository.sql;
 
 import com.pos.inventsight.model.sql.PasswordResetToken;
 import com.pos.inventsight.model.sql.User;

@@ -2,7 +2,7 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.PasswordResetToken;
 import com.pos.inventsight.model.sql.User;
-import com.pos.inventsight.repository.PasswordResetTokenRepository;
+import com.pos.inventsight.repository.sql.PasswordResetTokenRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;

@@ -2,7 +2,7 @@ package com.pos.inventsight.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pos.inventsight.model.sql.AuditEvent;
-import com.pos.inventsight.repository.AuditEventRepository;
+import com.pos.inventsight.repository.sql.AuditEventRepository;
 import com.pos.inventsight.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
