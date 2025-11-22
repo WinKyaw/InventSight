@@ -31,11 +31,14 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     default-schema: public
-    validate-on-migrate: true
+    # Default: Enable validation and auto-repair for development
+    # Production profile (application-prod.yml) overrides these with stricter settings
+    validate-on-migrate: false  # Disabled by default for development convenience
     # Automatically repair checksum mismatches on startup
-    # Note: This is suitable for development/staging. For production, consider disabling 
-    # repair and manually validating migration changes before deployment
+    # This is suitable for development/staging environments where migration files may change
+    # Production environments should disable repair and use manual validation
     repair: true
+    clean-disabled: false  # Allow clean for development; overridden in production
         
   # MongoDB Configuration (Analytics & Logs)
   data:

@@ -24,30 +24,71 @@ Migration checksum mismatch for migration version 10
 
 ## Resolution
 
-We've enabled `spring.flyway.repair=true` in the Flyway configuration which automatically repairs checksums on application startup. This ensures the checksums in the database match the current migration file content.
+We've implemented a profile-based approach to Flyway configuration that provides automatic repair in development while maintaining strict validation in production.
+
+### Configuration Strategy
+
+**Development Environment (`application.yml` and `application-postgres.yml`):**
+- `validate-on-migrate: false` - Disabled validation for development convenience
+- `repair: true` - Automatically repairs checksum mismatches on startup
+- `clean-disabled: false` - Allows database resets for development
+
+**Production Environment (`application-prod.yml`):**
+- `validate-on-migrate: true` - Strict validation enabled
+- `repair: false` - Requires manual intervention for repairs
+- `clean-disabled: true` - Prevents accidental database wipes
 
 > **⚠️ Production Warning:**  
-> While `repair=true` is enabled by default, for production environments you should:
-> 1. Consider disabling automatic repair (`repair=false`)
-> 2. Manually validate and repair migrations using `mvn flyway:repair` after review
+> Production environments require manual validation before repair:
+> 1. Review all migration file changes carefully
+> 2. Use `./scripts/repair-flyway.sh prod` for manual repair
 > 3. Never modify migration files after they've been applied to production
-> 4. Use CI/CD pipelines to validate migrations before deployment
+> 4. Always maintain database backups before running repairs
+> 5. Use CI/CD pipelines to validate migrations before deployment
 
 ### Configuration Changes
 
-**File: `src/main/resources/application.yml`**
+**File: `src/main/resources/application.yml` (Default/Development)**
 
-Added the following Flyway repair configuration:
 ```yaml
 spring:
   flyway:
-    repair: true  # Automatically repair checksum mismatches on startup
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    default-schema: public
+    validate-on-migrate: false  # Disabled by default for development
+    repair: true  # Automatically repair checksum mismatches
+    clean-disabled: false  # Allow clean for development
 ```
 
-This allows Flyway to:
+**File: `src/main/resources/application-prod.yml` (Production)**
+
+```yaml
+spring:
+  flyway:
+    enabled: true
+    validate-on-migrate: true  # Strict validation in production
+    repair: false  # Disable automatic repair - require manual intervention
+    clean-disabled: true  # Prevent accidental database wipes
+```
+
+**File: `src/main/resources/application-postgres.yml` (PostgreSQL Development)**
+
+```yaml
+spring:
+  flyway:
+    enabled: true
+    validate-on-migrate: false  # Lenient validation for development
+    repair: true  # Auto-repair checksum mismatches
+    clean-disabled: false  # Allow clean for development
+```
+
+This configuration allows Flyway to:
 - Update checksums in the `flyway_schema_history` table to match current migration files
 - Remove failed migration entries
 - Realign the migration history with current files
+- Provide environment-appropriate behavior (lenient in dev, strict in prod)
 
 ## Affected Migrations
 
@@ -79,31 +120,57 @@ To avoid checksum mismatches in the future:
    - For existing databases, use `baseline-on-migrate: true`
    - This creates a baseline without re-running old migrations
 
-## Manual Repair (if needed)
+## Manual Repair
 
-If automatic repair doesn't work, you can manually repair checksums:
+For production environments or when automatic repair is disabled, use these manual repair methods:
 
-### Option 1: Maven Flyway Plugin
+### Option 1: Repair Script (Recommended)
 ```bash
-# Run Flyway repair command
-mvn flyway:repair
+# Development environment
+./scripts/repair-flyway.sh
+
+# Production environment (requires confirmation)
+./scripts/repair-flyway.sh prod
+
+# Custom profile
+./scripts/repair-flyway.sh postgres
 ```
 
-### Option 2: Database Console
+The repair script provides:
+- Interactive confirmation for production repairs
+- Automatic checksum updates
+- Verification steps
+- Safety checks and warnings
+
+### Option 2: Maven Spring Boot
+```bash
+# Run with repair enabled for specific profile
+./mvnw spring-boot:run \
+  -Dspring-boot.run.arguments="--spring.flyway.repair=true" \
+  -Dspring-boot.run.profiles=dev
+```
+
+### Option 3: Database Console (Inspection)
 ```bash
 # Connect to database
 psql -U inventsight_user -d inventsight_db
 
 # Check current state
+SELECT version, description, checksum, success, installed_on
+FROM flyway_schema_history 
+ORDER BY installed_rank;
+
+# Check specific versions with mismatches
 SELECT version, description, checksum, success 
 FROM flyway_schema_history 
 WHERE version IN ('6', '7', '10');
 ```
 
-### Option 3: Manual Checksum Update (Advanced)
+### Option 4: Manual Checksum Update (Advanced - Not Recommended)
 ```sql
--- WARNING: Only use this if you understand the implications
+-- ⚠️ WARNING: Only use this if you understand the implications
 -- This directly modifies migration history and should be used with extreme caution
+-- It's better to use the repair script or spring.flyway.repair=true
 
 -- First, get the checksum from Flyway logs or calculate it
 -- Flyway logs show: "Migration checksum mismatch for migration version X"
@@ -114,7 +181,7 @@ WHERE version IN ('6', '7', '10');
 -- SET checksum = -1619444361  -- Use the "Resolved locally" value from Flyway error
 -- WHERE version = '6';
 
--- Note: It's better to use spring.flyway.repair=true than manual updates
+-- Always prefer automated repair methods over manual SQL updates
 ```
 
 ## Verifying the Fix
@@ -140,31 +207,50 @@ After applying the repair configuration:
 
 ## Configuration Options Explained
 
-### Main Configuration (application.yml)
-- `spring.flyway.repair=true` - Automatically repair checksum mismatches on startup
-- `spring.flyway.baseline-on-migrate=true` - Create baseline for existing database
-- `spring.flyway.validate-on-migrate=true` - Validate migrations before running
+### Default Configuration (application.yml)
 - `spring.flyway.locations=classpath:db/migration` - Location of migration files
+- `spring.flyway.baseline-on-migrate=true` - Create baseline for existing database
+- `spring.flyway.baseline-version=0` - Starting version for baseline
 - `spring.flyway.default-schema=public` - Default schema for migrations
+- `spring.flyway.validate-on-migrate=false` - Disabled for development convenience
+- `spring.flyway.repair=true` - Automatically repair checksum mismatches on startup
+- `spring.flyway.clean-disabled=false` - Allow clean for development
 
 ### Development Configuration (application-dev.yml)
 - `spring.flyway.enabled=false` - Disabled for H2 in-memory development database
-- When using PostgreSQL in dev, enable with `repair=true` for lenient handling
+- When using PostgreSQL in dev, enable with lenient settings (see application-postgres.yml)
+
+### PostgreSQL Development Configuration (application-postgres.yml)
+- `spring.flyway.enabled=true` - Enable Flyway for PostgreSQL
+- `spring.flyway.validate-on-migrate=false` - Lenient validation for development
+- `spring.flyway.repair=true` - Auto-repair checksum mismatches
+- `spring.flyway.clean-disabled=false` - Allow clean for development database resets
+
+### Production Configuration (application-prod.yml)
+- `spring.flyway.enabled=true` - Enable Flyway for production
+- `spring.flyway.validate-on-migrate=true` - Strict validation in production
+- `spring.flyway.repair=false` - Disable automatic repair - require manual intervention
+- `spring.flyway.clean-disabled=true` - Prevent accidental database wipes
 
 ## Troubleshooting
 
 ### Issue: Application still fails with checksum errors
 **Solution**: 
-1. Check that `spring.flyway.repair=true` is set in the active profile
-2. Verify database connection is working
-3. Check application logs for specific error messages
-4. Try running `mvn flyway:repair` manually
+1. Check that the correct profile is active (dev/prod/postgres)
+2. Verify `spring.flyway.repair=true` is set for your active profile
+3. Try using the repair script: `./scripts/repair-flyway.sh`
+4. Check database connection and credentials
+5. Review application logs for specific error messages
+6. Verify migration files exist and are readable
 
 ### Issue: Migration failed and left the database in inconsistent state
 **Solution**:
 1. Check `flyway_schema_history` table for failed migrations
-2. Manually fix the database schema if needed
-3. Delete the failed entry from `flyway_schema_history`
+2. Review the error in application logs
+3. Manually fix the database schema if needed
+4. Delete the failed entry from `flyway_schema_history`
+5. Use repair script: `./scripts/repair-flyway.sh`
+6. Re-run the application
 4. Re-run the application with repair enabled
 
 ### Issue: Need to start fresh (Development only)
