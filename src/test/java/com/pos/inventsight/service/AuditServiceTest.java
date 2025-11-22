@@ -2,7 +2,7 @@ package com.pos.inventsight.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pos.inventsight.model.sql.AuditEvent;
-import com.pos.inventsight.repository.AuditEventRepository;
+import com.pos.inventsight.repository.sql.AuditEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

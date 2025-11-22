@@ -2,7 +2,7 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.OtpCode;
 import com.pos.inventsight.model.sql.User;
-import com.pos.inventsight.repository.OtpCodeRepository;
+import com.pos.inventsight.repository.sql.OtpCodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
