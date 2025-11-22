@@ -1304,8 +1304,8 @@ public class AuthController {
     }
     
     // POST /auth/refresh - Token refresh endpoint
-    @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(HttpServletRequest request) {
+    @PostMapping("/refresh-sample")
+    public ResponseEntity<?> refreshTokenSample(HttpServletRequest request) {
         System.out.println("🔄 InventSight - Processing token refresh request");
         System.out.println("📅 Current DateTime (UTC): 2025-08-27 10:27:11");
         System.out.println("👤 Current User: WinKyaw");
