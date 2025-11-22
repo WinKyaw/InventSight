@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import jakarta.annotation.PostConstruct;
 import java.util.Date;
 
 @Component
@@ -20,6 +21,31 @@ public class JwtUtils {
     
     @Value("${inventsight.security.jwt.refresh-expiration:604800000}")
     private int jwtRefreshExpirationMs; // 7 days
+    
+    /**
+     * Validate JWT configuration on startup
+     * Ensures JWT secret is properly configured and meets minimum security requirements
+     */
+    @PostConstruct
+    public void validateConfiguration() {
+        if (jwtSecret == null || jwtSecret.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "JWT secret is not configured. Please set 'inventsight.security.jwt.secret' in application.yml " +
+                "or provide JWT_SECRET environment variable."
+            );
+        }
+        
+        if (jwtSecret.length() < 32) {
+            System.out.println("⚠️ WARNING: JWT secret is shorter than recommended 32 characters. " +
+                "Current length: " + jwtSecret.length() + " characters. " +
+                "Please use a longer secret for production environments.");
+        }
+        
+        System.out.println("✅ JWT configuration validated successfully");
+        System.out.println("   - Secret length: " + jwtSecret.length() + " characters");
+        System.out.println("   - Access token expiration: " + (jwtExpirationMs / 1000 / 60) + " minutes");
+        System.out.println("   - Refresh token expiration: " + (jwtRefreshExpirationMs / 1000 / 60 / 60 / 24) + " days");
+    }
     
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
