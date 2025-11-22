@@ -9,13 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.cache.annotation.EnableCaching;
 
 @SpringBootApplication(scanBasePackages = "com.pos.inventsight")
-@EnableJpaRepositories(
-	basePackages = "com.pos.inventsight.repository",
-	excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(
-		type = org.springframework.context.annotation.FilterType.REGEX,
-		pattern = "com\\.pos\\.inventsight\\.repository\\.nosql\\..*"
-	)
-)
+@EnableJpaRepositories(basePackages = "com.pos.inventsight.repository.sql")
 @EnableMongoRepositories(basePackages = "com.pos.inventsight.repository.nosql")
 @EnableAsync
 @EnableScheduling
