@@ -3,14 +3,19 @@ package com.pos.inventsight.config;
 import com.pos.inventsight.model.sql.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import jakarta.annotation.PostConstruct;
 import java.util.Date;
 
 @Component
 public class JwtUtils {
+    
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
     
     @Value("${inventsight.security.jwt.secret:inventsight-super-secret-jwt-key-change-in-production-2025}")
     private String jwtSecret;
@@ -20,6 +25,29 @@ public class JwtUtils {
     
     @Value("${inventsight.security.jwt.refresh-expiration:604800000}")
     private int jwtRefreshExpirationMs; // 7 days
+    
+    /**
+     * Validate JWT configuration on startup
+     * Ensures JWT secret is properly configured and meets minimum security requirements
+     */
+    @PostConstruct
+    public void validateConfiguration() {
+        if (jwtSecret == null || jwtSecret.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "JWT secret is not configured. Please set 'inventsight.security.jwt.secret' in application.yml " +
+                "or provide JWT_SECRET environment variable."
+            );
+        }
+        
+        if (jwtSecret.length() < 32) {
+            logger.warn("JWT secret is shorter than recommended minimum length. " +
+                "Please use a longer secret for production environments.");
+        }
+        
+        logger.info("JWT configuration validated successfully");
+        logger.debug("Access token expiration: {} minutes", jwtExpirationMs / 1000 / 60);
+        logger.debug("Refresh token expiration: {} days", jwtRefreshExpirationMs / 1000 / 60 / 60 / 24);
+    }
     
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
@@ -33,9 +61,7 @@ public class JwtUtils {
      * Generate JWT token with optional tenant_id claim
      */
     public String generateJwtToken(User user, String tenantId) {
-        System.out.println("🔑 InventSight - Generating JWT token for user: " + user.getEmail());
-        System.out.println("📅 Token generation time: 2025-08-26 09:04:35");
-        System.out.println("👤 Current User's Login: WinKyaw");
+        logger.debug("Generating JWT token for user: {}", user.getEmail());
         
         JwtBuilder builder = Jwts.builder()
                 .setSubject(user.getEmail())
@@ -58,7 +84,7 @@ public class JwtUtils {
     }
     
     public String generateRefreshToken(User user) {
-        System.out.println("🔄 InventSight - Generating refresh token for user: " + user.getEmail());
+        logger.debug("Generating refresh token for user: {}", user.getEmail());
         
         return Jwts.builder()
                 .setSubject(user.getEmail())
@@ -158,13 +184,13 @@ public class JwtUtils {
             return true;
             
         } catch (MalformedJwtException e) {
-            System.out.println("❌ InventSight Invalid JWT token: " + e.getMessage());
+            logger.error("Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            System.out.println("❌ InventSight JWT token is expired: " + e.getMessage());
+            logger.warn("JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            System.out.println("❌ InventSight JWT token is unsupported: " + e.getMessage());
+            logger.error("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            System.out.println("❌ InventSight JWT claims string is empty: " + e.getMessage());
+            logger.error("JWT claims string is empty: {}", e.getMessage());
         }
         
         return false;
