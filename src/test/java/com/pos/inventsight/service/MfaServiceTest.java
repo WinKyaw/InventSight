@@ -2,8 +2,8 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.MfaSecret;
 import com.pos.inventsight.model.sql.User;
-import com.pos.inventsight.repository.MfaBackupCodeRepository;
-import com.pos.inventsight.repository.MfaSecretRepository;
+import com.pos.inventsight.repository.sql.MfaBackupCodeRepository;
+import com.pos.inventsight.repository.sql.MfaSecretRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

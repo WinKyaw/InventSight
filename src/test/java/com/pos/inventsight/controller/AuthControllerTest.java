@@ -82,10 +82,10 @@ public class AuthControllerTest {
     private com.pos.inventsight.filter.IdempotencyKeyFilter idempotencyKeyFilter;
     
     @MockBean
-    private com.pos.inventsight.repository.MfaSecretRepository mfaSecretRepository;
+    private com.pos.inventsight.repository.sql.MfaSecretRepository mfaSecretRepository;
     
     @MockBean
-    private com.pos.inventsight.repository.MfaBackupCodeRepository mfaBackupCodeRepository;
+    private com.pos.inventsight.repository.sql.MfaBackupCodeRepository mfaBackupCodeRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
