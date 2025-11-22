@@ -235,7 +235,6 @@ After applying the repair configuration:
 4. Delete the failed entry from `flyway_schema_history`
 5. Use repair script: `./scripts/repair-flyway.sh`
 6. Re-run the application
-4. Re-run the application with repair enabled
 
 ### Issue: Need to start fresh (Development only)
 **Solution**:
