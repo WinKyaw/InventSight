@@ -1,5 +1,6 @@
 package com.pos.inventsight.model.sql;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -75,6 +76,7 @@ public class Store {
     // Company relationship for multi-tenant architecture
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
+    @JsonIgnoreProperties({"stores", "warehouses", "companyStoreUsers", "hibernateLazyInitializer", "handler"})
     private Company company;
     
     // Constructors

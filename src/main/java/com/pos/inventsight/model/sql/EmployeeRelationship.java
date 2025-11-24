@@ -1,13 +1,13 @@
 package com.pos.inventsight.model.sql;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Entity representing the relationship between an employee, employer (user who created the employee),
  * store, and company. This tracks the creation and management of employee records.
+ * Simplified to use IDs only to avoid circular JSON serialization issues.
  */
 @Entity
 @Table(name = "employee_relationships")
@@ -17,119 +17,58 @@ public class EmployeeRelationship {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee;
+    // Just store IDs, not full entity relationships
+    @Column(name = "employee_id", nullable = false)
+    private Long employeeId;
     
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employer_id", nullable = false)
-    private User employer; // The user who created this employee
+    @Column(name = "employer_id", nullable = false)
+    private UUID employerId;
     
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id", nullable = false)
-    private Store store;
+    @Column(name = "store_id", nullable = false)
+    private UUID storeId;
     
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id", nullable = false)
-    private Company company;
+    @Column(name = "company_id", nullable = false)
+    private UUID companyId;
     
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
     
-    @Column(name = "is_active")
-    private Boolean isActive = true;
-    
-    @Column(name = "relationship_status")
-    @Enumerated(EnumType.STRING)
-    private RelationshipStatus relationshipStatus = RelationshipStatus.ACTIVE;
+    @Column(name = "created_by")
+    private String createdBy;
     
     // Constructors
-    public EmployeeRelationship() {}
-    
-    public EmployeeRelationship(Employee employee, User employer, Store store, Company company) {
-        this.employee = employee;
-        this.employer = employer;
-        this.store = store;
-        this.company = company;
+    public EmployeeRelationship() {
         this.createdAt = LocalDateTime.now();
-        this.isActive = true;
-        this.relationshipStatus = RelationshipStatus.ACTIVE;
+    }
+    
+    public EmployeeRelationship(Long employeeId, UUID employerId, UUID storeId, UUID companyId, String createdBy) {
+        this.employeeId = employeeId;
+        this.employerId = employerId;
+        this.storeId = storeId;
+        this.companyId = companyId;
+        this.createdBy = createdBy;
+        this.createdAt = LocalDateTime.now();
     }
     
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
     
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getEmployeeId() { return employeeId; }
+    public void setEmployeeId(Long employeeId) { this.employeeId = employeeId; }
     
-    public Employee getEmployee() {
-        return employee;
-    }
+    public UUID getEmployerId() { return employerId; }
+    public void setEmployerId(UUID employerId) { this.employerId = employerId; }
     
-    public void setEmployee(Employee employee) {
-        this.employee = employee;
-    }
+    public UUID getStoreId() { return storeId; }
+    public void setStoreId(UUID storeId) { this.storeId = storeId; }
     
-    public User getEmployer() {
-        return employer;
-    }
+    public UUID getCompanyId() { return companyId; }
+    public void setCompanyId(UUID companyId) { this.companyId = companyId; }
     
-    public void setEmployer(User employer) {
-        this.employer = employer;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     
-    public Store getStore() {
-        return store;
-    }
-    
-    public void setStore(Store store) {
-        this.store = store;
-    }
-    
-    public Company getCompany() {
-        return company;
-    }
-    
-    public void setCompany(Company company) {
-        this.company = company;
-    }
-    
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public Boolean getIsActive() {
-        return isActive;
-    }
-    
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
-    
-    public RelationshipStatus getRelationshipStatus() {
-        return relationshipStatus;
-    }
-    
-    public void setRelationshipStatus(RelationshipStatus relationshipStatus) {
-        this.relationshipStatus = relationshipStatus;
-    }
-    
-    // Enum for relationship status
-    public enum RelationshipStatus {
-        ACTIVE,
-        INACTIVE,
-        SUSPENDED,
-        TERMINATED
-    }
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
 }
