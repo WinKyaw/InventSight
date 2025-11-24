@@ -35,9 +35,6 @@ public class EmployeeController {
     @Autowired
     private com.pos.inventsight.repository.sql.StoreRepository storeRepository;
     
-    @Autowired
-    private com.pos.inventsight.repository.sql.CompanyRepository companyRepository;
-    
     // Get all active employees
     @GetMapping
     public ResponseEntity<List<Employee>> getAllEmployees() {
