@@ -4,10 +4,16 @@ import com.pos.inventsight.model.sql.Employee;
 import com.pos.inventsight.model.sql.EmployeeStatus;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.EmployeeRelationship;
 import com.pos.inventsight.repository.sql.EmployeeRepository;
+import com.pos.inventsight.repository.sql.EmployeeRelationshipRepository;
+import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +26,15 @@ public class EmployeeService {
     
     @Autowired
     private EmployeeRepository employeeRepository;
+    
+    @Autowired
+    private EmployeeRelationshipRepository employeeRelationshipRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
     
     @Autowired
     private ActivityLogService activityLogService;
@@ -54,6 +69,112 @@ public class EmployeeService {
         
         System.out.println("✅ InventSight employee created: " + savedEmployee.getFullName());
         return savedEmployee;
+    }
+    
+    /**
+     * Create employee with automatic user account creation and relationship tracking
+     * @param employee The employee to create
+     * @param employer The user who is creating this employee (employer)
+     * @return The created employee with associated user account
+     */
+    public Employee createEmployeeWithUser(Employee employee, User employer) {
+        System.out.println("👥 InventSight - Creating new employee with user account: " + employee.getFullName());
+        System.out.println("👤 Created by employer: " + employer.getUsername());
+        
+        // Validate required fields
+        if (employee.getEmail() == null || employee.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Employee email is required for user account creation");
+        }
+        
+        if (employee.getStore() == null) {
+            throw new IllegalArgumentException("Employee must be associated with a store");
+        }
+        
+        if (employee.getCompany() == null) {
+            throw new IllegalArgumentException("Employee must be associated with a company");
+        }
+        
+        // Check for duplicate email in users table
+        if (userRepository.existsByEmail(employee.getEmail())) {
+            throw new DuplicateResourceException("User with email already exists: " + employee.getEmail());
+        }
+        
+        // Check for duplicate email in employees table
+        if (employeeRepository.existsByEmail(employee.getEmail())) {
+            throw new DuplicateResourceException("Employee with email already exists: " + employee.getEmail());
+        }
+        
+        // Generate password
+        String password = generatePassword(employee.getCompany(), employee.getStore(), employee.getEmail());
+        System.out.println("🔑 Generated password for employee: " + employee.getEmail());
+        
+        // Create user account for employee
+        User employeeUser = new User();
+        employeeUser.setUsername(employee.getEmail()); // Use email as username
+        employeeUser.setEmail(employee.getEmail());
+        employeeUser.setPassword(passwordEncoder.encode(password));
+        employeeUser.setFirstName(employee.getFirstName());
+        employeeUser.setLastName(employee.getLastName());
+        employeeUser.setPhone(employee.getPhoneNumber());
+        employeeUser.setRole(UserRole.EMPLOYEE);
+        employeeUser.setEmailVerified(true); // Auto-verify email
+        employeeUser.setIsActive(true);
+        employeeUser.setCreatedBy(employer.getUsername());
+        employeeUser.setCreatedAt(LocalDateTime.now());
+        employeeUser.setUpdatedAt(LocalDateTime.now());
+        
+        User savedUser = userRepository.save(employeeUser);
+        System.out.println("✅ User account created for employee: " + savedUser.getEmail());
+        
+        // Link user to employee
+        employee.setUser(savedUser);
+        employee.setCreatedBy(employer.getUsername());
+        employee.setCreatedAt(LocalDateTime.now());
+        
+        Employee savedEmployee = employeeRepository.save(employee);
+        
+        // Create employee relationship
+        EmployeeRelationship relationship = new EmployeeRelationship(
+            savedEmployee,
+            employer,
+            employee.getStore(),
+            employee.getCompany()
+        );
+        employeeRelationshipRepository.save(relationship);
+        System.out.println("✅ Employee relationship created");
+        
+        // Log activity
+        activityLogService.logActivity(
+            savedEmployee.getId().toString(),
+            employer.getUsername(),
+            "EMPLOYEE_WITH_USER_CREATED",
+            "EMPLOYEE",
+            "New employee with user account created: " + employee.getFullName() + " - " + employee.getTitle()
+        );
+        
+        System.out.println("✅ InventSight employee created with user account: " + savedEmployee.getFullName());
+        return savedEmployee;
+    }
+    
+    /**
+     * Generate password for employee user account
+     * Default: companyName + storeName OR email + "12345" if null/empty
+     */
+    private String generatePassword(Company company, Store store, String email) {
+        String companyName = company != null ? company.getName() : null;
+        String storeName = store != null ? store.getStoreName() : null;
+        
+        // Check if both company and store names are available and not empty
+        if (companyName != null && !companyName.trim().isEmpty() && 
+            storeName != null && !storeName.trim().isEmpty()) {
+            // Remove spaces and special characters, keep alphanumeric only
+            String cleanCompanyName = companyName.replaceAll("[^a-zA-Z0-9]", "");
+            String cleanStoreName = storeName.replaceAll("[^a-zA-Z0-9]", "");
+            return cleanCompanyName + cleanStoreName;
+        }
+        
+        // Fallback: use email + "12345"
+        return email + "12345";
     }
     
     public Employee updateEmployee(Long employeeId, Employee employeeUpdates) {
