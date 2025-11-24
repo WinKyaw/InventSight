@@ -106,7 +106,7 @@ public class EmployeeService {
         
         // Generate password
         String password = generatePassword(employee.getCompany(), employee.getStore(), employee.getEmail());
-        System.out.println("🔑 Generated password for employee: " + employee.getEmail());
+        System.out.println("🔑 Password generated for employee account");
         
         // Create user account for employee
         User employeeUser = new User();
@@ -159,6 +159,7 @@ public class EmployeeService {
     /**
      * Generate password for employee user account
      * Default: companyName + storeName OR email + "12345" if null/empty
+     * Ensures minimum password length of 8 characters
      */
     private String generatePassword(Company company, Store store, String email) {
         String companyName = company != null ? company.getName() : null;
@@ -170,10 +171,15 @@ public class EmployeeService {
             // Remove spaces and special characters, keep alphanumeric only
             String cleanCompanyName = companyName.replaceAll("[^a-zA-Z0-9]", "");
             String cleanStoreName = storeName.replaceAll("[^a-zA-Z0-9]", "");
-            return cleanCompanyName + cleanStoreName;
+            String password = cleanCompanyName + cleanStoreName;
+            
+            // Ensure minimum password length of 8 characters
+            if (password.length() >= 8) {
+                return password;
+            }
         }
         
-        // Fallback: use email + "12345"
+        // Fallback: use email + "12345" - ensures minimum 8 characters
         return email + "12345";
     }
     
