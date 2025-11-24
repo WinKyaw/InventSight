@@ -76,7 +76,7 @@ public class Store {
     // Company relationship for multi-tenant architecture
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
-    @JsonIgnoreProperties({"stores", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"stores", "warehouses", "companyStoreUsers", "hibernateLazyInitializer", "handler"})
     private Company company;
     
     // Constructors

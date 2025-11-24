@@ -56,13 +56,13 @@ public class Employee {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
-    @JsonIgnoreProperties({"company", "employees", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"company", "hibernateLazyInitializer", "handler"})
     private Store store;
     
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
-    @JsonIgnoreProperties({"stores", "employees", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"stores", "warehouses", "companyStoreUsers", "hibernateLazyInitializer", "handler"})
     private Company company;
     
     @Column(name = "check_in_time")
