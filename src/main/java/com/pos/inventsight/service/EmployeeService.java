@@ -133,12 +133,13 @@ public class EmployeeService {
         
         Employee savedEmployee = employeeRepository.save(employee);
         
-        // Create employee relationship
+        // Create employee relationship with IDs only
         EmployeeRelationship relationship = new EmployeeRelationship(
-            savedEmployee,
-            employer,
-            employee.getStore(),
-            employee.getCompany()
+            savedEmployee.getId(),        // employee_id
+            employer.getUuid(),            // employer_id (using UUID)
+            employee.getStore().getId(),   // store_id
+            employee.getCompany().getId(), // company_id
+            employer.getUsername()         // created_by
         );
         employeeRelationshipRepository.save(relationship);
         System.out.println("✅ Employee relationship created");

@@ -1,5 +1,6 @@
 package com.pos.inventsight.model.sql;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
@@ -55,11 +56,13 @@ public class Employee {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
+    @JsonIgnoreProperties({"company", "employees", "hibernateLazyInitializer", "handler"})
     private Store store;
     
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
+    @JsonIgnoreProperties({"stores", "employees", "hibernateLazyInitializer", "handler"})
     private Company company;
     
     @Column(name = "check_in_time")

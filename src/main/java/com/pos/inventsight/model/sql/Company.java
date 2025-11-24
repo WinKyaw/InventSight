@@ -1,5 +1,6 @@
 package com.pos.inventsight.model.sql;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -80,12 +81,15 @@ public class Company {
     
     // JPA Relationships
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"company", "hibernateLazyInitializer", "handler"})
     private List<Store> stores = new ArrayList<>();
     
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"company", "hibernateLazyInitializer", "handler"})
     private List<Warehouse> warehouses = new ArrayList<>();
     
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"company", "hibernateLazyInitializer", "handler"})
     private List<CompanyStoreUser> companyStoreUsers = new ArrayList<>();
     
     // Constructors
