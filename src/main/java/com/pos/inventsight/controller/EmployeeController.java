@@ -147,8 +147,9 @@ public class EmployeeController {
             employee.setStore(store);
             employee.setCreatedBy(currentUser.getUsername());
             
-            com.pos.inventsight.model.sql.Employee createdEmployee = employeeService.createEmployee(employee);
-            System.out.println("✅ InventSight employee created with company: " + createdEmployee.getFullName());
+            // Create employee with auto user account and relationship tracking
+            com.pos.inventsight.model.sql.Employee createdEmployee = employeeService.createEmployeeWithUser(employee, currentUser);
+            System.out.println("✅ InventSight employee created with user account and company: " + createdEmployee.getFullName());
             
             return ResponseEntity.ok(createdEmployee);
             
