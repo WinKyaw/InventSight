@@ -31,13 +31,15 @@ public class EmployeeRelationship {
     private UUID companyId;
     
     @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
     
     @Column(name = "created_by")
     private String createdBy;
     
     // Constructors
-    public EmployeeRelationship() {}
+    public EmployeeRelationship() {
+        this.createdAt = LocalDateTime.now();
+    }
     
     public EmployeeRelationship(Long employeeId, UUID employerId, UUID storeId, UUID companyId, String createdBy) {
         this.employeeId = employeeId;
@@ -45,6 +47,7 @@ public class EmployeeRelationship {
         this.storeId = storeId;
         this.companyId = companyId;
         this.createdBy = createdBy;
+        this.createdAt = LocalDateTime.now();
     }
     
     // Getters and Setters
