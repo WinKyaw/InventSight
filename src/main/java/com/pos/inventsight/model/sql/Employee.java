@@ -57,6 +57,11 @@ public class Employee {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
     
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+    
     @Column(name = "check_in_time")
     private LocalDateTime checkInTime;
     
@@ -167,6 +172,9 @@ public class Employee {
     
     public Store getStore() { return store; }
     public void setStore(Store store) { this.store = store; }
+    
+    public Company getCompany() { return company; }
+    public void setCompany(Company company) { this.company = company; }
     
     public LocalDateTime getCheckInTime() { return checkInTime; }
     public void setCheckInTime(LocalDateTime checkInTime) { this.checkInTime = checkInTime; }

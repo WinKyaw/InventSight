@@ -168,6 +168,24 @@ public class JwtUtils {
     }
     
     /**
+     * Get company_id from JWT token
+     * Returns the company_id claim if present in the token
+     */
+    public String getCompanyIdFromJwtToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            
+            return claims.get("company_id", String.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
      * Check if token contains tenant_id claim
      */
     public boolean hasTenantId(String token) {

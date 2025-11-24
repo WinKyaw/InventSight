@@ -29,6 +29,9 @@ public class EmployeeRequest {
     private BigDecimal bonus = BigDecimal.ZERO;
     private String department;
     
+    @NotNull(message = "Store ID is required")
+    private java.util.UUID storeId;
+    
     // Getters and Setters
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
@@ -53,4 +56,7 @@ public class EmployeeRequest {
     
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    
+    public java.util.UUID getStoreId() { return storeId; }
+    public void setStoreId(java.util.UUID storeId) { this.storeId = storeId; }
 }

@@ -29,6 +29,15 @@ public class EmployeeController {
     @Autowired
     private UserService userService;
     
+    @Autowired
+    private com.pos.inventsight.repository.sql.CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private com.pos.inventsight.repository.sql.StoreRepository storeRepository;
+    
+    @Autowired
+    private com.pos.inventsight.repository.sql.CompanyRepository companyRepository;
+    
     // Get all active employees
     @GetMapping
     public ResponseEntity<List<Employee>> getAllEmployees() {
@@ -80,10 +89,49 @@ public class EmployeeController {
     public ResponseEntity<?> createEmployee(@Valid @RequestBody EmployeeRequest employeeRequest, 
                                           Authentication authentication) {
         System.out.println("➕ InventSight - Creating new employee: " + employeeRequest.getFirstName() + " " + employeeRequest.getLastName());
-        System.out.println("👤 Created by: WinKyaw");
+        System.out.println("👤 Created by: " + authentication.getName());
         
         try {
-            Employee employee = new Employee(
+            // Get authenticated user
+            String username = authentication.getName();
+            com.pos.inventsight.model.sql.User currentUser = userService.getUserByUsername(username);
+            
+            // Get user's company from CompanyStoreUser relationship
+            java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> companyRelationships = 
+                companyStoreUserRepository.findByUserAndIsActiveTrue(currentUser);
+            
+            if (companyRelationships.isEmpty()) {
+                System.out.println("❌ User has no active company association");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "User must be associated with a company to create employees"));
+            }
+            
+            // Get the first active company (users can be associated with multiple companies)
+            com.pos.inventsight.model.sql.Company company = companyRelationships.get(0).getCompany();
+            System.out.println("🏢 Company extracted from user context: " + company.getName() + " (ID: " + company.getId() + ")");
+            
+            // Validate and fetch store from request
+            if (employeeRequest.getStoreId() == null) {
+                System.out.println("❌ Store ID is required but not provided");
+                return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, "Store ID is required"));
+            }
+            
+            com.pos.inventsight.model.sql.Store store = storeRepository.findById(employeeRequest.getStoreId())
+                .orElseThrow(() -> new com.pos.inventsight.exception.ResourceNotFoundException(
+                    "Store not found with ID: " + employeeRequest.getStoreId()));
+            
+            // Validate that store belongs to user's company
+            if (store.getCompany() == null || !store.getCompany().getId().equals(company.getId())) {
+                System.out.println("❌ Store does not belong to user's company");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Store does not belong to your company"));
+            }
+            
+            System.out.println("✅ Store validated: " + store.getStoreName() + " belongs to company: " + company.getName());
+            
+            // Create employee entity
+            com.pos.inventsight.model.sql.Employee employee = new com.pos.inventsight.model.sql.Employee(
                 employeeRequest.getFirstName(),
                 employeeRequest.getLastName(),
                 employeeRequest.getEmail(),
@@ -97,13 +145,23 @@ public class EmployeeController {
                 employee.setBonus(employeeRequest.getBonus());
             }
             
-            Employee createdEmployee = employeeService.createEmployee(employee);
-            System.out.println("✅ InventSight employee created: " + createdEmployee.getFullName());
+            // Set company and store relationships
+            employee.setCompany(company);
+            employee.setStore(store);
+            employee.setCreatedBy(currentUser.getUsername());
+            
+            com.pos.inventsight.model.sql.Employee createdEmployee = employeeService.createEmployee(employee);
+            System.out.println("✅ InventSight employee created with company: " + createdEmployee.getFullName());
             
             return ResponseEntity.ok(createdEmployee);
             
+        } catch (com.pos.inventsight.exception.ResourceNotFoundException e) {
+            System.out.println("❌ Resource not found: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
         } catch (Exception e) {
             System.out.println("❌ InventSight failed to create employee: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                 .body(new ApiResponse(false, e.getMessage()));
         }
