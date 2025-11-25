@@ -54,7 +54,7 @@ public class SubscriptionService {
     /**
      * Update user's subscription level
      */
-    public User updateSubscription(UUID userId, String subscriptionLevelName) {
+    public User updateSubscription(Long userId, String subscriptionLevelName) {
         User user = userService.getUserById(userId);
         
         try {

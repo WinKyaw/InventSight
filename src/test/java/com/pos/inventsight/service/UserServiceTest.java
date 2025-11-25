@@ -62,7 +62,7 @@ class UserServiceTest {
         
         // Setup test user
         testUser = new User();
-        testUser.setId(UUID.randomUUID());
+        testUser.setId(1L);
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setFirstName("Test");
@@ -274,7 +274,7 @@ class UserServiceTest {
         // Setup expected UUID
         UUID expectedUuid = UUID.fromString("12345678-1234-1234-1234-123456789012");
         User user = new User();
-        user.setId(UUID.randomUUID());
+        user.setId(1L);
         user.setUuid(expectedUuid);
         
         // Mock SecurityContext to return authenticated user

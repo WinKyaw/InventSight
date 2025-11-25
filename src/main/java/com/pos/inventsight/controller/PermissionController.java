@@ -57,8 +57,8 @@ public class PermissionController {
             User grantedBy = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("Granting user not found"));
             
-            // Get user to receive permission
-            User grantedTo = userRepository.findById(request.getGrantedToUserId())
+            // Get user to receive permission by UUID
+            User grantedTo = userRepository.findByUuid(request.getGrantedToUserId())
                 .orElseThrow(() -> new RuntimeException("Target user not found"));
             
             // Get store if specified
@@ -232,9 +232,9 @@ public class PermissionController {
     private PermissionResponse convertToResponse(OneTimePermission permission) {
         PermissionResponse response = new PermissionResponse();
         response.setId(permission.getId());
-        response.setGrantedToUserId(permission.getGrantedToUser().getId());
+        response.setGrantedToUserId(permission.getGrantedToUser().getUuid());
         response.setGrantedToUsername(permission.getGrantedToUser().getUsername());
-        response.setGrantedByUserId(permission.getGrantedByUser().getId());
+        response.setGrantedByUserId(permission.getGrantedByUser().getUuid());
         response.setGrantedByUsername(permission.getGrantedByUser().getUsername());
         response.setPermissionType(permission.getPermissionType());
         response.setGrantedAt(permission.getGrantedAt());

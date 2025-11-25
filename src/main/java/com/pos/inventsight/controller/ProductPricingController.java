@@ -91,7 +91,7 @@ public class ProductPricingController {
             auditDetails.put("storeId", store.getId().toString());
             auditDetails.put("storeName", store.getStoreName());
             
-            auditService.log(username, user.getId(), "PRICE_CHANGE_ORIGINAL", "Product", productId.toString(), auditDetails);
+            auditService.log(username, user.getUuid(), "PRICE_CHANGE_ORIGINAL", "Product", productId.toString(), auditDetails);
             
             // Emit sync change for offline sync
             syncChangeService.recordChange("Product", productId.toString(), "UPDATE", product);
@@ -159,7 +159,7 @@ public class ProductPricingController {
             auditDetails.put("storeId", store.getId().toString());
             auditDetails.put("storeName", store.getStoreName());
             
-            auditService.log(username, user.getId(), "PRICE_CHANGE_OWNER_SELL", "Product", productId.toString(), auditDetails);
+            auditService.log(username, user.getUuid(), "PRICE_CHANGE_OWNER_SELL", "Product", productId.toString(), auditDetails);
             
             // Emit sync change for offline sync
             syncChangeService.recordChange("Product", productId.toString(), "UPDATE", product);
@@ -227,7 +227,7 @@ public class ProductPricingController {
             auditDetails.put("storeId", store.getId().toString());
             auditDetails.put("storeName", store.getStoreName());
             
-            auditService.log(username, user.getId(), "PRICE_CHANGE_RETAIL", "Product", productId.toString(), auditDetails);
+            auditService.log(username, user.getUuid(), "PRICE_CHANGE_RETAIL", "Product", productId.toString(), auditDetails);
             
             // Emit sync change for offline sync
             syncChangeService.recordChange("Product", productId.toString(), "UPDATE", product);

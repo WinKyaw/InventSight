@@ -57,7 +57,7 @@ class StoreServiceTest {
         
         // Setup test user
         testUser = new User();
-        testUser.setId(UUID.randomUUID());
+        testUser.setId(1L);
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setFirstName("Test");

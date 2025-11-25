@@ -207,13 +207,13 @@ public class EventController {
     // POST /events/{id}/attendees - Add attendees to event
     @PostMapping("/{id}/attendees")
     public ResponseEntity<?> addAttendeesToEvent(@PathVariable Long id,
-                                               @RequestBody Map<String, List<UUID>> attendeeRequest,
+                                               @RequestBody Map<String, List<Long>> attendeeRequest,
                                                Authentication authentication) {
         try {
             String username = authentication.getName();
             User user = userService.getUserByUsername(username);
             
-            List<UUID> attendeeIds = attendeeRequest.get("attendeeIds");
+            List<Long> attendeeIds = attendeeRequest.get("attendeeIds");
             if (attendeeIds == null || attendeeIds.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse(false, "attendeeIds is required and cannot be empty"));

@@ -69,7 +69,7 @@ public class EmployeeServiceTest {
         
         // Setup test employer (user creating the employee)
         testEmployer = new User();
-        testEmployer.setId(UUID.randomUUID());
+        testEmployer.setId(1L);
         testEmployer.setUsername("employer");
         testEmployer.setEmail("employer@test.com");
         testEmployer.setRole(UserRole.MANAGER);
@@ -93,7 +93,7 @@ public class EmployeeServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            user.setId(UUID.randomUUID());
+            user.setId(1L);
             return user;
         });
         when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
@@ -193,7 +193,7 @@ public class EmployeeServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            user.setId(UUID.randomUUID());
+            user.setId(1L);
             // Verify password was set
             assertNotNull(user.getPassword());
             assertEquals("encodedPassword", user.getPassword());

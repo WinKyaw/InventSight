@@ -96,7 +96,7 @@ public class EventResponse {
     
     // Inner class for user summary
     public static class UserSummary {
-        private UUID id;
+        private Long id;
         private String username;
         private String firstName;
         private String lastName;
@@ -112,7 +112,7 @@ public class EventResponse {
             this.role = user.getRole().name();
         }
         
-        public UUID getId() { return id; }
+        public Long getId() { return id; }
         public String getUsername() { return username; }
         public String getFirstName() { return firstName; }
         public String getLastName() { return lastName; }

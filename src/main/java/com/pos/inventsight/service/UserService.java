@@ -170,7 +170,7 @@ public class UserService implements UserDetailsService {
         return savedUser;
     }
     
-    public User updateUser(UUID userId, User userUpdates) {
+    public User updateUser(Long userId, User userUpdates) {
         User existingUser = getUserById(userId);
         
         // Update fields
@@ -203,7 +203,7 @@ public class UserService implements UserDetailsService {
         return updatedUser;
     }
     
-    public void updateLastLogin(UUID userId) {
+    public void updateLastLogin(Long userId) {
         User user = getUserById(userId);
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
@@ -212,7 +212,7 @@ public class UserService implements UserDetailsService {
     }
     
     // CRUD Operations
-    public User getUserById(UUID userId) {
+    public User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
     }
@@ -229,7 +229,7 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
     
-    public void deactivateUser(UUID userId) {
+    public void deactivateUser(Long userId) {
         User user = getUserById(userId);
         user.setIsActive(false);
         user.setUpdatedAt(LocalDateTime.now());

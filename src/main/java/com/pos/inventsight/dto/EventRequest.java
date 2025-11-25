@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 public class EventRequest {
     
@@ -41,7 +40,7 @@ public class EventRequest {
     
     private Integer reminderMinutes = 15;
     
-    private List<UUID> attendeeIds;
+    private List<Long> attendeeIds;
     
     // Constructors
     public EventRequest() {}
@@ -80,6 +79,6 @@ public class EventRequest {
     public Integer getReminderMinutes() { return reminderMinutes; }
     public void setReminderMinutes(Integer reminderMinutes) { this.reminderMinutes = reminderMinutes; }
     
-    public List<UUID> getAttendeeIds() { return attendeeIds; }
-    public void setAttendeeIds(List<UUID> attendeeIds) { this.attendeeIds = attendeeIds; }
+    public List<Long> getAttendeeIds() { return attendeeIds; }
+    public void setAttendeeIds(List<Long> attendeeIds) { this.attendeeIds = attendeeIds; }
 }

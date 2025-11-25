@@ -107,7 +107,7 @@ public class MfaService {
         }
         
         logger.info("MFA setup initiated for user: {}", user.getEmail());
-        auditService.logAsync(user.getEmail(), user.getId(), "MFA_SETUP_INITIATED", "User", user.getId().toString(), null);
+        auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_SETUP_INITIATED", "User", user.getId().toString(), null);
         
         return new MfaSetupResponse(secret, qrCodeUrl, qrCodeImage);
     }
@@ -140,7 +140,7 @@ public class MfaService {
             mfaSecretRepository.save(mfaSecret);
             
             logger.info("MFA enabled for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), "MFA_ENABLED", "User", user.getId().toString(), null);
+            auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_ENABLED", "User", user.getId().toString(), null);
             
             return true;
         }
@@ -165,10 +165,10 @@ public class MfaService {
         
         if (isValid) {
             logger.debug("MFA code verified for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), "MFA_VERIFIED", "User", user.getId().toString(), null);
+            auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_VERIFIED", "User", user.getId().toString(), null);
         } else {
             logger.warn("Invalid MFA code for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), "MFA_FAILED", "User", user.getId().toString(), null);
+            auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_FAILED", "User", user.getId().toString(), null);
         }
         
         return isValid;
@@ -204,7 +204,7 @@ public class MfaService {
         }
         
         logger.info("Generated {} backup codes for user: {}", BACKUP_CODE_COUNT, user.getEmail());
-        auditService.logAsync(user.getEmail(), user.getId(), "MFA_BACKUP_CODES_GENERATED", "User", user.getId().toString(), null);
+        auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_BACKUP_CODES_GENERATED", "User", user.getId().toString(), null);
         
         return plainCodes;
     }
@@ -234,7 +234,7 @@ public class MfaService {
                 mfaBackupCodeRepository.save(backupCode);
                 
                 logger.info("Backup code used for user: {}", user.getEmail());
-                auditService.logAsync(user.getEmail(), user.getId(), "MFA_BACKUP_CODE_USED", "User", user.getId().toString(), null);
+                auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_BACKUP_CODE_USED", "User", user.getId().toString(), null);
                 
                 return true;
             }
@@ -267,7 +267,7 @@ public class MfaService {
             mfaBackupCodeRepository.deleteByUser(user);
             
             logger.info("MFA disabled for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), "MFA_DISABLED", "User", user.getId().toString(), null);
+            auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_DISABLED", "User", user.getId().toString(), null);
         });
     }
     
@@ -366,7 +366,7 @@ public class MfaService {
         mfaSecretRepository.save(mfaSecret);
         
         logger.info("MFA delivery method updated to {} for user: {}", deliveryMethod, user.getEmail());
-        auditService.logAsync(user.getEmail(), user.getId(), "MFA_DELIVERY_METHOD_UPDATED", 
+        auditService.logAsync(user.getEmail(), user.getUuid(), "MFA_DELIVERY_METHOD_UPDATED", 
             "User", user.getId().toString(), "Delivery method: " + deliveryMethod);
     }
     
@@ -390,7 +390,7 @@ public class MfaService {
             mfaSecretRepository.save(mfaSecret);
             
             logger.info("Phone number verified for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), "PHONE_VERIFIED", 
+            auditService.logAsync(user.getEmail(), user.getUuid(), "PHONE_VERIFIED", 
                 "User", user.getId().toString(), null);
         } else {
             throw new IllegalArgumentException("Invalid verification code");
