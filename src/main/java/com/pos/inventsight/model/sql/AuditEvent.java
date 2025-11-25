@@ -30,8 +30,8 @@ public class AuditEvent {
     @Column(nullable = false)
     private String actor;
     
-    @Column(name = "actor_id")
-    private Long actorId;
+    @Column(name = "actor_id", columnDefinition = "UUID")
+    private UUID actorId;
     
     @NotBlank
     @Column(nullable = false, length = 100)
@@ -70,7 +70,7 @@ public class AuditEvent {
     // Constructors
     public AuditEvent() {}
     
-    public AuditEvent(String actor, Long actorId, String action) {
+    public AuditEvent(String actor, UUID actorId, String action) {
         this.actor = actor;
         this.actorId = actorId;
         this.action = action;
@@ -85,7 +85,7 @@ public class AuditEvent {
     public UUID getId() { return id; }
     public LocalDateTime getEventAt() { return eventAt; }
     public String getActor() { return actor; }
-    public Long getActorId() { return actorId; }
+    public UUID getActorId() { return actorId; }
     public String getAction() { return action; }
     public String getEntityType() { return entityType; }
     public String getEntityId() { return entityId; }
@@ -101,7 +101,7 @@ public class AuditEvent {
     // Setters (public for AuditService but should only be used during construction)
     public void setEventAt(LocalDateTime eventAt) { this.eventAt = eventAt; }
     public void setActor(String actor) { this.actor = actor; }
-    public void setActorId(Long actorId) { this.actorId = actorId; }
+    public void setActorId(UUID actorId) { this.actorId = actorId; }
     public void setAction(String action) { this.action = action; }
     public void setEntityType(String entityType) { this.entityType = entityType; }
     public void setEntityId(String entityId) { this.entityId = entityId; }
@@ -121,7 +121,7 @@ public class AuditEvent {
             return this;
         }
         
-        public Builder actorId(Long actorId) {
+        public Builder actorId(UUID actorId) {
             event.setActorId(actorId);
             return this;
         }

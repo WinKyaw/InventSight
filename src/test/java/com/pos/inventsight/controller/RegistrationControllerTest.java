@@ -67,7 +67,7 @@ public class RegistrationControllerTest {
         registerRequest.setLastName("User");
 
         User savedUser = new User();
-        savedUser.setId(1L);
+        savedUser.setId(UUID.randomUUID());
         savedUser.setEmail("test@inventsight.com");
         savedUser.setUsername("testuser");
         savedUser.setFirstName("Test");

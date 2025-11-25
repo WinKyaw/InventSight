@@ -45,7 +45,7 @@ class MfaServiceTest {
     @BeforeEach
     void setUp() {
         testUser = new User();
-        testUser.setId(1L);
+        testUser.setId(UUID.randomUUID());
         testUser.setEmail("test@example.com");
         testUser.setUsername("testuser");
     }
@@ -70,7 +70,7 @@ class MfaServiceTest {
         assertTrue(response.getQrCodeImage().length() > 0);
         
         verify(mfaSecretRepository, times(1)).save(any(MfaSecret.class));
-        verify(auditService, times(1)).logAsync(anyString(), anyLong(), eq("MFA_SETUP_INITIATED"), anyString(), anyString(), any());
+        verify(auditService, times(1)).logAsync(anyString(), any(UUID.class), eq("MFA_SETUP_INITIATED"), anyString(), anyString(), any());
     }
     
     @Test
@@ -160,6 +160,6 @@ class MfaServiceTest {
         assertFalse(secret.getEnabled());
         verify(mfaSecretRepository, times(1)).save(secret);
         verify(mfaBackupCodeRepository, times(1)).deleteByUser(testUser);
-        verify(auditService, times(1)).logAsync(anyString(), anyLong(), eq("MFA_DISABLED"), anyString(), anyString(), any());
+        verify(auditService, times(1)).logAsync(anyString(), any(UUID.class), eq("MFA_DISABLED"), anyString(), anyString(), any());
     }
 }

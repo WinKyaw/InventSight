@@ -16,7 +16,7 @@ class UserStoreRoleTest {
     @BeforeEach
     void setUp() {
         user = new User();
-        user.setId(1L);
+        user.setId(UUID.randomUUID());
         user.setUsername("testuser");
         user.setEmail("test@example.com");
         

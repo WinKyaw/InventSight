@@ -1,11 +1,13 @@
 package com.pos.inventsight.dto;
 
+import java.util.UUID;
+
 /**
  * User response DTO that matches frontend expectations
  * Contains basic user information without sensitive data
  */
 public class UserResponse {
-    private Long id;
+    private UUID id;
     private String email;
     private String name;  // Full name for display
     private String firstName;
@@ -13,7 +15,7 @@ public class UserResponse {
     private String username;
     private String role;
     
-    public UserResponse(Long id, String email, String firstName, String lastName, 
+    public UserResponse(UUID id, String email, String firstName, String lastName, 
                        String username, String role) {
         this.id = id;
         this.email = email;
@@ -25,8 +27,8 @@ public class UserResponse {
     }
     
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
     
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }

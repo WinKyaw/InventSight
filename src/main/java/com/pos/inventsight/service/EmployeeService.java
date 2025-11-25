@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -377,7 +378,7 @@ public class EmployeeService {
     }
     
     // Get employee by user ID
-    public Employee getEmployeeByUserId(Long userId) {
+    public Employee getEmployeeByUserId(UUID userId) {
         return employeeRepository.findByUserId(userId)
                 .orElse(null);
     }

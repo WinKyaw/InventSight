@@ -42,7 +42,7 @@ public class AuditService {
      */
     @Async
     @Transactional
-    public void logAsync(String actor, Long actorId, String action, String entityType, String entityId, Object details) {
+    public void logAsync(String actor, UUID actorId, String action, String entityType, String entityId, Object details) {
         try {
             log(actor, actorId, action, entityType, entityId, details);
         } catch (Exception e) {
@@ -54,7 +54,7 @@ public class AuditService {
      * Log an audit event synchronously
      */
     @Transactional
-    public AuditEvent log(String actor, Long actorId, String action, String entityType, String entityId, Object details) {
+    public AuditEvent log(String actor, UUID actorId, String action, String entityType, String entityId, Object details) {
         try {
             // Get current request context if available
             String ipAddress = null;

@@ -13,7 +13,7 @@ public interface MfaSecretRepository extends JpaRepository<MfaSecret, UUID> {
     
     Optional<MfaSecret> findByUser(User user);
     
-    Optional<MfaSecret> findByUserId(Long userId);
+    Optional<MfaSecret> findByUserId(UUID userId);
     
     boolean existsByUser(User user);
 }

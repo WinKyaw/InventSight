@@ -11,9 +11,9 @@ import java.util.UUID;
 public class PermissionResponse {
     
     private UUID id;
-    private Long grantedToUserId;
+    private UUID grantedToUserId;
     private String grantedToUsername;
-    private Long grantedByUserId;
+    private UUID grantedByUserId;
     private String grantedByUsername;
     private PermissionType permissionType;
     private LocalDateTime grantedAt;
@@ -36,11 +36,11 @@ public class PermissionResponse {
         this.id = id;
     }
     
-    public Long getGrantedToUserId() {
+    public UUID getGrantedToUserId() {
         return grantedToUserId;
     }
     
-    public void setGrantedToUserId(Long grantedToUserId) {
+    public void setGrantedToUserId(UUID grantedToUserId) {
         this.grantedToUserId = grantedToUserId;
     }
     
@@ -52,11 +52,11 @@ public class PermissionResponse {
         this.grantedToUsername = grantedToUsername;
     }
     
-    public Long getGrantedByUserId() {
+    public UUID getGrantedByUserId() {
         return grantedByUserId;
     }
     
-    public void setGrantedByUserId(Long grantedByUserId) {
+    public void setGrantedByUserId(UUID grantedByUserId) {
         this.grantedByUserId = grantedByUserId;
     }
     
