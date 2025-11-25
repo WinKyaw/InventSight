@@ -6,6 +6,8 @@ public enum UserRole {
     MANAGER,
     EMPLOYEE,
     CUSTOMER,
+    MERCHANT,
+    PARTNER,
     // Legacy roles for backward compatibility
     USER,
     ADMIN,
