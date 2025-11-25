@@ -156,7 +156,7 @@ class AuditServiceTest {
         
         assertNotNull(event);
         assertEquals("test@example.com", event.getActor());
-        assertEquals(1L, event.getActorId());
+        assertEquals(actorId, event.getActorId());
         assertEquals("TEST_ACTION", event.getAction());
         assertEquals("TestEntity", event.getEntityType());
         assertEquals("123", event.getEntityId());
