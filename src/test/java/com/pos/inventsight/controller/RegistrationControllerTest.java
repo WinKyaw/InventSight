@@ -17,6 +17,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -67,7 +69,7 @@ public class RegistrationControllerTest {
         registerRequest.setLastName("User");
 
         User savedUser = new User();
-        savedUser.setId(1L);
+        savedUser.setId(UUID.randomUUID());
         savedUser.setEmail("test@inventsight.com");
         savedUser.setUsername("testuser");
         savedUser.setFirstName("Test");

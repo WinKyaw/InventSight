@@ -386,7 +386,7 @@ public class UserController {
     
     // PUT /users/{userId}/subscription - Update user's subscription level (Admin only)
     @PutMapping("/{userId}/subscription")
-    public ResponseEntity<?> updateUserSubscription(@PathVariable Long userId,
+    public ResponseEntity<?> updateUserSubscription(@PathVariable UUID userId,
                                                     @Valid @RequestBody com.pos.inventsight.dto.UpdateSubscriptionRequest request,
                                                     Authentication authentication) {
         try {

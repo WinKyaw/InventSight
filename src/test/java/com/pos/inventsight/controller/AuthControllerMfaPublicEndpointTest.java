@@ -47,7 +47,7 @@ public class AuthControllerMfaPublicEndpointTest {
     void setUp() {
         // Create test user
         testUser = new User();
-        testUser.setId(1L);  // User uses Long id
+        testUser.setId(UUID.randomUUID());  // User uses UUID id
         testUser.setEmail("test@example.com");
         testUser.setUsername("testuser");
         testUser.setFirstName("Test");

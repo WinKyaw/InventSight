@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class EventResponse {
@@ -95,7 +96,7 @@ public class EventResponse {
     
     // Inner class for user summary
     public static class UserSummary {
-        private Long id;
+        private UUID id;
         private String username;
         private String firstName;
         private String lastName;
@@ -111,7 +112,7 @@ public class EventResponse {
             this.role = user.getRole().name();
         }
         
-        public Long getId() { return id; }
+        public UUID getId() { return id; }
         public String getUsername() { return username; }
         public String getFirstName() { return firstName; }
         public String getLastName() { return lastName; }

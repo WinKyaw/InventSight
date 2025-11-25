@@ -24,7 +24,7 @@ public interface OneTimePermissionRepository extends JpaRepository<OneTimePermis
            "AND p.isUsed = false " +
            "AND p.isExpired = false " +
            "AND p.expiresAt > :now")
-    List<OneTimePermission> findActivePermissions(@Param("userId") Long userId, 
+    List<OneTimePermission> findActivePermissions(@Param("userId") UUID userId, 
                                                    @Param("permissionType") PermissionType permissionType,
                                                    @Param("now") LocalDateTime now);
     
@@ -35,7 +35,7 @@ public interface OneTimePermissionRepository extends JpaRepository<OneTimePermis
            "AND p.isUsed = false " +
            "AND p.isExpired = false " +
            "AND p.expiresAt > :now")
-    List<OneTimePermission> findAllActivePermissionsForUser(@Param("userId") Long userId,
+    List<OneTimePermission> findAllActivePermissionsForUser(@Param("userId") UUID userId,
                                                              @Param("now") LocalDateTime now);
     
     /**
@@ -64,7 +64,7 @@ public interface OneTimePermissionRepository extends JpaRepository<OneTimePermis
            "AND p.isUsed = false " +
            "AND p.isExpired = false " +
            "AND p.expiresAt > :now")
-    boolean hasActivePermission(@Param("userId") Long userId,
+    boolean hasActivePermission(@Param("userId") UUID userId,
                                @Param("permissionType") PermissionType permissionType,
                                @Param("now") LocalDateTime now);
 }

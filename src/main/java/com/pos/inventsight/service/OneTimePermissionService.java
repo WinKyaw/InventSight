@@ -69,7 +69,7 @@ public class OneTimePermissionService {
     /**
      * Check if user has an active permission of the specified type
      */
-    public boolean hasActivePermission(Long userId, PermissionType permissionType) {
+    public boolean hasActivePermission(UUID userId, PermissionType permissionType) {
         LocalDateTime now = LocalDateTime.now();
         return permissionRepository.hasActivePermission(userId, permissionType, now);
     }
@@ -77,7 +77,7 @@ public class OneTimePermissionService {
     /**
      * Get all active permissions for a user
      */
-    public List<OneTimePermission> getActivePermissions(Long userId) {
+    public List<OneTimePermission> getActivePermissions(UUID userId) {
         LocalDateTime now = LocalDateTime.now();
         return permissionRepository.findAllActivePermissionsForUser(userId, now);
     }
@@ -85,7 +85,7 @@ public class OneTimePermissionService {
     /**
      * Get the first active permission of a specific type for a user
      */
-    public Optional<OneTimePermission> getActivePermission(Long userId, PermissionType permissionType) {
+    public Optional<OneTimePermission> getActivePermission(UUID userId, PermissionType permissionType) {
         LocalDateTime now = LocalDateTime.now();
         List<OneTimePermission> permissions = permissionRepository.findActivePermissions(
             userId, permissionType, now);
@@ -117,7 +117,7 @@ public class OneTimePermissionService {
      * Consume the first active permission of a specific type for a user
      */
     @Transactional
-    public void consumePermission(Long userId, PermissionType permissionType) {
+    public void consumePermission(UUID userId, PermissionType permissionType) {
         Optional<OneTimePermission> permission = getActivePermission(userId, permissionType);
         
         if (permission.isPresent()) {

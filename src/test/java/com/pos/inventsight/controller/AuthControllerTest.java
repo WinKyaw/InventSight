@@ -19,6 +19,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -98,7 +100,7 @@ public class AuthControllerTest {
         loginRequest.setPassword("password123");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("test@inventsight.com");
         mockUser.setUsername("testuser");
         mockUser.setFirstName("Test");
@@ -123,7 +125,7 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.role").value("USER"));
 
         // Verify interactions
-        verify(userService).updateLastLogin(1L);
+        verify(userService).updateLastLogin(any(UUID.class));
         verify(activityLogService).logActivityWithMetadata(eq("1"), eq("testuser"), 
                 eq("USER_LOGIN"), eq("AUTHENTICATION"), anyString(), any());
     }
@@ -139,7 +141,7 @@ public class AuthControllerTest {
         registerRequest.setLastName("User");
 
         User savedUser = new User();
-        savedUser.setId(2L);
+        savedUser.setId(UUID.randomUUID());
         savedUser.setEmail("newuser@inventsight.com");
         savedUser.setUsername("newuser");
         savedUser.setFirstName("New");
@@ -194,7 +196,7 @@ public class AuthControllerTest {
         loginRequest.setPassword("password123");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("unverified@inventsight.com");
         mockUser.setUsername("unverifieduser");
         mockUser.setFirstName("Unverified");
@@ -219,7 +221,7 @@ public class AuthControllerTest {
                 eq("USER_LOGIN_EMAIL_UNVERIFIED"), eq("AUTHENTICATION"), anyString());
         
         // Verify that last login was NOT updated for unverified users
-        verify(userService, never()).updateLastLogin(anyLong());
+        verify(userService, never()).updateLastLogin(any(UUID.class));
     }
 
     @Test
@@ -230,7 +232,7 @@ public class AuthControllerTest {
         loginRequest.setPassword("password123");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("unverified@inventsight.com");
         mockUser.setUsername("unverifieduser");
         mockUser.setFirstName("Unverified");
@@ -260,7 +262,7 @@ public class AuthControllerTest {
     public void testLogoutSuccess() throws Exception {
         // Given
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("test@inventsight.com");
         mockUser.setUsername("testuser");
 
@@ -288,7 +290,7 @@ public class AuthControllerTest {
         // totpCode is null
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("mfa@inventsight.com");
         mockUser.setUsername("mfauser");
         mockUser.setFirstName("MFA");
@@ -315,7 +317,7 @@ public class AuthControllerTest {
                 eq("MFA_REQUIRED"), eq("AUTHENTICATION"), anyString());
         
         // Verify that last login was NOT updated
-        verify(userService, never()).updateLastLogin(anyLong());
+        verify(userService, never()).updateLastLogin(any(UUID.class));
     }
     
     @Test
@@ -327,7 +329,7 @@ public class AuthControllerTest {
         loginRequest.setTotpCode(123456); // Invalid code
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("mfa@inventsight.com");
         mockUser.setUsername("mfauser");
         mockUser.setFirstName("MFA");
@@ -355,7 +357,7 @@ public class AuthControllerTest {
                 eq("MFA_FAILED"), eq("AUTHENTICATION"), anyString());
         
         // Verify that last login was NOT updated
-        verify(userService, never()).updateLastLogin(anyLong());
+        verify(userService, never()).updateLastLogin(any(UUID.class));
     }
     
     @Test
@@ -367,7 +369,7 @@ public class AuthControllerTest {
         loginRequest.setTotpCode(123456); // Valid code
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("mfa@inventsight.com");
         mockUser.setUsername("mfauser");
         mockUser.setFirstName("MFA");
@@ -400,7 +402,7 @@ public class AuthControllerTest {
                 eq("USER_LOGIN"), eq("AUTHENTICATION"), anyString(), any());
         
         // Verify last login was updated
-        verify(userService).updateLastLogin(1L);
+        verify(userService).updateLastLogin(any(UUID.class));
     }
     
     @Test
@@ -413,7 +415,7 @@ public class AuthControllerTest {
         loginRequest.setTenantId(tenantId);
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("tenant@inventsight.com");
         mockUser.setUsername("tenantuser");
         mockUser.setFirstName("Tenant");
@@ -452,7 +454,7 @@ public class AuthControllerTest {
         loginRequest.setTenantId("invalid-uuid");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("tenant@inventsight.com");
         mockUser.setUsername("tenantuser");
         mockUser.setEmailVerified(true);
@@ -481,7 +483,7 @@ public class AuthControllerTest {
         loginRequest.setTenantId(tenantId);
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("tenant@inventsight.com");
         mockUser.setUsername("tenantuser");
         mockUser.setEmailVerified(true);
@@ -511,7 +513,7 @@ public class AuthControllerTest {
         loginRequest.setTenantId(tenantId);
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("tenant@inventsight.com");
         mockUser.setUsername("tenantuser");
         mockUser.setEmailVerified(true);
@@ -543,7 +545,7 @@ public class AuthControllerTest {
         loginRequest.setPassword("password123");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("windaybunce@gmail.com");
         mockUser.setUsername("Jennie1");
         mockUser.setFirstName("JJ");
@@ -578,7 +580,7 @@ public class AuthControllerTest {
 
         // Verify tenant-bound JWT was generated with the correct UUID
         verify(jwtUtils).generateJwtToken(any(User.class), eq(validTenantUuid));
-        verify(userService).updateLastLogin(1L);
+        verify(userService).updateLastLogin(any(UUID.class));
     }
     
     @Test
@@ -590,7 +592,7 @@ public class AuthControllerTest {
         loginRequest.setPassword("password123");
 
         User mockUser = new User();
-        mockUser.setId(2L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("notenant@inventsight.com");
         mockUser.setUsername("notenantuser");
         mockUser.setFirstName("No");

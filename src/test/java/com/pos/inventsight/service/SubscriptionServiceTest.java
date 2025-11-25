@@ -34,7 +34,7 @@ public class SubscriptionServiceTest {
     @BeforeEach
     void setUp() {
         testUser = new User("testuser", "test@example.com", "password", "Test", "User");
-        testUser.setId(1L);
+        testUser.setId(UUID.randomUUID());
         testUser.setUuid(UUID.randomUUID());
         testUser.setSubscriptionLevel(SubscriptionLevel.FREE);
     }
@@ -125,42 +125,45 @@ public class SubscriptionServiceTest {
     @Test
     void updateSubscription_Success() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        UUID userId = testUser.getId();
+        when(userService.getUserById(userId)).thenReturn(testUser);
         when(userService.saveUser(any(User.class))).thenReturn(testUser);
         
         // When
-        User result = subscriptionService.updateSubscription(1L, "PRO");
+        User result = subscriptionService.updateSubscription(userId, "PRO");
         
         // Then
         assertNotNull(result);
         assertEquals(SubscriptionLevel.PRO, result.getSubscriptionLevel());
         
-        verify(userService, times(1)).getUserById(1L);
+        verify(userService, times(1)).getUserById(userId);
         verify(userService, times(1)).saveUser(testUser);
     }
     
     @Test
     void updateSubscription_InvalidLevel_ThrowsException() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        UUID userId = testUser.getId();
+        when(userService.getUserById(userId)).thenReturn(testUser);
         
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> {
-            subscriptionService.updateSubscription(1L, "INVALID");
+            subscriptionService.updateSubscription(userId, "INVALID");
         });
         
-        verify(userService, times(1)).getUserById(1L);
+        verify(userService, times(1)).getUserById(userId);
         verify(userService, never()).saveUser(any(User.class));
     }
     
     @Test
     void updateSubscription_CaseInsensitive() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        UUID userId = testUser.getId();
+        when(userService.getUserById(userId)).thenReturn(testUser);
         when(userService.saveUser(any(User.class))).thenReturn(testUser);
         
         // When
-        User result = subscriptionService.updateSubscription(1L, "business");
+        User result = subscriptionService.updateSubscription(userId, "business");
         
         // Then
         assertNotNull(result);

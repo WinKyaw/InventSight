@@ -11,7 +11,7 @@ import java.util.UUID;
 public class GrantPermissionRequest {
     
     @NotNull
-    private Long grantedToUserId;
+    private UUID grantedToUserId;
     
     @NotNull
     private PermissionType permissionType;
@@ -21,17 +21,17 @@ public class GrantPermissionRequest {
     // Constructors
     public GrantPermissionRequest() {}
     
-    public GrantPermissionRequest(Long grantedToUserId, PermissionType permissionType) {
+    public GrantPermissionRequest(UUID grantedToUserId, PermissionType permissionType) {
         this.grantedToUserId = grantedToUserId;
         this.permissionType = permissionType;
     }
     
     // Getters and Setters
-    public Long getGrantedToUserId() {
+    public UUID getGrantedToUserId() {
         return grantedToUserId;
     }
     
-    public void setGrantedToUserId(Long grantedToUserId) {
+    public void setGrantedToUserId(UUID grantedToUserId) {
         this.grantedToUserId = grantedToUserId;
     }
     

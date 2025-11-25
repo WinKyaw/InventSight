@@ -49,7 +49,7 @@ public class CompanyServiceTest {
     @BeforeEach
     void setUp() {
         testUser = new User("testuser", "test@example.com", "password", "Test", "User");
-        testUser.setId(1L);
+        testUser.setId(UUID.randomUUID());
         testUser.setUuid(UUID.randomUUID());
         
         testCompany = new Company("Test Company", "test@company.com");

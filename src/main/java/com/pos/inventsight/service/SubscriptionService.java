@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @Transactional
 public class SubscriptionService {
@@ -52,7 +54,7 @@ public class SubscriptionService {
     /**
      * Update user's subscription level
      */
-    public User updateSubscription(Long userId, String subscriptionLevelName) {
+    public User updateSubscription(UUID userId, String subscriptionLevelName) {
         User user = userService.getUserById(userId);
         
         try {

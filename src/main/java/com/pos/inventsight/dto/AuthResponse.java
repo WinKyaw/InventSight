@@ -1,11 +1,12 @@
 package com.pos.inventsight.dto;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class AuthResponse {
     private String token;
     private String type = "Bearer";
-    private Long id;
+    private UUID id;
     private String username;
     private String email;
     private String fullName;
@@ -16,7 +17,7 @@ public class AuthResponse {
     private Long expiresIn; // Token expiration time in milliseconds
     
     // Constructor for successful authentication
-    public AuthResponse(String accessToken, Long id, String username, String email, 
+    public AuthResponse(String accessToken, UUID id, String username, String email, 
                        String fullName, String role, String system, Long expiresIn) {
         this.token = accessToken;
         this.id = id;
@@ -44,8 +45,8 @@ public class AuthResponse {
     public String getTokenType() { return type; }
     public void setTokenType(String type) { this.type = type; }
     
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
     
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }

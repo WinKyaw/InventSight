@@ -46,7 +46,7 @@ class AuditServiceTest {
     void testLogAuditEvent_Success() throws Exception {
         // Given
         String actor = "test@example.com";
-        Long actorId = 1L;
+        UUID actorId = UUID.randomUUID();
         String action = "USER_LOGIN";
         String entityType = "User";
         String entityId = "1";
@@ -74,7 +74,7 @@ class AuditServiceTest {
         // Given
         AuditEvent previousEvent = AuditEvent.builder()
                 .actor("previous@example.com")
-                .actorId(1L)
+                .actorId(UUID.randomUUID())
                 .action("PREVIOUS_ACTION")
                 .build();
         previousEvent.setHash("previous-hash-123");
@@ -89,7 +89,7 @@ class AuditServiceTest {
         when(auditEventRepository.save(eventCaptor.capture())).thenAnswer(i -> i.getArguments()[0]);
         
         // When
-        auditService.log("test@example.com", 1L, "TEST_ACTION", "Test", "1", null);
+        auditService.log("test@example.com", UUID.randomUUID(), "TEST_ACTION", "Test", "1", null);
         
         // Then
         AuditEvent savedEvent = eventCaptor.getValue();
@@ -103,7 +103,7 @@ class AuditServiceTest {
         when(auditEventRepository.save(any(AuditEvent.class))).thenAnswer(i -> i.getArguments()[0]);
         
         // When
-        AuditEvent result = auditService.log("actor", 1L, "action", "entity", "id", null);
+        AuditEvent result = auditService.log("actor", UUID.randomUUID(), "action", "entity", "id", null);
         
         // Then
         assertNotNull(result);
@@ -140,10 +140,11 @@ class AuditServiceTest {
     void testAuditEventBuilder() {
         // Test the builder pattern
         UUID tenantId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
         
         AuditEvent event = AuditEvent.builder()
                 .actor("test@example.com")
-                .actorId(1L)
+                .actorId(actorId)
                 .action("TEST_ACTION")
                 .entityType("TestEntity")
                 .entityId("123")
@@ -155,7 +156,7 @@ class AuditServiceTest {
         
         assertNotNull(event);
         assertEquals("test@example.com", event.getActor());
-        assertEquals(1L, event.getActorId());
+        assertEquals(actorId, event.getActorId());
         assertEquals("TEST_ACTION", event.getAction());
         assertEquals("TestEntity", event.getEntityType());
         assertEquals("123", event.getEntityId());

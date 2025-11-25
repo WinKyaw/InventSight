@@ -18,6 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -128,7 +130,7 @@ public class AuthControllerRegistrationTest {
         request.setEmail("test@inventsight.com");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("test@inventsight.com");
         mockUser.setEmailVerified(false);
 
@@ -177,7 +179,7 @@ public class AuthControllerRegistrationTest {
         request.setEmail("verified@inventsight.com");
 
         User mockUser = new User();
-        mockUser.setId(1L);
+        mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("verified@inventsight.com");
         mockUser.setEmailVerified(true);
 
