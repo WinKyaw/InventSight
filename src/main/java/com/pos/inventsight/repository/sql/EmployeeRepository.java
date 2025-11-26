@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
     
     Optional<Employee> findByEmail(String email);
     
@@ -67,7 +67,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT e FROM Employee e WHERE e.store = :store AND e.createdBy = :createdBy AND e.status = 'ACTIVE' ORDER BY e.createdAt DESC")
     List<Employee> findByStoreAndCreatedBy(@Param("store") Store store, @Param("createdBy") String createdBy);
     
-    Optional<Employee> findByUserId(Long userId);
+    Optional<Employee> findByUserId(UUID userId);
     
     boolean existsByEmail(String email);
     

@@ -84,7 +84,7 @@ public class PasswordResetService {
         emailService.sendPasswordResetEmail(email, resetLink);
         
         logger.info("Password reset requested for user: {}", email);
-        auditService.logAsync(email, user.getUuid(), "PASSWORD_RESET_REQUESTED", "User", user.getId().toString(), null);
+        auditService.logAsync(email, user.getId(), "PASSWORD_RESET_REQUESTED", "User", user.getId().toString(), null);
     }
     
     /**
@@ -133,7 +133,7 @@ public class PasswordResetService {
         tokenRepository.save(resetToken);
         
         logger.info("Password reset successful for user: {}", user.getEmail());
-        auditService.logAsync(user.getEmail(), user.getUuid(), "PASSWORD_RESET_COMPLETED", "User", user.getId().toString(), null);
+        auditService.logAsync(user.getEmail(), user.getId(), "PASSWORD_RESET_COMPLETED", "User", user.getId().toString(), null);
         
         return true;
     }

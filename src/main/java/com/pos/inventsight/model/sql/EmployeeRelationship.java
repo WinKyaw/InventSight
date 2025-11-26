@@ -19,7 +19,7 @@ public class EmployeeRelationship {
     
     // Just store IDs, not full entity relationships
     @Column(name = "employee_id", nullable = false)
-    private Long employeeId;
+    private UUID employeeId;
     
     @Column(name = "employer_id", nullable = false)
     private UUID employerId;
@@ -41,7 +41,7 @@ public class EmployeeRelationship {
         this.createdAt = LocalDateTime.now();
     }
     
-    public EmployeeRelationship(Long employeeId, UUID employerId, UUID storeId, UUID companyId, String createdBy) {
+    public EmployeeRelationship(UUID employeeId, UUID employerId, UUID storeId, UUID companyId, String createdBy) {
         this.employeeId = employeeId;
         this.employerId = employerId;
         this.storeId = storeId;
@@ -54,8 +54,8 @@ public class EmployeeRelationship {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     
-    public Long getEmployeeId() { return employeeId; }
-    public void setEmployeeId(Long employeeId) { this.employeeId = employeeId; }
+    public UUID getEmployeeId() { return employeeId; }
+    public void setEmployeeId(UUID employeeId) { this.employeeId = employeeId; }
     
     public UUID getEmployerId() { return employerId; }
     public void setEmployerId(UUID employerId) { this.employerId = employerId; }

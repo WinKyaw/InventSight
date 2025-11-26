@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/employees")
@@ -50,7 +51,7 @@ public class EmployeeController {
     
     // Get employee by ID
     @GetMapping("/{id}")
-    public ResponseEntity<Employee> getEmployeeById(@PathVariable Long id) {
+    public ResponseEntity<Employee> getEmployeeById(@PathVariable UUID id) {
         System.out.println("👤 InventSight - Fetching employee with ID: " + id);
         
         Employee employee = employeeService.getEmployeeById(id);
@@ -167,7 +168,7 @@ public class EmployeeController {
     
     // Check-in employee
     @PostMapping("/{id}/check-in")
-    public ResponseEntity<?> checkInEmployee(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> checkInEmployee(@PathVariable UUID id, Authentication authentication) {
         System.out.println("🕐 InventSight - Employee check-in request for ID: " + id);
         System.out.println("👤 Processed by: WinKyaw");
         
@@ -186,7 +187,7 @@ public class EmployeeController {
     
     // Check-out employee
     @PostMapping("/{id}/check-out")
-    public ResponseEntity<?> checkOutEmployee(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> checkOutEmployee(@PathVariable UUID id, Authentication authentication) {
         System.out.println("🕐 InventSight - Employee check-out request for ID: " + id);
         System.out.println("👤 Processed by: WinKyaw");
         
@@ -228,7 +229,7 @@ public class EmployeeController {
     
     // PUT /employees/{id} - Update employee information
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateEmployee(@PathVariable Long id, 
+    public ResponseEntity<?> updateEmployee(@PathVariable UUID id, 
                                           @Valid @RequestBody EmployeeRequest employeeRequest,
                                           Authentication authentication) {
         try {
@@ -275,7 +276,7 @@ public class EmployeeController {
     // DELETE /employees/{id} - Deactivate employee (admin only)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deactivateEmployee(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> deactivateEmployee(@PathVariable UUID id, Authentication authentication) {
         try {
             String username = authentication.getName();
             System.out.println("🗑️ InventSight - Deactivating employee ID: " + id + " by admin: " + username);
@@ -296,7 +297,7 @@ public class EmployeeController {
     // PUT /employees/{id}/role - Update employee role (admin only)
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateEmployeeRole(@PathVariable Long id, 
+    public ResponseEntity<?> updateEmployeeRole(@PathVariable UUID id, 
                                               @RequestBody Map<String, String> roleRequest,
                                               Authentication authentication) {
         try {

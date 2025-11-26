@@ -27,7 +27,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Query("SELECT rt FROM RefreshToken rt WHERE rt.user.id = :userId " +
            "AND rt.revoked = false " +
            "AND rt.expiresAt > :now")
-    List<RefreshToken> findValidTokensByUser(@Param("userId") Long userId, 
+    List<RefreshToken> findValidTokensByUser(@Param("userId") UUID userId, 
                                              @Param("now") LocalDateTime now);
     
     /**
@@ -47,7 +47,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
      */
     @Modifying
     @Query("DELETE FROM RefreshToken rt WHERE rt.user.id = :userId")
-    void deleteByUserId(@Param("userId") Long userId);
+    void deleteByUserId(@Param("userId") UUID userId);
     
     /**
      * Revoke all tokens for a user
@@ -55,7 +55,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.revoked = true, rt.revokedAt = :now " +
            "WHERE rt.user.id = :userId AND rt.revoked = false")
-    void revokeAllUserTokens(@Param("userId") Long userId, @Param("now") LocalDateTime now);
+    void revokeAllUserTokens(@Param("userId") UUID userId, @Param("now") LocalDateTime now);
     
     /**
      * Check if token exists and is valid

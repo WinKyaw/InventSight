@@ -32,7 +32,7 @@ public class EventService {
     private ActivityLogService activityLogService;
     
     // CRUD Operations
-    public Event createEvent(EventRequest eventRequest, Long createdByUserId) {
+    public Event createEvent(EventRequest eventRequest, UUID createdByUserId) {
         User createdBy = userService.getUserById(createdByUserId);
         
         // Validate event dates
@@ -74,7 +74,7 @@ public class EventService {
         // Add attendees if provided
         if (eventRequest.getAttendeeIds() != null && !eventRequest.getAttendeeIds().isEmpty()) {
             List<User> attendees = new ArrayList<>();
-            for (Long attendeeId : eventRequest.getAttendeeIds()) {
+            for (UUID attendeeId : eventRequest.getAttendeeIds()) {
                 try {
                     User attendee = userService.getUserById(attendeeId);
                     attendees.add(attendee);
@@ -105,11 +105,11 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found with ID: " + eventId));
     }
     
-    public List<Event> getEventsByUser(Long userId) {
+    public List<Event> getEventsByUser(UUID userId) {
         return eventRepository.findEventsByUserIdAndStatus(userId, EventStatus.ACTIVE);
     }
     
-    public Event updateEvent(Long eventId, EventRequest eventRequest, Long userId) {
+    public Event updateEvent(Long eventId, EventRequest eventRequest, UUID userId) {
         Event existingEvent = getEventById(eventId);
         User currentUser = userService.getUserById(userId);
         
@@ -141,7 +141,7 @@ public class EventService {
         // Update attendees if provided
         if (eventRequest.getAttendeeIds() != null) {
             List<User> attendees = new ArrayList<>();
-            for (Long attendeeId : eventRequest.getAttendeeIds()) {
+            for (UUID attendeeId : eventRequest.getAttendeeIds()) {
                 try {
                     User attendee = userService.getUserById(attendeeId);
                     attendees.add(attendee);
@@ -167,7 +167,7 @@ public class EventService {
         return updatedEvent;
     }
     
-    public void deleteEvent(Long eventId, Long userId) {
+    public void deleteEvent(Long eventId, UUID userId) {
         Event event = getEventById(eventId);
         User currentUser = userService.getUserById(userId);
         
@@ -193,11 +193,11 @@ public class EventService {
     }
     
     // Calendar specific methods
-    public List<Event> getEventsForMonth(int year, int month, Long userId) {
+    public List<Event> getEventsForMonth(int year, int month, UUID userId) {
         return eventRepository.findEventsByYearMonthAndUser(year, month, userId);
     }
     
-    public List<Event> getEventsInDateRange(LocalDateTime startDate, LocalDateTime endDate, Long userId) {
+    public List<Event> getEventsInDateRange(LocalDateTime startDate, LocalDateTime endDate, UUID userId) {
         List<Event> userEvents = getEventsByUser(userId);
         return userEvents.stream()
                 .filter(event -> !event.getStartDateTime().isAfter(endDate) && 
@@ -206,7 +206,7 @@ public class EventService {
     }
     
     // Attendee management
-    public Event addAttendeesToEvent(Long eventId, List<Long> attendeeIds, Long userId) {
+    public Event addAttendeesToEvent(Long eventId, List<UUID> attendeeIds, UUID userId) {
         Event event = getEventById(eventId);
         User currentUser = userService.getUserById(userId);
         
@@ -217,7 +217,7 @@ public class EventService {
         }
         
         // Add new attendees
-        for (Long attendeeId : attendeeIds) {
+        for (UUID attendeeId : attendeeIds) {
             try {
                 User attendee = userService.getUserById(attendeeId);
                 event.addAttendee(attendee);
@@ -242,19 +242,19 @@ public class EventService {
     }
     
     // Utility methods
-    public List<Event> getUpcomingEvents(Long userId) {
+    public List<Event> getUpcomingEvents(UUID userId) {
         return eventRepository.findUpcomingEventsByUser(userId, LocalDateTime.now());
     }
     
-    public List<Event> getTodaysEvents(Long userId) {
+    public List<Event> getTodaysEvents(UUID userId) {
         return eventRepository.findTodaysEventsByUser(userId);
     }
     
-    public List<Event> searchEvents(String searchTerm, Long userId) {
+    public List<Event> searchEvents(String searchTerm, UUID userId) {
         return eventRepository.searchEventsByUser(searchTerm, userId);
     }
     
-    public long getActiveEventCount(Long userId) {
+    public long getActiveEventCount(UUID userId) {
         return eventRepository.countActiveEventsByUser(userId);
     }
     

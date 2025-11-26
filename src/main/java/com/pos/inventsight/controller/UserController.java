@@ -406,7 +406,7 @@ public class UserController {
             User updatedUser = subscriptionService.updateSubscription(targetUser.getId(), request.getSubscriptionLevel());
             
             Map<String, Object> response = new HashMap<>();
-            response.put("userId", updatedUser.getUuid());
+            response.put("userId", updatedUser.getId());
             response.put("username", updatedUser.getUsername());
             response.put("subscriptionLevel", updatedUser.getSubscriptionLevel().name());
             
