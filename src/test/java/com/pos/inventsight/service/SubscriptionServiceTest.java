@@ -35,7 +35,6 @@ public class SubscriptionServiceTest {
     void setUp() {
         testUser = new User("testuser", "test@example.com", "password", "Test", "User");
         testUser.setId(UUID.randomUUID());
-        testUser.setId(UUID.randomUUID());
         testUser.setSubscriptionLevel(SubscriptionLevel.FREE);
     }
     

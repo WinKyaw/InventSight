@@ -274,7 +274,6 @@ class UserServiceTest {
         // Setup expected UUID
         UUID expectedUuid = UUID.fromString("12345678-1234-1234-1234-123456789012");
         User user = new User();
-        user.setId(UUID.randomUUID());
         user.setId(expectedUuid);
         
         // Mock SecurityContext to return authenticated user

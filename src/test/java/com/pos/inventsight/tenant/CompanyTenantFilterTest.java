@@ -75,7 +75,6 @@ class CompanyTenantFilterTest {
         authenticatedUser = new User();
         authenticatedUser.setId(UUID.randomUUID());
         authenticatedUser.setUsername("testuser");
-        authenticatedUser.setId(UUID.randomUUID());
 
         company = new Company();
         company.setId(companyUuid);
