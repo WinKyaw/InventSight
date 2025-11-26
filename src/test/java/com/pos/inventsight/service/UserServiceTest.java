@@ -62,7 +62,6 @@ class UserServiceTest {
         
         // Setup test user
         testUser = new User();
-        testUser.setId(UUID.randomUUID());
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setFirstName("Test");
