@@ -20,7 +20,7 @@ public class User implements UserDetails {
     
     @Id
     @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GenericGenerator(name = "UUID", type = org.hibernate.id.UUIDGenerator.class)
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
     
@@ -184,9 +184,9 @@ public class User implements UserDetails {
     
     /**
      * Ensures tenant ID is set to user's ID for schema-based tenant isolation
+     * This runs after ID generation
      */
-    @PrePersist
-    @PreUpdate
+    @PostPersist
     public void ensureTenantId() {
         if (this.tenantId == null && this.id != null) {
             this.tenantId = this.id;
