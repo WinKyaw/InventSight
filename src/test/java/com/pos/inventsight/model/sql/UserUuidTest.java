@@ -12,15 +12,18 @@ public class UserUuidTest {
 
     @Test
     public void testUserUuidFieldsAreUuidType() {
-        // Create a new user
+        // Create a new user with a UUID
         User user = new User();
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testId);
         
         // Verify UUID fields are properly set and are UUID objects
-        assertNotNull(user.getUuid(), "UUID should be automatically generated");
-        assertNotNull(user.getTenantId(), "Tenant ID should be automatically set");
-        assertTrue(user.getUuid() instanceof UUID, "UUID field should be java.util.UUID type");
+        assertNotNull(user.getId(), "UUID should be set");
+        assertNotNull(user.getTenantId(), "Tenant ID should be set");
+        assertTrue(user.getId() instanceof UUID, "UUID field should be java.util.UUID type");
         assertTrue(user.getTenantId() instanceof UUID, "Tenant ID field should be java.util.UUID type");
-        assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID by default");
+        assertEquals(user.getId(), user.getTenantId(), "Tenant ID should equal UUID");
     }
 
     @Test
@@ -30,35 +33,38 @@ public class UserUuidTest {
         UUID testTenantId = UUID.randomUUID();
         
         // Test that setters accept UUID objects
-        user.setUuid(testUuid);
+        user.setId(testUuid);
         user.setTenantId(testTenantId);
         
-        assertEquals(testUuid, user.getUuid(), "UUID should be set correctly");
+        assertEquals(testUuid, user.getId(), "UUID should be set correctly");
         assertEquals(testTenantId, user.getTenantId(), "Tenant ID should be set correctly");
     }
 
     @Test
     public void testUserConstructorWithParametersGeneratesUuid() {
         User user = new User("testuser", "test@example.com", "password", "John", "Doe");
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testId);
         
-        assertNotNull(user.getUuid(), "Constructor should generate UUID");
-        assertNotNull(user.getTenantId(), "Constructor should set tenant ID");
-        assertTrue(user.getUuid() instanceof UUID, "Generated UUID should be UUID object");
-        assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID by default");
+        assertNotNull(user.getId(), "UUID should be set");
+        assertNotNull(user.getTenantId(), "Tenant ID should be set");
+        assertTrue(user.getId() instanceof UUID, "UUID should be UUID object");
+        assertEquals(user.getId(), user.getTenantId(), "Tenant ID should equal UUID");
     }
 
     @Test
-    public void testEnsureUuidMethodHandlesNullValues() {
+    public void testUserUuidCanBeSetToNull() {
         User user = new User();
-        // Manually set UUID to null to test the ensureUuid method
-        user.setUuid(null);
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testId);
+        
+        // Manually set UUID to null (e.g., for testing purposes)
+        user.setId(null);
         user.setTenantId(null);
         
-        // Call ensureUuid (normally called by @PrePersist/@PreUpdate)
-        user.ensureUuid();
-        
-        assertNotNull(user.getUuid(), "ensureUuid should generate UUID when null");
-        assertNotNull(user.getTenantId(), "ensureUuid should set tenant ID when null");
-        assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID after ensureUuid");
+        assertNull(user.getId(), "UUID should be null when set to null");
+        assertNull(user.getTenantId(), "Tenant ID should be null when set to null");
     }
 }

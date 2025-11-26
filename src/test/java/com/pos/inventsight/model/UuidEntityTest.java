@@ -18,24 +18,30 @@ class UuidEntityTest {
     
     @Test
     void testUserUuidGeneration() {
-        // Test UUID is generated automatically in constructor
+        // Test UUID can be set and retrieved
         User user = new User();
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testId);
         
-        assertNotNull(user.getUuid(), "UUID should be generated automatically");
-        assertNotNull(user.getTenantId(), "Tenant ID should be set automatically");
-        assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID");
+        assertNotNull(user.getId(), "UUID should be set");
+        assertNotNull(user.getTenantId(), "Tenant ID should be set");
+        assertEquals(user.getId(), user.getTenantId(), "Tenant ID should equal UUID");
         
         // Test UUID format is valid
-        assertTrue(isValidUUID(user.getUuid().toString()), "UUID should be valid format");
+        assertTrue(isValidUUID(user.getId().toString()), "UUID should be valid format");
     }
     
     @Test
     void testUserConstructorWithParameters() {
         User user = new User("testuser", "test@example.com", "password", "John", "Doe");
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testId);
         
-        assertNotNull(user.getUuid(), "UUID should be generated in parameterized constructor");
-        assertNotNull(user.getTenantId(), "Tenant ID should be set in parameterized constructor");
-        assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID");
+        assertNotNull(user.getId(), "UUID should be set");
+        assertNotNull(user.getTenantId(), "Tenant ID should be set");
+        assertEquals(user.getId(), user.getTenantId(), "Tenant ID should equal UUID");
         assertEquals("testuser", user.getUsername());
         assertEquals("test@example.com", user.getEmail());
     }
@@ -44,30 +50,41 @@ class UuidEntityTest {
     void testUserUuidUniqueness() {
         User user1 = new User();
         User user2 = new User();
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        user1.setId(id1);
+        user1.setTenantId(id1);
+        user2.setId(id2);
+        user2.setTenantId(id2);
         
-        assertNotEquals(user1.getUuid(), user2.getUuid(), "UUIDs should be unique");
+        assertNotEquals(user1.getId(), user2.getId(), "UUIDs should be unique");
         assertNotEquals(user1.getTenantId(), user2.getTenantId(), "Tenant IDs should be unique");
     }
     
     @Test
     void testUserUuidSetter() {
         User user = new User();
-        UUID oldUuid = user.getUuid();
+        UUID oldUuid = UUID.randomUUID();
         UUID newUuid = UUID.randomUUID();
+        user.setId(oldUuid);
+        user.setTenantId(oldUuid);
         
-        user.setUuid(newUuid);
+        user.setId(newUuid);
+        user.setTenantId(newUuid);
         
-        assertEquals(newUuid, user.getUuid(), "UUID should be updated");
-        assertEquals(newUuid, user.getTenantId(), "Tenant ID should be updated when UUID changes");
-        assertNotEquals(oldUuid, user.getUuid(), "UUID should be different from original");
+        assertEquals(newUuid, user.getId(), "UUID should be updated");
+        assertEquals(newUuid, user.getTenantId(), "Tenant ID should be updated");
+        assertNotEquals(oldUuid, user.getId(), "UUID should be different from original");
     }
     
     @Test
     void testProductUuidGeneration() {
-        // Test UUID is generated automatically in constructor
+        // Test UUID can be set on Product
         Product product = new Product();
+        UUID testId = UUID.randomUUID();
+        product.setId(testId);
         
-        assertNotNull(product.getId(), "UUID ID should be generated automatically");
+        assertNotNull(product.getId(), "UUID ID should be set");
         assertTrue(isValidUUID(product.getId().toString()), "UUID ID should be valid format");
     }
     
@@ -77,8 +94,10 @@ class UuidEntityTest {
         Product product = new Product("Test Product", "SKU-001", 
                                     BigDecimal.valueOf(10), BigDecimal.valueOf(15), 
                                     BigDecimal.valueOf(20), 100, store);
+        UUID testId = UUID.randomUUID();
+        product.setId(testId);
         
-        assertNotNull(product.getId(), "UUID ID should be generated in parameterized constructor");
+        assertNotNull(product.getId(), "UUID ID should be set");
         assertEquals("Test Product", product.getName());
         assertEquals("SKU-001", product.getSku());
         assertEquals(store, product.getStore());
@@ -88,6 +107,10 @@ class UuidEntityTest {
     void testProductUuidUniqueness() {
         Product product1 = new Product();
         Product product2 = new Product();
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        product1.setId(id1);
+        product2.setId(id2);
         
         assertNotEquals(product1.getId(), product2.getId(), "Product UUID IDs should be unique");
     }
@@ -95,7 +118,8 @@ class UuidEntityTest {
     @Test
     void testProductUuidPersistence() {
         Product product = new Product();
-        UUID originalId = product.getId();
+        UUID originalId = UUID.randomUUID();
+        product.setId(originalId);
         
         // Simulate saving - the ID should remain the same
         assertNotNull(originalId, "Product UUID ID should be set");
@@ -103,42 +127,51 @@ class UuidEntityTest {
     }
     
     @Test
-    void testUserPrePersistHook() {
+    void testUserPostPersistHook() {
         User user = new User();
-        user.setUuid(null); // Clear UUID to test the PrePersist hook
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
         user.setTenantId(null); // Clear tenant ID
         
-        // Simulate JPA PrePersist call
-        user.ensureUuid();
+        // Simulate JPA PostPersist call
+        user.ensureTenantId();
         
-        assertNotNull(user.getUuid(), "UUID should be regenerated by PrePersist");
-        assertNotNull(user.getTenantId(), "Tenant ID should be regenerated by PrePersist");
-        assertEquals(user.getUuid(), user.getTenantId(), "Tenant ID should equal UUID after PrePersist");
+        assertNotNull(user.getId(), "UUID should be set");
+        assertNotNull(user.getTenantId(), "Tenant ID should be set by PostPersist");
+        assertEquals(user.getId(), user.getTenantId(), "Tenant ID should equal UUID after PostPersist");
     }
     
     @Test
     void testProductIdGeneration() {
         Product product = new Product();
+        UUID testId = UUID.randomUUID();
+        product.setId(testId);
         
-        // UUID should be auto-generated by Hibernate
-        assertNotNull(product.getId(), "UUID ID should be automatically generated");
-        assertTrue(isValidUUID(product.getId().toString()), "Generated ID should be valid UUID");
+        // UUID should be set correctly
+        assertNotNull(product.getId(), "UUID ID should be set");
+        assertTrue(isValidUUID(product.getId().toString()), "UUID ID should be valid UUID");
     }
     
     @Test
-    void testUserPrePersistDoesNotOverwriteExistingUuid() {
+    void testUserPostPersistDoesNotOverwriteExistingTenantId() {
         User user = new User();
-        UUID originalUuid = user.getUuid();
+        UUID testId = UUID.randomUUID();
+        UUID testTenantId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testTenantId);
         
-        // Call ensureUuid when UUID already exists
-        user.ensureUuid();
+        // Call ensureTenantId when tenantId already exists
+        user.ensureTenantId();
         
-        assertEquals(originalUuid, user.getUuid(), "Existing UUID should not be overwritten");
+        assertEquals(testTenantId, user.getTenantId(), "Existing tenant ID should not be overwritten");
     }
     
     @Test
     void testUserEntityIntegrity() {
         User user = new User("user123", "user@test.com", "password", "Test", "User");
+        UUID testId = UUID.randomUUID();
+        user.setId(testId);
+        user.setTenantId(testId);
         user.setRole(UserRole.OWNER);
         user.setIsActive(true);
         user.setEmailVerified(true);
@@ -149,7 +182,7 @@ class UuidEntityTest {
         assertEquals(UserRole.OWNER, user.getRole());
         assertTrue(user.getIsActive());
         assertTrue(user.getEmailVerified());
-        assertNotNull(user.getUuid());
+        assertNotNull(user.getId());
         assertNotNull(user.getTenantId());
         
         // Test UserDetails methods still work

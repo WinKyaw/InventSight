@@ -32,13 +32,13 @@ class MultiTenantIntegrationTest {
         
         // Create users
         owner = new User("owner", "owner@alpha.com", "password", "John", "Owner");
-        owner.setId(1L);
+        owner.setId(UUID.randomUUID());
         
         manager = new User("manager", "manager@alpha.com", "password", "Jane", "Manager");
-        manager.setId(3L);
+        manager.setId(UUID.randomUUID());
         
         employee = new User("employee", "employee@alpha.com", "password", "Bob", "Employee");
-        employee.setId(4L);
+        employee.setId(UUID.randomUUID());
         
         // Create product with tiered pricing
         product = new Product();

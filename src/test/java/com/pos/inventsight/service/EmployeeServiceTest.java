@@ -69,7 +69,7 @@ public class EmployeeServiceTest {
         
         // Setup test employer (user creating the employee)
         testEmployer = new User();
-        testEmployer.setId(1L);
+        testEmployer.setId(UUID.randomUUID());
         testEmployer.setUsername("employer");
         testEmployer.setEmail("employer@test.com");
         testEmployer.setRole(UserRole.MANAGER);
@@ -93,12 +93,12 @@ public class EmployeeServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            user.setId(1L);
+            user.setId(UUID.randomUUID());
             return user;
         });
         when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
             Employee emp = invocation.getArgument(0);
-            emp.setId(1L);
+            emp.setId(UUID.randomUUID());
             return emp;
         });
         when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))
@@ -193,7 +193,7 @@ public class EmployeeServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            user.setId(1L);
+            user.setId(UUID.randomUUID());
             // Verify password was set
             assertNotNull(user.getPassword());
             assertEquals("encodedPassword", user.getPassword());
@@ -201,7 +201,7 @@ public class EmployeeServiceTest {
         });
         when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
             Employee emp = invocation.getArgument(0);
-            emp.setId(1L);
+            emp.setId(UUID.randomUUID());
             return emp;
         });
         when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))

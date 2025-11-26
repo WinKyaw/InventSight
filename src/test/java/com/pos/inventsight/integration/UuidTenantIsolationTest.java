@@ -92,19 +92,19 @@ class UuidTenantIsolationTest {
     @Test
     void testUserUuidGeneration() {
         // Test that UUIDs are generated for users
-        assertNotNull(userA.getUuid(), "User A should have a UUID");
-        assertNotNull(userB.getUuid(), "User B should have a UUID");
+        assertNotNull(userA.getId(), "User A should have a UUID");
+        assertNotNull(userB.getId(), "User B should have a UUID");
         
         // Test that UUIDs are unique
-        assertNotEquals(userA.getUuid(), userB.getUuid(), "User UUIDs should be unique");
+        assertNotEquals(userA.getId(), userB.getId(), "User UUIDs should be unique");
         
         // Test that tenant IDs are set to UUIDs
-        assertEquals(userA.getUuid(), userA.getTenantId(), "Tenant ID should match UUID for User A");
-        assertEquals(userB.getUuid(), userB.getTenantId(), "Tenant ID should match UUID for User B");
+        assertEquals(userA.getId(), userA.getTenantId(), "Tenant ID should match UUID for User A");
+        assertEquals(userB.getId(), userB.getTenantId(), "Tenant ID should match UUID for User B");
         
         // Test UUID format
-        assertTrue(isValidUUID(userA.getUuid().toString()), "User A UUID should be valid format");
-        assertTrue(isValidUUID(userB.getUuid().toString()), "User B UUID should be valid format");
+        assertTrue(isValidUUID(userA.getId().toString()), "User A UUID should be valid format");
+        assertTrue(isValidUUID(userB.getId().toString()), "User B UUID should be valid format");
     }
     
     @Test
@@ -124,11 +124,11 @@ class UuidTenantIsolationTest {
     @Test
     void testTenantIsolationWithCurrentUserStore() {
         // Test that UserService can find users by UUID
-        User foundUserA = userService.getUserByUuid(userA.getUuid());
+        User foundUserA = userService.getUserByUuid(userA.getId());
         assertEquals(userA.getId(), foundUserA.getId(), "Should find correct user by UUID");
         
         // Simulate tenant context for User A
-        TenantContext.setCurrentTenant(userA.getUuid().toString());
+        TenantContext.setCurrentTenant(userA.getId().toString());
         try {
             Store currentStore = userService.getCurrentUserStore();
             assertNotNull(currentStore, "Should find store for current user");
@@ -138,7 +138,7 @@ class UuidTenantIsolationTest {
         }
         
         // Simulate tenant context for User B
-        TenantContext.setCurrentTenant(userB.getUuid().toString());
+        TenantContext.setCurrentTenant(userB.getId().toString());
         try {
             Store currentStore = userService.getCurrentUserStore();
             assertNotNull(currentStore, "Should find store for current user");
@@ -160,7 +160,7 @@ class UuidTenantIsolationTest {
         }
         
         // With User A's tenant context
-        TenantContext.setCurrentTenant(userA.getUuid().toString());
+        TenantContext.setCurrentTenant(userA.getId().toString());
         try {
             List<Product> userAProducts = productService.getAllActiveProducts();
             // In a real multi-tenant environment, this would filter by store
@@ -171,7 +171,7 @@ class UuidTenantIsolationTest {
         }
         
         // With User B's tenant context
-        TenantContext.setCurrentTenant(userB.getUuid().toString());
+        TenantContext.setCurrentTenant(userB.getId().toString());
         try {
             List<Product> userBProducts = productService.getAllActiveProducts();
             // In a real multi-tenant environment, this would filter by store
@@ -214,20 +214,20 @@ class UuidTenantIsolationTest {
         
         User foundUserById = userRepository.findById(userA.getId()).orElse(null);
         assertNotNull(foundUserById, "Should find user by Long ID");
-        assertEquals(userA.getUuid(), foundUserById.getUuid(), "UUID should be preserved");
+        assertEquals(userA.getId(), foundUserById.getId(), "UUID should be preserved");
     }
     
     @Test
     void testUuidSearchMethods() {
-        // Test new UUID-based repository methods
-        User foundByUuid = userRepository.findByUuid(userA.getUuid()).orElse(null);
+        // Test UUID-based repository methods
+        User foundByUuid = userRepository.findById(userA.getId()).orElse(null);
         assertNotNull(foundByUuid, "Should find user by UUID");
         assertEquals(userA.getId(), foundByUuid.getId(), "Should find correct user");
         
         // Test that UUID is unique
         List<User> allUsers = userRepository.findAll();
         long uniqueUuids = allUsers.stream()
-                .map(User::getUuid)
+                .map(User::getId)
                 .distinct()
                 .count();
         assertEquals(allUsers.size(), uniqueUuids, "All UUIDs should be unique");

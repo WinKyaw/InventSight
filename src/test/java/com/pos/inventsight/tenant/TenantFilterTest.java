@@ -143,7 +143,7 @@ class TenantFilterTest {
         // Given an authenticated user
         UUID userUuid = UUID.randomUUID();
         User user = new User();
-        user.setUuid(userUuid);
+        user.setId(userUuid);
         
         Authentication authentication = new UsernamePasswordAuthenticationToken(user, null);
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
@@ -169,7 +169,7 @@ class TenantFilterTest {
         // Given an authenticated user
         UUID userUuid = UUID.randomUUID();
         User user = new User();
-        user.setUuid(userUuid);
+        user.setId(userUuid);
         
         Authentication authentication = new UsernamePasswordAuthenticationToken(user, null);
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();

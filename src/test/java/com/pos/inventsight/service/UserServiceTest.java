@@ -62,12 +62,11 @@ class UserServiceTest {
         
         // Setup test user
         testUser = new User();
-        testUser.setId(1L);
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setFirstName("Test");
         testUser.setLastName("User");
-        testUser.setUuid(testUuid);
+        testUser.setId(testUuid);
         
         // Setup test store
         testStore = new Store();
@@ -120,7 +119,7 @@ class UserServiceTest {
         verify(companyStoreUserRepository).findByUserAndCompanyIdAndIsActiveTrue(testUser, testUuid);
         
         // Verify user was NOT looked up by UUID (we got it from SecurityContext)
-        verify(userRepository, never()).findByUuid(any());
+        verify(userRepository, never()).findById(any());
     }
     
     @Test
@@ -132,7 +131,7 @@ class UserServiceTest {
         
         // Setup mocks
         UserStoreRole userStoreRole = new UserStoreRole(testUser, testStore, UserRole.OWNER, "testuser");
-        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.of(testUser));
+        when(userRepository.findById(testUuid)).thenReturn(Optional.of(testUser));
         when(userStoreRoleRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(List.of(userStoreRole));
         
@@ -144,7 +143,7 @@ class UserServiceTest {
         assertEquals(testStore.getId(), result.getId());
         
         // Verify the UUID was used directly
-        verify(userRepository).findByUuid(testUuid);
+        verify(userRepository).findById(testUuid);
     }
     
     @Test
@@ -194,7 +193,7 @@ class UserServiceTest {
         assertNull(result);
         
         // Verify no repository calls were made
-        verify(userRepository, never()).findByUuid(any());
+        verify(userRepository, never()).findById(any());
     }
     
     @Test
@@ -220,7 +219,7 @@ class UserServiceTest {
         TenantContext.setCurrentTenant(tenantId);
         
         // Setup mocks
-        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.empty());
+        when(userRepository.findById(testUuid)).thenReturn(Optional.empty());
         
         // When/Then should throw ResourceNotFoundException
         ResourceNotFoundException exception = assertThrows(
@@ -274,8 +273,7 @@ class UserServiceTest {
         // Setup expected UUID
         UUID expectedUuid = UUID.fromString("12345678-1234-1234-1234-123456789012");
         User user = new User();
-        user.setId(1L);
-        user.setUuid(expectedUuid);
+        user.setId(expectedUuid);
         
         // Mock SecurityContext to return authenticated user
         Authentication authentication = mock(Authentication.class);
@@ -387,7 +385,7 @@ class UserServiceTest {
         TenantContext.setCurrentTenant(userUuidTenant);
         
         // Setup mocks
-        when(userRepository.findByUuid(testUuid)).thenReturn(Optional.of(testUser));
+        when(userRepository.findById(testUuid)).thenReturn(Optional.of(testUser));
         UserStoreRole userStoreRole = new UserStoreRole(testUser, testStore, UserRole.OWNER, "testuser");
         when(userStoreRoleRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(List.of(userStoreRole));
@@ -400,7 +398,7 @@ class UserServiceTest {
         assertEquals(testStore.getId(), result.getId());
         
         // Verify user was looked up by UUID (legacy mode)
-        verify(userRepository).findByUuid(testUuid);
+        verify(userRepository).findById(testUuid);
         
         // Verify company membership was NOT checked (legacy mode)
         verify(companyStoreUserRepository, never()).findByUserAndCompanyIdAndIsActiveTrue(any(), any());
