@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Service for managing refresh tokens
@@ -107,7 +108,7 @@ public class RefreshTokenService {
      * Revoke all refresh tokens for a user
      */
     @Transactional
-    public void revokeAllUserTokens(Long userId) {
+    public void revokeAllUserTokens(UUID userId) {
         System.out.println("🚫 Revoking all refresh tokens for user ID: " + userId);
         refreshTokenRepository.revokeAllUserTokens(userId, LocalDateTime.now());
         System.out.println("✅ All user refresh tokens revoked");

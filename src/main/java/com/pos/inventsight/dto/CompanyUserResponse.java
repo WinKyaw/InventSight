@@ -40,7 +40,7 @@ public class CompanyUserResponse {
             this.storeName = companyStoreUser.getStore().getStoreName();
         }
         
-        this.userId = companyStoreUser.getUser().getUuid(); // Using UUID instead of ID
+        this.userId = companyStoreUser.getUser().getId(); // Using UUID instead of ID
         this.username = companyStoreUser.getUser().getUsername();
         this.userFullName = companyStoreUser.getUser().getFullName();
         this.userEmail = companyStoreUser.getUser().getEmail();

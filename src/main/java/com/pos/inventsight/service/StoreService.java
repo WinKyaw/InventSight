@@ -175,7 +175,7 @@ public class StoreService {
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found or access denied"));
         
         // Set the tenant context to the user's UUID (this is how the system links tenant to stores)
-        TenantContext.setCurrentTenant(user.getUuid().toString());
+        TenantContext.setCurrentTenant(user.getId().toString());
         
         // Log activity
         activityLogService.logActivity(
@@ -183,10 +183,10 @@ public class StoreService {
             username,
             "STORE_ACTIVATED",
             "STORE",
-            "Activated store: " + store.getStoreName() + " (ID: " + store.getId() + ") for tenant: " + user.getUuid()
+            "Activated store: " + store.getStoreName() + " (ID: " + store.getId() + ") for tenant: " + user.getId()
         );
         
-        System.out.println("🎯 Store activated: " + store.getStoreName() + " for user " + username + " (tenant: " + user.getUuid() + ")");
+        System.out.println("🎯 Store activated: " + store.getStoreName() + " for user " + username + " (tenant: " + user.getId() + ")");
         
         return new StoreResponse(store);
     }

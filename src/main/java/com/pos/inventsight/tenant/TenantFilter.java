@@ -167,8 +167,8 @@ public class TenantFilter implements Filter {
                 authentication.getPrincipal() instanceof User) {
                 
                 User user = (User) authentication.getPrincipal();
-                if (user.getUuid() != null) {
-                    String userTenantId = user.getUuid().toString();
+                if (user.getId() != null) {
+                    String userTenantId = user.getId().toString();
                     logger.debug("Found authenticated user with UUID: {}", userTenantId);
                     return userTenantId;
                 }

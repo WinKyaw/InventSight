@@ -49,7 +49,7 @@ public class SaleService {
     private static final BigDecimal TAX_RATE = new BigDecimal("0.08"); // 8% tax rate
     
     // Sale Processing
-    public Sale processSale(SaleRequest request, Long userId) {
+    public Sale processSale(SaleRequest request, UUID userId) {
         System.out.println("🧾 Processing new sale for user: " + userId);
         System.out.println("📅 Sale time: 2025-08-26 08:47:36");
         System.out.println("👤 Processed by: WinKyaw");
@@ -162,7 +162,7 @@ public class SaleService {
         return saleRepository.findAll();
     }
     
-    public Page<Sale> getSalesByUserId(Long userId, Pageable pageable) {
+    public Page<Sale> getSalesByUserId(UUID userId, Pageable pageable) {
         return saleRepository.findByUserId(userId, pageable);
     }
     
@@ -175,7 +175,7 @@ public class SaleService {
     }
     
     // Refund Processing
-    public Sale processRefund(Long saleId, String reason, Long processedBy) {
+    public Sale processRefund(Long saleId, String reason, UUID processedBy) {
         Sale sale = getSaleById(saleId);
         
         if (!sale.isRefundable()) {
@@ -251,7 +251,7 @@ public class SaleService {
     }
     
     // Additional methods for Receipt API
-    public Sale createSale(SaleRequest request, Long userId) {
+    public Sale createSale(SaleRequest request, UUID userId) {
         return processSale(request, userId);
     }
     
@@ -374,7 +374,7 @@ public class SaleService {
         return savedSale;
     }
     
-    public List<Sale> searchReceipts(Long userId, LocalDateTime startDate, LocalDateTime endDate,
+    public List<Sale> searchReceipts(UUID userId, LocalDateTime startDate, LocalDateTime endDate,
                                    String customerName, String customerEmail, String receiptNumber, String status) {
         List<Sale> allSales = getAllSales();
         List<Sale> filteredSales = new ArrayList<>();

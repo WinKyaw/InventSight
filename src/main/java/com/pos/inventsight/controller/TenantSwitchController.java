@@ -90,7 +90,7 @@ public class TenantSwitchController {
                            user.getUsername(), tenantUuid);
                 auditService.log(
                     user.getUsername(),
-                    user.getUuid(),
+                    user.getId(),
                     "TENANT_SWITCH_DENIED",
                     "User",
                     user.getId().toString(),
@@ -106,7 +106,7 @@ public class TenantSwitchController {
             // Audit the tenant switch
             auditService.log(
                 user.getUsername(),
-                user.getUuid(),
+                user.getId(),
                 "TENANT_SWITCH_SUCCESS",
                 "User",
                 user.getId().toString(),

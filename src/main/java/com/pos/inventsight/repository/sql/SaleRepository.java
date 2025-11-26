@@ -24,12 +24,12 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     // Multi-tenant aware queries
     List<Sale> findByStore(Store store);
     List<Sale> findByStoreAndStatus(Store store, SaleStatus status);
-    List<Sale> findByStoreAndProcessedByIdAndStatus(Store store, Long userId, SaleStatus status);
+    List<Sale> findByStoreAndProcessedByIdAndStatus(Store store, UUID userId, SaleStatus status);
     
     Optional<Sale> findByReceiptNumberAndStore(String receiptNumber, Store store);
     
     List<Sale> findByStatus(SaleStatus status);
-    List<Sale> findByProcessedByIdAndStatus(Long userId, SaleStatus status);
+    List<Sale> findByProcessedByIdAndStatus(UUID userId, SaleStatus status);
     
     @Query("SELECT s FROM Sale s WHERE s.createdAt >= :startDate AND s.createdAt <= :endDate")
     List<Sale> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
@@ -68,10 +68,10 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     Page<Sale> findByStoreAndCustomerEmail(@Param("store") Store store, @Param("email") String email, Pageable pageable);
     
     @Query("SELECT s FROM Sale s WHERE s.processedBy.id = :userId ORDER BY s.createdAt DESC")
-    Page<Sale> findByUserId(@Param("userId") Long userId, Pageable pageable);
+    Page<Sale> findByUserId(@Param("userId") UUID userId, Pageable pageable);
     
     @Query("SELECT s FROM Sale s WHERE s.store = :store AND s.processedBy.id = :userId ORDER BY s.createdAt DESC")
-    Page<Sale> findByStoreAndUserId(@Param("store") Store store, @Param("userId") Long userId, Pageable pageable);
+    Page<Sale> findByStoreAndUserId(@Param("store") Store store, @Param("userId") UUID userId, Pageable pageable);
     
     // Today's sales - using YEAR, MONTH, DAY functions like other working queries
     @Query("SELECT s FROM Sale s WHERE YEAR(s.createdAt) = YEAR(CURRENT_DATE) AND MONTH(s.createdAt) = MONTH(CURRENT_DATE) AND DAY(s.createdAt) = DAY(CURRENT_DATE) AND s.status = 'COMPLETED'")

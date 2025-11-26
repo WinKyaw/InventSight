@@ -36,15 +36,14 @@ public class UuidMigrationService {
         int updatedCount = 0;
         
         for (User user : users) {
-            if (user.getUuid() == null) {
-                UUID newUuid = UUID.randomUUID();
-                user.setUuid(newUuid);
-                user.setTenantId(newUuid); // Use UUID as tenant ID
+            // Note: id is now UUID directly, no need to migrate
+            if (user.getTenantId() == null) {
+                user.setTenantId(user.getId()); // Use id as tenant ID
                 
                 userRepository.save(user);
                 updatedCount++;
                 
-                System.out.println("✅ Assigned UUID to user: " + user.getUsername() + " -> " + newUuid);
+                System.out.println("✅ Set tenantId for user: " + user.getUsername() + " -> " + user.getId());
                 
                 // Log the activity
                 activityLogService.logActivity(
@@ -120,7 +119,7 @@ public class UuidMigrationService {
         boolean allValid = true;
         
         for (User user : users) {
-            if (user.getUuid() == null) {
+            if (user.getId() == null) {
                 System.err.println("❌ User missing UUID: " + user.getUsername());
                 allValid = false;
             }

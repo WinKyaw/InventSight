@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface EmployeeRelationshipRepository extends JpaRepository<EmployeeRelationship, Long> {
-    List<EmployeeRelationship> findByEmployeeId(Long employeeId);
+    List<EmployeeRelationship> findByEmployeeId(UUID employeeId);
     List<EmployeeRelationship> findByEmployerId(UUID employerId);
     List<EmployeeRelationship> findByStoreId(UUID storeId);
     List<EmployeeRelationship> findByCompanyId(UUID companyId);

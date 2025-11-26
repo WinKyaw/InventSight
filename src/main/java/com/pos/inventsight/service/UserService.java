@@ -153,9 +153,9 @@ public class UserService implements UserDetailsService {
         System.out.println("🎯 Default tenant set for automatic login: " + savedCompany.getId());
         
         // Set tenant context for the new user to ensure proper association
-        TenantContext.setCurrentTenant(savedUser.getUuid().toString());
+        TenantContext.setCurrentTenant(savedUser.getId().toString());
         System.out.println("🎯 Tenant context initialized for new user: " + savedUser.getUsername() + 
-                         " (UUID: " + savedUser.getUuid() + ")");
+                         " (UUID: " + savedUser.getId() + ")");
         
         // Log activity
         activityLogService.logActivity(
@@ -170,7 +170,7 @@ public class UserService implements UserDetailsService {
         return savedUser;
     }
     
-    public User updateUser(Long userId, User userUpdates) {
+    public User updateUser(UUID userId, User userUpdates) {
         User existingUser = getUserById(userId);
         
         // Update fields
@@ -203,7 +203,7 @@ public class UserService implements UserDetailsService {
         return updatedUser;
     }
     
-    public void updateLastLogin(Long userId) {
+    public void updateLastLogin(UUID userId) {
         User user = getUserById(userId);
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
@@ -212,7 +212,7 @@ public class UserService implements UserDetailsService {
     }
     
     // CRUD Operations
-    public User getUserById(Long userId) {
+    public User getUserById(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
     }
@@ -229,7 +229,7 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
     
-    public void deactivateUser(Long userId) {
+    public void deactivateUser(UUID userId) {
         User user = getUserById(userId);
         user.setIsActive(false);
         user.setUpdatedAt(LocalDateTime.now());
@@ -318,7 +318,7 @@ public class UserService implements UserDetailsService {
             }
             
             logger.info("✅ Using authenticated user from SecurityContext: {} (UUID: {})", 
-                       user.getUsername(), user.getUuid());
+                       user.getUsername(), user.getId());
             
             // Extract company UUID from tenant ID for verification
             UUID companyUuid;
@@ -354,8 +354,8 @@ public class UserService implements UserDetailsService {
                 throw new ResourceNotFoundException("Invalid UUID format for tenant: " + tenantId + " - " + e.getMessage());
             }
             
-            // Find user by UUID
-            user = userRepository.findByUuid(userUuid)
+            // Find user by UUID (id)
+            user = userRepository.findById(userUuid)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found for tenant: " + tenantId));
             
             logger.info("✅ Found user from tenant UUID: {} (ID: {})", user.getUsername(), user.getId());
@@ -405,7 +405,7 @@ public class UserService implements UserDetailsService {
         } catch (IllegalArgumentException e) {
             throw new ResourceNotFoundException("Invalid UUID format: " + uuid);
         }
-        return userRepository.findByUuid(userUuid)
+        return userRepository.findById(userUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with UUID: " + uuid));
     }
     
@@ -413,7 +413,7 @@ public class UserService implements UserDetailsService {
      * Get user by UUID object (for internal use)
      */
     public User getUserByUuid(UUID uuid) {
-        return userRepository.findByUuid(uuid)
+        return userRepository.findById(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with UUID: " + uuid));
     }
     
@@ -424,10 +424,10 @@ public class UserService implements UserDetailsService {
     public void setTenantContextForUser(String username) {
         User user = getUserByUsername(username);
         
-        // Set tenant context to user's UUID
-        TenantContext.setCurrentTenant(user.getUuid().toString());
+        // Set tenant context to user's ID (UUID)
+        TenantContext.setCurrentTenant(user.getId().toString());
         
-        System.out.println("🎯 Tenant context set for user: " + username + " (UUID: " + user.getUuid() + ")");
+        System.out.println("🎯 Tenant context set for user: " + username + " (UUID: " + user.getId() + ")");
     }
     
     /**

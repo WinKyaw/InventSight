@@ -136,8 +136,8 @@ public class EmployeeService {
         
         // Create employee relationship with IDs only
         EmployeeRelationship relationship = new EmployeeRelationship(
-            savedEmployee.getId(),        // employee_id
-            employer.getUuid(),            // employer_id (using UUID)
+            savedEmployee.getId(),         // employee_id (using UUID)
+            employer.getId(),              // employer_id (using UUID)
             employee.getStore().getId(),   // store_id
             employee.getCompany().getId(), // company_id
             employer.getUsername()         // created_by
@@ -185,7 +185,7 @@ public class EmployeeService {
         return email + "12345";
     }
     
-    public Employee updateEmployee(Long employeeId, Employee employeeUpdates) {
+    public Employee updateEmployee(UUID employeeId, Employee employeeUpdates) {
         Employee existingEmployee = getEmployeeById(employeeId);
         
         // Update fields
@@ -230,7 +230,7 @@ public class EmployeeService {
         return updatedEmployee;
     }
     
-    public Employee getEmployeeById(Long employeeId) {
+    public Employee getEmployeeById(UUID employeeId) {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
     }
@@ -248,7 +248,7 @@ public class EmployeeService {
     }
     
     // Check-in/Check-out Operations
-    public Employee checkInEmployee(Long employeeId) {
+    public Employee checkInEmployee(UUID employeeId) {
         Employee employee = getEmployeeById(employeeId);
         
         if (employee.getIsCheckedIn()) {
@@ -271,7 +271,7 @@ public class EmployeeService {
         return checkedInEmployee;
     }
     
-    public Employee checkOutEmployee(Long employeeId) {
+    public Employee checkOutEmployee(UUID employeeId) {
         Employee employee = getEmployeeById(employeeId);
         
         if (!employee.getIsCheckedIn()) {
@@ -312,7 +312,7 @@ public class EmployeeService {
     }
     
     // Business Operations
-    public void deactivateEmployee(Long employeeId) {
+    public void deactivateEmployee(UUID employeeId) {
         Employee employee = getEmployeeById(employeeId);
         employee.setStatus(EmployeeStatus.INACTIVE);
         employee.setUpdatedAt(LocalDateTime.now());
@@ -347,7 +347,7 @@ public class EmployeeService {
     }
     
     // Update employee role
-    public Employee updateEmployeeRole(Long employeeId, String newRole) {
+    public Employee updateEmployeeRole(UUID employeeId, String newRole) {
         Employee employee = getEmployeeById(employeeId);
         
         // If employee has associated user, update user role
@@ -378,7 +378,7 @@ public class EmployeeService {
     }
     
     // Get employee by user ID
-    public Employee getEmployeeByUserId(Long userId) {
+    public Employee getEmployeeByUserId(UUID userId) {
         return employeeRepository.findByUserId(userId)
                 .orElse(null);
     }
