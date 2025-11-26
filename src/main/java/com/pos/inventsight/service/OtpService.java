@@ -83,7 +83,7 @@ public class OtpService {
         otpCode = otpCodeRepository.save(otpCode);
         
         logger.info("OTP code generated for user: {} via {}", user.getEmail(), deliveryMethod);
-        auditService.logAsync(user.getEmail(), user.getId(), 
+        auditService.logAsync(user.getEmail(), user.getUuid(), 
             "OTP_GENERATED", "MFA", user.getId().toString(), 
             "OTP code generated via " + deliveryMethod);
         
@@ -108,7 +108,7 @@ public class OtpService {
         
         if (otpOptional.isEmpty()) {
             logger.warn("No valid OTP code found for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), 
+            auditService.logAsync(user.getEmail(), user.getUuid(), 
                 "OTP_VERIFY_FAILED", "MFA", user.getId().toString(), 
                 "No valid OTP code found");
             return false;
@@ -131,12 +131,12 @@ public class OtpService {
             otpCodeRepository.save(storedOtp);
             
             logger.info("OTP code verified successfully for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), 
+            auditService.logAsync(user.getEmail(), user.getUuid(), 
                 "OTP_VERIFIED", "MFA", user.getId().toString(), 
                 "OTP code verified via " + deliveryMethod);
         } else {
             logger.warn("Invalid OTP code provided for user: {}", user.getEmail());
-            auditService.logAsync(user.getEmail(), user.getId(), 
+            auditService.logAsync(user.getEmail(), user.getUuid(), 
                 "OTP_VERIFY_FAILED", "MFA", user.getId().toString(), 
                 "Invalid OTP code provided");
         }

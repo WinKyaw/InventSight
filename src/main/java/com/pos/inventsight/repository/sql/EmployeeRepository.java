@@ -67,7 +67,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT e FROM Employee e WHERE e.store = :store AND e.createdBy = :createdBy AND e.status = 'ACTIVE' ORDER BY e.createdAt DESC")
     List<Employee> findByStoreAndCreatedBy(@Param("store") Store store, @Param("createdBy") String createdBy);
     
-    Optional<Employee> findByUserId(UUID userId);
+    Optional<Employee> findByUserId(Long userId);
     
     boolean existsByEmail(String email);
     

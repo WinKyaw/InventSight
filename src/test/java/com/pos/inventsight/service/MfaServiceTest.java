@@ -46,7 +46,7 @@ class MfaServiceTest {
     @BeforeEach
     void setUp() {
         testUser = new User();
-        testUser.setId(UUID.randomUUID());
+        testUser.setId(1L);
         testUser.setEmail("test@example.com");
         testUser.setUsername("testuser");
     }

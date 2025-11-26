@@ -378,7 +378,7 @@ public class EmployeeService {
     }
     
     // Get employee by user ID
-    public Employee getEmployeeByUserId(UUID userId) {
+    public Employee getEmployeeByUserId(Long userId) {
         return employeeRepository.findByUserId(userId)
                 .orElse(null);
     }

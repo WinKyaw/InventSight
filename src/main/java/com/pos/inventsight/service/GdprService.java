@@ -82,7 +82,7 @@ public class GdprService {
             // Audit successful export
             auditService.log(
                 user.getUsername(),
-                user.getId(),
+                user.getUuid(),
                 "GDPR_DATA_EXPORT",
                 "User",
                 user.getId().toString(),
@@ -112,7 +112,7 @@ public class GdprService {
             // Audit deletion request before making changes
             auditService.log(
                 user.getUsername(),
-                user.getId(),
+                user.getUuid(),
                 "GDPR_DATA_DELETION_REQUESTED",
                 "User",
                 user.getId().toString(),
@@ -131,7 +131,7 @@ public class GdprService {
             // Audit completion
             auditService.log(
                 anonymousId,
-                user.getId(),
+                user.getUuid(),
                 "GDPR_DATA_DELETION_COMPLETED",
                 "User",
                 user.getId().toString(),
@@ -146,7 +146,7 @@ public class GdprService {
             // Audit failure
             auditService.log(
                 user.getUsername(),
-                user.getId(),
+                user.getUuid(),
                 "GDPR_DATA_DELETION_FAILED",
                 "User",
                 user.getId().toString(),

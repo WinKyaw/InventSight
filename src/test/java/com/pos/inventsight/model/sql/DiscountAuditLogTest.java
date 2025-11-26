@@ -18,7 +18,7 @@ class DiscountAuditLogTest {
     @BeforeEach
     void setUp() {
         user = new User();
-        user.setId(UUID.randomUUID());
+        user.setId(1L);
         user.setUsername("testuser");
         
         store = new Store();

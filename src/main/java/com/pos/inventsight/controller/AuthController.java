@@ -301,7 +301,7 @@ public class AuthController {
             // Create response
             AuthResponse authResponse = new AuthResponse(
                 jwt,
-                user.getId(),
+                user.getUuid(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
@@ -529,7 +529,7 @@ public class AuthController {
             
             // Create structured response
             UserResponse userResponse = new UserResponse(
-                user.getId(),
+                user.getUuid(),
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
@@ -659,7 +659,7 @@ public class AuthController {
             // Create response
             AuthResponse authResponse = new AuthResponse(
                 jwt,
-                savedUser.getId(),
+                savedUser.getUuid(),
                 savedUser.getUsername(),
                 savedUser.getEmail(),
                 savedUser.getFullName(),
@@ -758,7 +758,7 @@ public class AuthController {
             
             // Create structured response
             UserResponse userResponse = new UserResponse(
-                savedUser.getId(),
+                savedUser.getUuid(),
                 savedUser.getEmail(),
                 savedUser.getFirstName(),
                 savedUser.getLastName(),
@@ -1261,7 +1261,7 @@ public class AuthController {
             // Create response
             AuthResponse authResponse = new AuthResponse(
                 newJwt,
-                user.getId(),
+                user.getUuid(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
@@ -1334,7 +1334,7 @@ public class AuthController {
                     
                     AuthResponse authResponse = new AuthResponse(
                         newJwt,
-                        user.getId(),
+                        user.getUuid(),
                         user.getUsername(),
                         user.getEmail(),
                         user.getFullName(),
@@ -1380,7 +1380,7 @@ public class AuthController {
                     
                     // Create user profile response (without token for security)
                     AuthResponse userProfile = new AuthResponse("User profile retrieved");
-                    userProfile.setId(user.getId());
+                    userProfile.setId(user.getUuid());
                     userProfile.setUsername(user.getUsername());
                     userProfile.setEmail(user.getEmail());
                     userProfile.setFullName(user.getFullName());

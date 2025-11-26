@@ -72,7 +72,7 @@ public class AuthControllerTenantIdTest {
     void setUp() {
         // Create test user
         testUser = new User();
-        testUser.setId(UUID.randomUUID());  // User uses UUID id
+        testUser.setId(1L);  // User uses UUID id
         testUser.setEmail("test@example.com");
         testUser.setUsername("testuser");
         testUser.setFirstName("Test");

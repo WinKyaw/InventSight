@@ -401,10 +401,12 @@ public class UserController {
             
             System.out.println("🔄 InventSight - Admin " + username + " updating subscription for user ID: " + userId);
             
-            User updatedUser = subscriptionService.updateSubscription(userId, request.getSubscriptionLevel());
+            // Look up user by UUID and get their Long ID
+            User targetUser = userService.getUserByUuid(userId);
+            User updatedUser = subscriptionService.updateSubscription(targetUser.getId(), request.getSubscriptionLevel());
             
             Map<String, Object> response = new HashMap<>();
-            response.put("userId", updatedUser.getId());
+            response.put("userId", updatedUser.getUuid());
             response.put("username", updatedUser.getUsername());
             response.put("subscriptionLevel", updatedUser.getSubscriptionLevel().name());
             

@@ -130,7 +130,7 @@ public class AuthControllerRegistrationTest {
         request.setEmail("test@inventsight.com");
 
         User mockUser = new User();
-        mockUser.setId(UUID.randomUUID());
+        mockUser.setId(1L);
         mockUser.setEmail("test@inventsight.com");
         mockUser.setEmailVerified(false);
 
@@ -179,7 +179,7 @@ public class AuthControllerRegistrationTest {
         request.setEmail("verified@inventsight.com");
 
         User mockUser = new User();
-        mockUser.setId(UUID.randomUUID());
+        mockUser.setId(1L);
         mockUser.setEmail("verified@inventsight.com");
         mockUser.setEmailVerified(true);
 

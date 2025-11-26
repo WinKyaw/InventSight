@@ -144,7 +144,7 @@ public class RegistrationController {
             // Create successful authentication response
             AuthResponse authResponse = new AuthResponse(
                 jwt,
-                savedUser.getId(),
+                savedUser.getUuid(),
                 savedUser.getUsername(),
                 savedUser.getEmail(),
                 savedUser.getFullName(),

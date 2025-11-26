@@ -46,7 +46,7 @@ public class CompanyServiceSubscriptionTest {
     @BeforeEach
     void setUp() {
         testUser = new User("testuser", "test@example.com", "password", "Test", "User");
-        testUser.setId(UUID.randomUUID());
+        testUser.setId(1L);
         testUser.setUuid(UUID.randomUUID());
         testUser.setSubscriptionLevel(SubscriptionLevel.FREE);
         
