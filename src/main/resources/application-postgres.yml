@@ -10,9 +10,10 @@ spring:
         multi_tenant_connection_provider: com.pos.inventsight.tenant.SchemaBasedMultiTenantConnectionProvider
   
   # Flyway Configuration for PostgreSQL Profile
-  # Enables Flyway with lenient settings for development with PostgreSQL
+  # Disabled for development - using Hibernate DDL-auto instead
+  # Re-enable when schema stabilizes and ready for production
   flyway:
-    enabled: true
+    enabled: false
     validate-on-migrate: false  # Lenient validation for development
     repair: true  # Auto-repair checksum mismatches
     clean-disabled: false  # Allow clean for development database resets
