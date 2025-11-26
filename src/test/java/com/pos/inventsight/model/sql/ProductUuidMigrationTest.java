@@ -52,8 +52,8 @@ class ProductUuidMigrationTest {
         user.setLastName("User");
         user.setPassword("password");
         // Note: User entity uses Long ID and separate UUID column
-        assertNotNull(user.getUuid(), "User should have a UUID");
-        assertTrue(user.getUuid() instanceof UUID, "User uuid should be UUID type");
+        assertNotNull(user.getId(), "User should have a UUID");
+        assertTrue(user.getId() instanceof UUID, "User uuid should be UUID type");
     }
 
     @Test

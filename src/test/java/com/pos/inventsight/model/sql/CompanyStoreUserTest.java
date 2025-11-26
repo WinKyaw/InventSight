@@ -24,8 +24,7 @@ public class CompanyStoreUserTest {
         testStore.setId(UUID.randomUUID());
         
         testUser = new User("testuser", "test@example.com", "password", "Test", "User");
-        testUser.setId(1L);
-        testUser.setUuid(UUID.randomUUID());
+        testUser.setId(UUID.randomUUID());
         
         companyStoreUser = new CompanyStoreUser(testCompany, testStore, testUser, CompanyRole.STORE_MANAGER, "admin");
     }

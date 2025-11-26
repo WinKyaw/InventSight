@@ -34,8 +34,8 @@ public class SubscriptionServiceTest {
     @BeforeEach
     void setUp() {
         testUser = new User("testuser", "test@example.com", "password", "Test", "User");
-        testUser.setId(1L);
-        testUser.setUuid(UUID.randomUUID());
+        testUser.setId(UUID.randomUUID());
+        testUser.setId(UUID.randomUUID());
         testUser.setSubscriptionLevel(SubscriptionLevel.FREE);
     }
     
@@ -125,7 +125,7 @@ public class SubscriptionServiceTest {
     @Test
     void updateSubscription_Success() {
         // Given
-        Long userId = testUser.getId();
+        UUID userId = testUser.getId();
         when(userService.getUserById(userId)).thenReturn(testUser);
         when(userService.saveUser(any(User.class))).thenReturn(testUser);
         
@@ -143,7 +143,7 @@ public class SubscriptionServiceTest {
     @Test
     void updateSubscription_InvalidLevel_ThrowsException() {
         // Given
-        Long userId = testUser.getId();
+        UUID userId = testUser.getId();
         when(userService.getUserById(userId)).thenReturn(testUser);
         
         // When & Then
@@ -158,7 +158,7 @@ public class SubscriptionServiceTest {
     @Test
     void updateSubscription_CaseInsensitive() {
         // Given
-        Long userId = testUser.getId();
+        UUID userId = testUser.getId();
         when(userService.getUserById(userId)).thenReturn(testUser);
         when(userService.saveUser(any(User.class))).thenReturn(testUser);
         
