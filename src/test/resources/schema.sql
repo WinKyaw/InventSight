@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Stores table (UUID primary key)
 CREATE TABLE IF NOT EXISTS stores (
     id UUID PRIMARY KEY,
-    store_name VARCHAR(200) NOT NULL,
+    name VARCHAR(200) NOT NULL,
     description VARCHAR(1000),
     address VARCHAR(200),
     city VARCHAR(100),
@@ -158,7 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_users_uuid ON users(uuid);
 
-CREATE INDEX IF NOT EXISTS idx_stores_name ON stores(store_name);
+CREATE INDEX IF NOT EXISTS idx_stores_name ON stores(name);
 CREATE INDEX IF NOT EXISTS idx_stores_active ON stores(is_active);
 
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
@@ -187,3 +187,20 @@ CREATE INDEX IF NOT EXISTS idx_discount_audit_log_user ON discount_audit_log(use
 CREATE INDEX IF NOT EXISTS idx_discount_audit_log_store ON discount_audit_log(store_id);
 CREATE INDEX IF NOT EXISTS idx_discount_audit_log_product ON discount_audit_log(product_id);
 CREATE INDEX IF NOT EXISTS idx_discount_audit_log_timestamp ON discount_audit_log(timestamp);
+
+-- Email verification tokens table
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    user_id BIGINT,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    used_at TIMESTAMP,
+    used BOOLEAN DEFAULT false,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token ON email_verification_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_email ON email_verification_tokens(email);
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user ON email_verification_tokens(user_id);

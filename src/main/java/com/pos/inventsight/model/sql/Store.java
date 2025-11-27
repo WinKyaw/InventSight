@@ -22,7 +22,7 @@ public class Store {
     
     @NotBlank
     @Size(max = 200)
-    @Column(name = "store_name")
+    @Column(name = "name")
     private String storeName;
     
     @Size(max = 1000)

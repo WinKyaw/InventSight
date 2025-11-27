@@ -42,6 +42,10 @@ public class EmailVerificationService {
     public String generateVerificationToken(String email) {
         System.out.println("📧 InventSight - Generating verification token for: " + email);
         
+        // Get user by email
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+        
         // Clean up any existing tokens for this email
         tokenRepository.deleteAllTokensByEmail(email);
         
@@ -49,13 +53,14 @@ public class EmailVerificationService {
         String token = generateRandomToken();
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(TOKEN_EXPIRY_HOURS);
         
-        EmailVerificationToken verificationToken = new EmailVerificationToken(token, email, expiresAt);
+        // Create token WITH user relationship
+        EmailVerificationToken verificationToken = new EmailVerificationToken(user, token, expiresAt);
         tokenRepository.save(verificationToken);
         
-        // Log activity
+        // Log activity with user ID
         activityLogService.logActivity(
-            null,
-            "WinKyaw",
+            user.getId().toString(),
+            user.getUsername(),
             "EMAIL_VERIFICATION_TOKEN_GENERATED",
             "AUTHENTICATION",
             "Verification token generated for email: " + email
