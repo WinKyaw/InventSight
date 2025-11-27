@@ -26,7 +26,10 @@ spring:
         # Will be overridden by profile-specific configurations
   
   # Flyway Configuration
+  # Disabled for development - using Hibernate DDL-auto instead
+  # Re-enable when schema stabilizes and ready for production
   flyway:
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
