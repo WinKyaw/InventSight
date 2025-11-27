@@ -44,6 +44,9 @@ public class EmailVerificationToken {
     
     // Constructor with User
     public EmailVerificationToken(User user, String token, LocalDateTime expiresAt) {
+        if (user == null || user.getEmail() == null) {
+            throw new IllegalArgumentException("User and user email must not be null");
+        }
         this.user = user;
         this.token = token;
         this.email = user.getEmail();
@@ -63,7 +66,7 @@ public class EmailVerificationToken {
     public User getUser() { return user; }
     public void setUser(User user) { 
         this.user = user;
-        if (user != null) {
+        if (user != null && user.getEmail() != null) {
             this.email = user.getEmail();
         }
     }
