@@ -17,6 +17,11 @@ public class EmailVerificationToken {
     @Column(nullable = false)
     private String email;
     
+    // User relationship with foreign key
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user;
+    
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
     
@@ -37,6 +42,17 @@ public class EmailVerificationToken {
         this.expiresAt = expiresAt;
     }
     
+    // Constructor with User
+    public EmailVerificationToken(User user, String token, LocalDateTime expiresAt) {
+        if (user == null || user.getEmail() == null) {
+            throw new IllegalArgumentException("User and user email must not be null");
+        }
+        this.user = user;
+        this.token = token;
+        this.email = user.getEmail();
+        this.expiresAt = expiresAt;
+    }
+    
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -46,6 +62,14 @@ public class EmailVerificationToken {
     
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    
+    public User getUser() { return user; }
+    public void setUser(User user) { 
+        this.user = user;
+        if (user != null && user.getEmail() != null) {
+            this.email = user.getEmail();
+        }
+    }
     
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
