@@ -189,7 +189,7 @@ public class OneTimePermissionService {
                 UserRole role = user.getRole();
                 if (role == UserRole.MANAGER || role == UserRole.OWNER || 
                     role == UserRole.CO_OWNER || role == UserRole.ADMIN) {
-                    logger.info("✅ Manager privileges granted via legacy UserRole: {} for user ID: {}", role, user.getId());
+                    logger.debug("✅ Manager privileges granted via legacy UserRole: {} for user ID: {}", role, user.getId());
                     return true;
                 }
             }
@@ -201,7 +201,7 @@ public class OneTimePermissionService {
             for (CompanyStoreUser membership : companyMemberships) {
                 CompanyRole companyRole = membership.getRole();
                 if (companyRole != null && companyRole.isManagerLevel()) {
-                    logger.info("✅ Manager privileges granted via CompanyRole: {} for user ID: {}", companyRole, user.getId());
+                    logger.debug("✅ Manager privileges granted via CompanyRole: {} for user ID: {}", companyRole, user.getId());
                     return true;
                 }
             }
