@@ -10,6 +10,8 @@ import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.repository.sql.OneTimePermissionRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +28,8 @@ import java.util.UUID;
  */
 @Service
 public class OneTimePermissionService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(OneTimePermissionService.class);
     
     @Autowired
     private OneTimePermissionRepository permissionRepository;
@@ -185,7 +189,7 @@ public class OneTimePermissionService {
                 UserRole role = user.getRole();
                 if (role == UserRole.MANAGER || role == UserRole.OWNER || 
                     role == UserRole.CO_OWNER || role == UserRole.ADMIN) {
-                    System.out.println("✅ Manager privileges granted via legacy UserRole: " + role);
+                    logger.info("✅ Manager privileges granted via legacy UserRole: {} for user: {}", role, user.getUsername());
                     return true;
                 }
             }
@@ -197,15 +201,15 @@ public class OneTimePermissionService {
             for (CompanyStoreUser membership : companyMemberships) {
                 CompanyRole companyRole = membership.getRole();
                 if (companyRole != null && companyRole.isManagerLevel()) {
-                    System.out.println("✅ Manager privileges granted via CompanyRole: " + companyRole);
+                    logger.info("✅ Manager privileges granted via CompanyRole: {} for user: {}", companyRole, user.getUsername());
                     return true;
                 }
             }
             
-            System.out.println("❌ No manager privileges found for user: " + user.getUsername());
+            logger.warn("❌ No manager privileges found for user: {}", user.getUsername());
             return false;
         } catch (Exception e) {
-            System.out.println("⚠️ Error checking user privileges: " + e.getMessage());
+            logger.error("⚠️ Error checking user privileges: {}", e.getMessage(), e);
             return false;
         }
     }
