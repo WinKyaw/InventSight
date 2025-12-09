@@ -6,8 +6,10 @@ import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.repository.sql.OneTimePermissionRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,6 +35,9 @@ public class OneTimePermissionService {
     
     @Autowired
     private CompanyAuthorizationService companyAuthorizationService;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
     
     @Value("${inventsight.permissions.default-expiry-hours:1}")
     private Integer defaultExpiryHours;
@@ -171,20 +176,34 @@ public class OneTimePermissionService {
     
     /**
      * Check if user has manager-level privileges (GM+)
-     * Uses explicit role matching for robust authorization
+     * Checks both legacy UserRole and new CompanyRole systems
      */
     private boolean hasManagerPrivileges(User user) {
         try {
-            if (user.getRole() == null) {
-                return false;
+            // First check legacy UserRole for backward compatibility
+            if (user.getRole() != null) {
+                UserRole role = user.getRole();
+                if (role == UserRole.MANAGER || role == UserRole.OWNER || 
+                    role == UserRole.CO_OWNER || role == UserRole.ADMIN) {
+                    System.out.println("✅ Manager privileges granted via legacy UserRole: " + role);
+                    return true;
+                }
             }
             
-            // Check for explicit manager-level roles
-            UserRole role = user.getRole();
-            return role == UserRole.MANAGER ||
-                   role == UserRole.OWNER ||
-                   role == UserRole.CO_OWNER ||
-                   role == UserRole.ADMIN;
+            // Check CompanyRole (new system)
+            List<CompanyStoreUser> companyMemberships = 
+                companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+            
+            for (CompanyStoreUser membership : companyMemberships) {
+                CompanyRole companyRole = membership.getRole();
+                if (companyRole != null && companyRole.isManagerLevel()) {
+                    System.out.println("✅ Manager privileges granted via CompanyRole: " + companyRole);
+                    return true;
+                }
+            }
+            
+            System.out.println("❌ No manager privileges found for user: " + user.getUsername());
+            return false;
         } catch (Exception e) {
             System.out.println("⚠️ Error checking user privileges: " + e.getMessage());
             return false;
