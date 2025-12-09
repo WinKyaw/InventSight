@@ -9,6 +9,7 @@ import com.pos.inventsight.model.sql.PermissionType;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.service.ProductService;
 import com.pos.inventsight.service.OneTimePermissionService;
+import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.repository.sql.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -40,6 +41,9 @@ public class ProductController {
     
     @Autowired
     private OneTimePermissionService permissionService;
+    
+    @Autowired
+    private UserService userService;
     
     @Autowired
     private UserRepository userRepository;
@@ -188,8 +192,7 @@ public class ProductController {
             System.out.println("📦 Product name: " + productRequest.getName());
             
             // Check permissions
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User user = userService.getUserByUsername(username);
             
             if (!permissionService.canPerformAction(user, PermissionType.ADD_ITEM)) {
                 System.out.println("❌ User lacks permission to add products");
@@ -237,8 +240,7 @@ public class ProductController {
             System.out.println("🔄 InventSight - Updating product ID: " + id + " for user: " + username);
             
             // Check permissions
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User user = userService.getUserByUsername(username);
             
             if (!permissionService.canPerformAction(user, PermissionType.EDIT_ITEM)) {
                 System.out.println("❌ User lacks permission to edit products");
@@ -284,8 +286,7 @@ public class ProductController {
             System.out.println("🗑️ InventSight - Soft deleting product ID: " + id + " for user: " + username);
             
             // Check permissions
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User user = userService.getUserByUsername(username);
             
             if (!permissionService.canPerformAction(user, PermissionType.DELETE_ITEM)) {
                 System.out.println("❌ User lacks permission to delete products");
