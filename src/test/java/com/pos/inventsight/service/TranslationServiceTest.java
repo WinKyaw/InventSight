@@ -54,6 +54,48 @@ public class TranslationServiceTest {
     }
     
     @Test
+    void getAllLanguages_IncludesMyanmar() {
+        // Given - Include Myanmar in the list of available languages
+        List<String> expectedLanguages = Arrays.asList("en", "es", "zh", "ja", "my");
+        when(translationRepository.findAllLanguageCodes()).thenReturn(expectedLanguages);
+        
+        // When
+        List<String> result = translationService.getAllLanguages();
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(5, result.size());
+        assertTrue(result.contains("my"), "Myanmar language code 'my' should be included");
+        assertTrue(result.contains("en"));
+        assertTrue(result.contains("es"));
+        assertTrue(result.contains("zh"));
+        assertTrue(result.contains("ja"));
+        verify(translationRepository).findAllLanguageCodes();
+    }
+    
+    @Test
+    void getTranslations_MyanmarLanguage() {
+        // Given - Myanmar translations
+        List<Translation> myanmarTranslations = Arrays.asList(
+            new Translation("auth.login", "my", "အကောင့်ဝင်ရန်", "auth"),
+            new Translation("auth.signup", "my", "အကောင့်ဖွင့်ရန်", "auth"),
+            new Translation("tabs.dashboard", "my", "ဒက်ရှ်ဘုတ်", "tabs")
+        );
+        when(translationRepository.findByLanguageCode("my")).thenReturn(myanmarTranslations);
+        
+        // When
+        Map<String, String> result = translationService.getTranslations("my");
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        assertEquals("အကောင့်ဝင်ရန်", result.get("auth.login"));
+        assertEquals("အကောင့်ဖွင့်ရန်", result.get("auth.signup"));
+        assertEquals("ဒက်ရှ်ဘုတ်", result.get("tabs.dashboard"));
+        verify(translationRepository).findByLanguageCode("my");
+    }
+    
+    @Test
     void getTranslations_Success() {
         // Given
         List<Translation> translations = Arrays.asList(
