@@ -237,14 +237,99 @@ Page<AuditEvent> events = auditService.findByEntity(entityType, entityId, pageab
 
 ## Internationalization
 
-InventSight now supports multiple languages via the `Accept-Language` header.
+InventSight supports multiple languages through two complementary systems:
 
-### Supported Languages
+### 1. Database-Based Frontend Translations (i18n API)
+
+The primary i18n system for frontend UI translations uses a database-backed translation service.
+
+#### Supported Languages
+
+- **English** (`en`) - Default
+- **Spanish** (`es`)
+- **Chinese** (`zh`)
+- **Japanese** (`ja`)
+- **Myanmar/Burmese** (`my`)
+
+#### API Endpoints
+
+**Get Available Languages:**
+```http
+GET /api/i18n/languages
+```
+
+**Response:**
+```json
+{
+  "languages": ["en", "es", "zh", "ja", "my"],
+  "default": "en"
+}
+```
+
+**Get All Translations for a Language:**
+```http
+GET /api/i18n/translations/{languageCode}
+```
+
+**Example:**
+```http
+GET /api/i18n/translations/my
+```
+
+**Response:**
+```json
+{
+  "auth.login": "အကောင့်ဝင်ရန်",
+  "auth.signup": "အကောင့်ဖွင့်ရန်",
+  "tabs.dashboard": "ဒက်ရှ်ဘုတ်",
+  "inventory.title": "ကုန်သိုလှောင်စီမံခန့်ခွဲမှု",
+  ...
+}
+```
+
+**Get Translations by Category:**
+```http
+GET /api/i18n/translations/{languageCode}/category/{category}
+```
+
+**Example:**
+```http
+GET /api/i18n/translations/my/category/auth
+```
+
+#### Translation Categories
+
+- `auth` - Authentication screens
+- `tabs` - Navigation tabs
+- `dashboard` - Dashboard widgets
+- `inventory` - Inventory management
+- `employees` - Employee management
+- `profile` - User profile settings
+- `common` - Common UI elements
+- `errors` - Error messages
+
+#### Adding New Translations
+
+To add a new language, add translations to the database seed migration file `V18__seed_base_translations.sql`:
+
+```sql
+INSERT INTO translations (key, language_code, value, category) VALUES
+('auth.login', 'fr', 'Connexion', 'auth'),
+('auth.signup', 'fr', 'S''inscrire', 'auth'),
+...
+ON CONFLICT (key, language_code) DO NOTHING;
+```
+
+### 2. Server-Side Message Localization (Accept-Language)
+
+Server-side API responses support localization via the `Accept-Language` header.
+
+#### Supported Locales
 
 - **English** (`en`) - Default
 - **Burmese** (`my-MM`)
 
-### Usage
+#### Usage
 
 **Request:**
 ```http
@@ -261,7 +346,7 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-### Adding New Languages
+#### Adding New Locales
 
 1. Create `messages_<locale>.properties` in `src/main/resources/`
 2. Add locale to `LocaleConfig.supportedLocales`
