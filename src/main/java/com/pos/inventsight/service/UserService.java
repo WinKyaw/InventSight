@@ -59,6 +59,9 @@ public class UserService implements UserDetailsService {
     @Autowired
     private ActivityLogService activityLogService;
     
+    @Autowired
+    private UserPreferencesService userPreferencesService;
+    
     // Authentication Methods
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -156,6 +159,10 @@ public class UserService implements UserDetailsService {
         TenantContext.setCurrentTenant(savedUser.getId().toString());
         System.out.println("🎯 Tenant context initialized for new user: " + savedUser.getUsername() + 
                          " (UUID: " + savedUser.getId() + ")");
+        
+        // Auto-create default user preferences
+        userPreferencesService.createDefaultPreferences(savedUser.getId());
+        System.out.println("⚙️ Default user preferences created");
         
         // Log activity
         activityLogService.logActivity(
