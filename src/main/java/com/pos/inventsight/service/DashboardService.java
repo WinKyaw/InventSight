@@ -461,7 +461,7 @@ public class DashboardService {
         LocalDateTime currentStart = currentRange[0];
         LocalDateTime currentEnd = currentRange[1];
         
-        long daysBetween = java.time.Duration.between(currentStart, currentEnd).toDays();
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(currentStart, currentEnd);
         
         LocalDateTime previousEnd = currentStart.minusSeconds(1);
         LocalDateTime previousStart = previousEnd.minusDays(daysBetween);

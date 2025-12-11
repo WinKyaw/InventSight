@@ -416,6 +416,10 @@ public class DashboardController {
             String username = authentication.getName();
             System.out.println("📜 InventSight - Fetching recent orders for user: " + username);
             
+            // Validate limit to prevent excessive resource consumption
+            if (limit < 1) limit = 5;
+            if (limit > 100) limit = 100;
+            
             RecentOrdersDTO recentOrders = dashboardService.getRecentOrders(limit);
             
             System.out.println("✅ InventSight - Recent orders retrieved successfully");
