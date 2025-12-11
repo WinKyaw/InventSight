@@ -40,7 +40,8 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
      * Find best performing products by revenue in a date range
      */
     @Query("SELECT soi.product.id, soi.product.name, soi.product.sku, soi.product.category, " +
-           "SUM(soi.quantity) as unitsSold, SUM(soi.quantity * soi.unitPrice) as revenue " +
+           "SUM(soi.quantity) as unitsSold, " +
+           "SUM(soi.quantity * soi.unitPrice * (1 - soi.discountPercent / 100)) as revenue " +
            "FROM SalesOrderItem soi " +
            "WHERE soi.order.createdAt BETWEEN :startDate AND :endDate " +
            "GROUP BY soi.product.id, soi.product.name, soi.product.sku, soi.product.category " +
@@ -51,7 +52,7 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
     /**
      * Calculate total revenue for date range
      */
-    @Query("SELECT SUM(soi.quantity * soi.unitPrice) " +
+    @Query("SELECT SUM(soi.quantity * soi.unitPrice * (1 - soi.discountPercent / 100)) " +
            "FROM SalesOrderItem soi " +
            "WHERE soi.order.createdAt BETWEEN :startDate AND :endDate")
     java.math.BigDecimal calculateRevenueForPeriod(@Param("startDate") LocalDateTime startDate, 
@@ -61,7 +62,7 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
      * Get sales data grouped by date for chart
      */
     @Query("SELECT DATE(soi.order.createdAt) as date, " +
-           "SUM(soi.quantity * soi.unitPrice) as revenue, " +
+           "SUM(soi.quantity * soi.unitPrice * (1 - soi.discountPercent / 100)) as revenue, " +
            "COUNT(DISTINCT soi.order.id) as orders " +
            "FROM SalesOrderItem soi " +
            "WHERE soi.order.createdAt BETWEEN :startDate AND :endDate " +
