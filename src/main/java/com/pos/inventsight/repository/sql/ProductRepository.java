@@ -98,4 +98,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     
     @Query("SELECT p FROM Product p WHERE p.store = :store AND p.createdBy = :createdBy AND p.isActive = true ORDER BY p.createdAt DESC")
     List<Product> findByStoreAndCreatedBy(@Param("store") Store store, @Param("createdBy") String createdBy);
+    
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = false")
+    long countInactiveProducts();
+    
+    @Query("SELECT p.category, COUNT(p) FROM Product p WHERE p.isActive = true AND p.category IS NOT NULL GROUP BY p.category ORDER BY COUNT(p) DESC")
+    List<Object[]> getTopCategoriesByProductCount();
 }

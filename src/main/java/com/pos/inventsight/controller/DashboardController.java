@@ -1,21 +1,23 @@
 package com.pos.inventsight.controller;
 
-import com.pos.inventsight.dto.ApiResponse;
-import com.pos.inventsight.dto.DashboardSummaryResponse;
+import com.pos.inventsight.dto.*;
 import com.pos.inventsight.service.DashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/dashboard")
+@RequestMapping("/api/dashboard")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class DashboardController {
     
@@ -226,5 +228,202 @@ public class DashboardController {
             System.out.println("❌ Error fetching daily sales: " + e.getMessage());
         }
         return dailySales;
+    }
+    
+    // ==================== New Dashboard Widget Endpoints ====================
+    
+    @GetMapping("/revenue")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<RevenueDTO> getRevenue(
+            @RequestParam(defaultValue = "THIS_MONTH") String period,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("💰 InventSight - Fetching revenue for user: " + username);
+            
+            RevenueDTO revenue = dashboardService.getRevenue(period);
+            
+            System.out.println("✅ InventSight - Revenue retrieved successfully");
+            return ResponseEntity.ok(revenue);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching revenue: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/orders")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<OrdersDTO> getOrders(
+            @RequestParam(defaultValue = "THIS_MONTH") String period,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("📋 InventSight - Fetching orders for user: " + username);
+            
+            OrdersDTO orders = dashboardService.getOrders(period);
+            
+            System.out.println("✅ InventSight - Orders retrieved successfully");
+            return ResponseEntity.ok(orders);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching orders: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/low-stock")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<LowStockDTO> getLowStock(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("⚠️ InventSight - Fetching low stock items for user: " + username);
+            
+            LowStockDTO lowStock = dashboardService.getLowStock();
+            
+            System.out.println("✅ InventSight - Low stock items retrieved successfully");
+            return ResponseEntity.ok(lowStock);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching low stock items: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/products")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<ProductStatsDTO> getProducts(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("📦 InventSight - Fetching product stats for user: " + username);
+            
+            ProductStatsDTO productStats = dashboardService.getProductStats();
+            
+            System.out.println("✅ InventSight - Product stats retrieved successfully");
+            return ResponseEntity.ok(productStats);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching product stats: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/categories")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<CategoryStatsDTO> getCategories(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("🏷️ InventSight - Fetching category stats for user: " + username);
+            
+            CategoryStatsDTO categoryStats = dashboardService.getCategoryStats();
+            
+            System.out.println("✅ InventSight - Category stats retrieved successfully");
+            return ResponseEntity.ok(categoryStats);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching category stats: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/inventory-value")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<InventoryValueDTO> getInventoryValue(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("💵 InventSight - Fetching inventory value for user: " + username);
+            
+            InventoryValueDTO inventoryValue = dashboardService.getInventoryValue();
+            
+            System.out.println("✅ InventSight - Inventory value retrieved successfully");
+            return ResponseEntity.ok(inventoryValue);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching inventory value: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/avg-order-value")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<AvgOrderValueDTO> getAvgOrderValue(
+            @RequestParam(defaultValue = "THIS_MONTH") String period,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("📊 InventSight - Fetching avg order value for user: " + username);
+            
+            AvgOrderValueDTO avgOrderValue = dashboardService.getAvgOrderValue(period);
+            
+            System.out.println("✅ InventSight - Avg order value retrieved successfully");
+            return ResponseEntity.ok(avgOrderValue);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching avg order value: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/sales-chart")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<SalesChartDTO> getSalesChart(
+            @RequestParam(defaultValue = "MONTHLY") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("📈 InventSight - Fetching sales chart for user: " + username);
+            
+            SalesChartDTO salesChart = dashboardService.getSalesChart(period, startDate, endDate);
+            
+            System.out.println("✅ InventSight - Sales chart retrieved successfully");
+            return ResponseEntity.ok(salesChart);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching sales chart: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/best-performer")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<BestPerformerDTO> getBestPerformer(
+            @RequestParam(defaultValue = "THIS_MONTH") String period,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("🏆 InventSight - Fetching best performer for user: " + username);
+            
+            BestPerformerDTO bestPerformer = dashboardService.getBestPerformer(period);
+            
+            System.out.println("✅ InventSight - Best performer retrieved successfully");
+            return ResponseEntity.ok(bestPerformer);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching best performer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/recent-orders")
+    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    public ResponseEntity<RecentOrdersDTO> getRecentOrders(
+            @RequestParam(defaultValue = "5") int limit,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("📜 InventSight - Fetching recent orders for user: " + username);
+            
+            RecentOrdersDTO recentOrders = dashboardService.getRecentOrders(limit);
+            
+            System.out.println("✅ InventSight - Recent orders retrieved successfully");
+            return ResponseEntity.ok(recentOrders);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching recent orders: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }
