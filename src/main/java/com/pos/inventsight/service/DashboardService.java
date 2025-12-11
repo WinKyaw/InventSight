@@ -457,14 +457,38 @@ public class DashboardService {
     }
     
     private LocalDateTime[] getPreviousDateRangeForPeriod(String period) {
-        LocalDateTime[] currentRange = getDateRangeForPeriod(period);
-        LocalDateTime currentStart = currentRange[0];
-        LocalDateTime currentEnd = currentRange[1];
+        LocalDateTime currentEnd = LocalDateTime.now();
+        LocalDateTime previousEnd;
+        LocalDateTime previousStart;
         
-        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(currentStart, currentEnd);
-        
-        LocalDateTime previousEnd = currentStart.minusSeconds(1);
-        LocalDateTime previousStart = previousEnd.minusDays(daysBetween);
+        switch (period.toUpperCase()) {
+            case "DAILY":
+                previousEnd = LocalDate.now().minusDays(1).atTime(LocalTime.MAX);
+                previousStart = LocalDate.now().minusDays(1).atStartOfDay();
+                break;
+            case "WEEKLY":
+                previousEnd = LocalDate.now().minusWeeks(1).atTime(LocalTime.MAX);
+                previousStart = LocalDate.now().minusWeeks(2).atStartOfDay();
+                break;
+            case "MONTHLY":
+            case "THIS_MONTH":
+                // Get the previous month
+                LocalDate now = LocalDate.now();
+                LocalDate previousMonth = now.minusMonths(1);
+                previousStart = previousMonth.withDayOfMonth(1).atStartOfDay();
+                previousEnd = previousMonth.withDayOfMonth(previousMonth.lengthOfMonth()).atTime(LocalTime.MAX);
+                break;
+            case "YEARLY":
+                previousEnd = LocalDate.now().withDayOfYear(1).minusDays(1).atTime(LocalTime.MAX);
+                previousStart = previousEnd.toLocalDate().withDayOfYear(1).atStartOfDay();
+                break;
+            default:
+                // Default to previous month
+                LocalDate nowDefault = LocalDate.now();
+                LocalDate prevMonth = nowDefault.minusMonths(1);
+                previousStart = prevMonth.withDayOfMonth(1).atStartOfDay();
+                previousEnd = prevMonth.withDayOfMonth(prevMonth.lengthOfMonth()).atTime(LocalTime.MAX);
+        }
         
         return new LocalDateTime[]{previousStart, previousEnd};
     }

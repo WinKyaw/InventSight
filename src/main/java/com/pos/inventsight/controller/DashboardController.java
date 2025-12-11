@@ -21,6 +21,11 @@ import java.util.UUID;
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class DashboardController {
     
+    // Constants for limit validation
+    private static final int MIN_LIMIT = 1;
+    private static final int DEFAULT_LIMIT = 5;
+    private static final int MAX_LIMIT = 100;
+    
     @Autowired
     private DashboardService dashboardService;
     
@@ -417,8 +422,8 @@ public class DashboardController {
             System.out.println("📜 InventSight - Fetching recent orders for user: " + username);
             
             // Validate limit to prevent excessive resource consumption
-            if (limit < 1) limit = 5;
-            if (limit > 100) limit = 100;
+            if (limit < MIN_LIMIT) limit = DEFAULT_LIMIT;
+            if (limit > MAX_LIMIT) limit = MAX_LIMIT;
             
             RecentOrdersDTO recentOrders = dashboardService.getRecentOrders(limit);
             
