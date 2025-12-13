@@ -42,6 +42,16 @@ public class PermissionController {
     private StoreRepository storeRepository;
     
     /**
+     * Find user by email or username (supports both login methods)
+     * Matches the pattern used in UserService.loadUserByUsername()
+     */
+    private User findUserByEmailOrUsername(String identifier) {
+        return userRepository.findByEmail(identifier)
+            .or(() -> userRepository.findByUsername(identifier))
+            .orElseThrow(() -> new RuntimeException("User not found: " + identifier));
+    }
+    
+    /**
      * Grant a one-time permission (GM+ only)
      */
     @PostMapping("/grant")
@@ -53,9 +63,8 @@ public class PermissionController {
             String username = authentication.getName();
             System.out.println("🔐 Permission grant request from: " + username);
             
-            // Get granting user
-            User grantedBy = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("Granting user not found"));
+            // Get granting user (supports both email and username)
+            User grantedBy = findUserByEmailOrUsername(username);
             
             // Get user to receive permission by UUID (id)
             User grantedTo = userRepository.findById(request.getGrantedToUserId())
@@ -93,8 +102,8 @@ public class PermissionController {
             Authentication authentication) {
         try {
             String username = authentication.getName();
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // Try email first, then username (same pattern as UserService.loadUserByUsername)
+            User user = findUserByEmailOrUsername(username);
             
             boolean hasPermission = permissionService.canPerformAction(user, type);
             
@@ -120,8 +129,8 @@ public class PermissionController {
     public ResponseEntity<?> getActivePermissions(Authentication authentication) {
         try {
             String username = authentication.getName();
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // Try email first, then username (same pattern as UserService.loadUserByUsername)
+            User user = findUserByEmailOrUsername(username);
             
             List<OneTimePermission> permissions = permissionService.getActivePermissions(user.getId());
             
@@ -151,8 +160,8 @@ public class PermissionController {
             Authentication authentication) {
         try {
             String username = authentication.getName();
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // Try email first, then username (same pattern as UserService.loadUserByUsername)
+            User user = findUserByEmailOrUsername(username);
             
             System.out.println("🔓 Consuming permission " + id + " for user: " + username);
             
@@ -174,8 +183,8 @@ public class PermissionController {
     public ResponseEntity<?> getPermissionsGrantedToMe(Authentication authentication) {
         try {
             String username = authentication.getName();
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // Try email first, then username (same pattern as UserService.loadUserByUsername)
+            User user = findUserByEmailOrUsername(username);
             
             List<OneTimePermission> permissions = permissionService.getPermissionsGrantedToUser(user);
             
@@ -204,8 +213,8 @@ public class PermissionController {
     public ResponseEntity<?> getPermissionsGrantedByMe(Authentication authentication) {
         try {
             String username = authentication.getName();
-            User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // Try email first, then username (same pattern as UserService.loadUserByUsername)
+            User user = findUserByEmailOrUsername(username);
             
             List<OneTimePermission> permissions = permissionService.getPermissionsGrantedByUser(user);
             
