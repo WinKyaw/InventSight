@@ -41,7 +41,7 @@ public class RateLimitingFilter implements Filter {
     @Value("${inventsight.rate-limiting.per-ip.requests-per-minute:100}")
     private int ipRpm;
     
-    @Value("${inventsight.rate-limiting.auth-endpoints.requests-per-minute:10}")
+    @Value("${inventsight.rate-limiting.auth-endpoints.requests-per-minute:25}")
     private int authRpm;
     
     @Override
