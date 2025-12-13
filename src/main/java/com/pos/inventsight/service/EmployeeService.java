@@ -113,6 +113,11 @@ public class EmployeeService {
         String cleanFirstName = firstName.trim().replaceAll("[^a-zA-Z]", "");
         String cleanLastName = lastName.toLowerCase().trim().replaceAll("[^a-z]", "");
         
+        // Validate cleaned first name is not empty
+        if (cleanFirstName.isEmpty()) {
+            throw new IllegalArgumentException("First name must contain at least one letter");
+        }
+        
         // Capitalize first letter of first name, rest lowercase
         String formattedFirstName = cleanFirstName.substring(0, 1).toUpperCase() + 
                                     cleanFirstName.substring(1).toLowerCase();
