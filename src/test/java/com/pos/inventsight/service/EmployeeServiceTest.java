@@ -74,11 +74,10 @@ public class EmployeeServiceTest {
         testEmployer.setEmail("employer@test.com");
         testEmployer.setRole(UserRole.MANAGER);
         
-        // Setup test employee
+        // Setup test employee (email will be auto-generated, no need to set it)
         testEmployee = new Employee();
         testEmployee.setFirstName("John");
         testEmployee.setLastName("Doe");
-        testEmployee.setEmail("john.doe@test.com");
         testEmployee.setTitle("Cashier");
         testEmployee.setHourlyRate(new BigDecimal("15.00"));
         testEmployee.setCompany(testCompany);
@@ -112,11 +111,13 @@ public class EmployeeServiceTest {
         assertNotNull(result.getUser());
         assertEquals(UserRole.EMPLOYEE, result.getUser().getRole());
         assertTrue(result.getUser().getEmailVerified());
-        assertEquals(testEmployee.getEmail(), result.getUser().getEmail());
+        // Verify email was auto-generated in the expected format
+        assertEquals("john.doe@inventsight.com", result.getEmail());
+        assertEquals("john.doe@inventsight.com", result.getUser().getEmail());
         
         // Verify interactions
-        verify(userRepository).existsByEmail(testEmployee.getEmail());
-        verify(employeeRepository).existsByEmail(testEmployee.getEmail());
+        verify(userRepository, atLeastOnce()).existsByEmail(anyString());
+        verify(employeeRepository, atLeastOnce()).existsByEmail(anyString());
         verify(userRepository).save(any(User.class));
         verify(employeeRepository).save(any(Employee.class));
         verify(employeeRelationshipRepository).save(any(EmployeeRelationship.class));
@@ -124,38 +125,82 @@ public class EmployeeServiceTest {
     }
     
     @Test
-    void testCreateEmployeeWithUser_DuplicateEmailInUsers() {
-        // Arrange
-        when(userRepository.existsByEmail(anyString())).thenReturn(true);
+    void testCreateEmployeeWithUser_DuplicateEmail_GeneratesSuffix() {
+        // Arrange - first call returns true (email exists), second returns false
+        when(userRepository.existsByEmail("john.doe@inventsight.com")).thenReturn(true);
+        when(userRepository.existsByEmail("john.doe1@inventsight.com")).thenReturn(false);
+        when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
+            Employee emp = invocation.getArgument(0);
+            emp.setId(UUID.randomUUID());
+            return emp;
+        });
+        when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
         
-        // Act & Assert
-        assertThrows(DuplicateResourceException.class, 
-            () -> employeeService.createEmployeeWithUser(testEmployee, testEmployer));
+        // Act
+        Employee result = employeeService.createEmployeeWithUser(testEmployee, testEmployer);
         
-        // Verify no user or employee was saved
-        verify(userRepository, never()).save(any(User.class));
-        verify(employeeRepository, never()).save(any(Employee.class));
+        // Assert - should have suffix
+        assertEquals("john.doe1@inventsight.com", result.getEmail());
+        assertEquals("john.doe1@inventsight.com", result.getUser().getEmail());
+        
+        // Verify duplicate check was called
+        verify(userRepository).existsByEmail("john.doe@inventsight.com");
+        verify(userRepository).existsByEmail("john.doe1@inventsight.com");
     }
     
     @Test
-    void testCreateEmployeeWithUser_DuplicateEmailInEmployees() {
-        // Arrange
+    void testCreateEmployeeWithUser_DuplicateInEmployees_GeneratesSuffix() {
+        // Arrange - first call returns true in employees table, second returns false
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(employeeRepository.existsByEmail(anyString())).thenReturn(true);
+        when(employeeRepository.existsByEmail("john.doe@inventsight.com")).thenReturn(true);
+        when(employeeRepository.existsByEmail("john.doe1@inventsight.com")).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
+            Employee emp = invocation.getArgument(0);
+            emp.setId(UUID.randomUUID());
+            return emp;
+        });
+        when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
         
-        // Act & Assert
-        assertThrows(DuplicateResourceException.class, 
-            () -> employeeService.createEmployeeWithUser(testEmployee, testEmployer));
+        // Act
+        Employee result = employeeService.createEmployeeWithUser(testEmployee, testEmployer);
         
-        // Verify no user or employee was saved
-        verify(userRepository, never()).save(any(User.class));
-        verify(employeeRepository, never()).save(any(Employee.class));
+        // Assert - should have suffix
+        assertEquals("john.doe1@inventsight.com", result.getEmail());
+        
+        // Verify duplicate check was called on employee repository
+        verify(employeeRepository).existsByEmail("john.doe@inventsight.com");
+        verify(employeeRepository).existsByEmail("john.doe1@inventsight.com");
     }
     
     @Test
-    void testCreateEmployeeWithUser_MissingEmail() {
+    void testCreateEmployeeWithUser_MissingFirstName() {
         // Arrange
-        testEmployee.setEmail(null);
+        testEmployee.setFirstName(null);
+        
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, 
+            () -> employeeService.createEmployeeWithUser(testEmployee, testEmployer));
+    }
+    
+    @Test
+    void testCreateEmployeeWithUser_MissingLastName() {
+        // Arrange
+        testEmployee.setLastName(null);
         
         // Act & Assert
         assertThrows(IllegalArgumentException.class, 
@@ -183,14 +228,19 @@ public class EmployeeServiceTest {
     }
     
     @Test
-    void testPasswordGeneration_WithCompanyAndStoreName() {
+    void testPasswordGeneration_WithNewFormat() {
         // This test validates the password generation logic indirectly
         // by checking that the user is created with an encoded password
         
         // Arrange
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> {
+            String rawPassword = invocation.getArgument(0);
+            // Verify password follows new format: firstnamelastname123!
+            assertEquals("johndoe123!", rawPassword);
+            return "encodedPassword";
+        });
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
             user.setId(UUID.randomUUID());
@@ -211,6 +261,105 @@ public class EmployeeServiceTest {
         employeeService.createEmployeeWithUser(testEmployee, testEmployer);
         
         // Assert
-        verify(passwordEncoder).encode(anyString());
+        verify(passwordEncoder).encode("johndoe123!");
+    }
+    
+    @Test
+    void testPasswordGeneration_WithSuffix() {
+        // Test that password includes suffix when email has number
+        
+        // Arrange - simulate duplicate email so suffix is added
+        when(userRepository.existsByEmail("john.doe@inventsight.com")).thenReturn(true);
+        when(userRepository.existsByEmail("john.doe1@inventsight.com")).thenReturn(false);
+        when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> {
+            String rawPassword = invocation.getArgument(0);
+            // Verify password includes suffix: johndoe1123!
+            assertEquals("johndoe1123!", rawPassword);
+            return "encodedPassword";
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
+            Employee emp = invocation.getArgument(0);
+            emp.setId(UUID.randomUUID());
+            return emp;
+        });
+        when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // Act
+        employeeService.createEmployeeWithUser(testEmployee, testEmployer);
+        
+        // Assert
+        verify(passwordEncoder).encode("johndoe1123!");
+    }
+    
+    @Test
+    void testEmailGeneration_SpecialCharactersRemoved() {
+        // Test that special characters in names are removed
+        
+        // Arrange
+        testEmployee.setFirstName("O'Brien");
+        testEmployee.setLastName("Smith-Jones");
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
+            Employee emp = invocation.getArgument(0);
+            emp.setId(UUID.randomUUID());
+            return emp;
+        });
+        when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // Act
+        Employee result = employeeService.createEmployeeWithUser(testEmployee, testEmployer);
+        
+        // Assert - special characters should be removed
+        assertEquals("obrien.smithjones@inventsight.com", result.getEmail());
+    }
+    
+    @Test
+    void testPasswordGeneration_SpecialCharactersRemoved() {
+        // Test that special characters in names are removed from password
+        
+        // Arrange
+        testEmployee.setFirstName("O'Brien");
+        testEmployee.setLastName("Smith-Jones");
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> {
+            String rawPassword = invocation.getArgument(0);
+            // Verify password has special characters removed
+            assertEquals("obriensmithjones123!", rawPassword);
+            return "encodedPassword";
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> {
+            Employee emp = invocation.getArgument(0);
+            emp.setId(UUID.randomUUID());
+            return emp;
+        });
+        when(employeeRelationshipRepository.save(any(EmployeeRelationship.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // Act
+        employeeService.createEmployeeWithUser(testEmployee, testEmployer);
+        
+        // Assert
+        verify(passwordEncoder).encode("obriensmithjones123!");
     }
 }
