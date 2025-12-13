@@ -154,7 +154,7 @@ inventsight:
     per-ip:
       requests-per-minute: ${RATE_LIMIT_IP_RPM:100}
     auth-endpoints:
-      requests-per-minute: ${RATE_LIMIT_AUTH_RPM:10}
+      requests-per-minute: ${RATE_LIMIT_AUTH_RPM:25}
       
   # GDPR Configuration
   gdpr:
