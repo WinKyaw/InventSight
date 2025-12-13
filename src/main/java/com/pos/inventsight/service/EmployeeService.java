@@ -73,6 +73,63 @@ public class EmployeeService {
     }
     
     /**
+     * Generate unique email for employee in format: firstname.lastname@inventsight.com
+     * If duplicate exists, append number: firstname.lastname1@inventsight.com
+     * 
+     * @param firstName Employee's first name
+     * @param lastName Employee's last name
+     * @return Unique email address
+     */
+    private String generateUniqueEmail(String firstName, String lastName) {
+        // Convert to lowercase and remove special characters
+        String cleanFirstName = firstName.toLowerCase().trim().replaceAll("[^a-z]", "");
+        String cleanLastName = lastName.toLowerCase().trim().replaceAll("[^a-z]", "");
+        
+        String baseEmail = cleanFirstName + "." + cleanLastName + "@inventsight.com";
+        String email = baseEmail;
+        int suffix = 1;
+        
+        // Check for duplicates in both users and employees tables
+        while (userRepository.existsByEmail(email) || employeeRepository.existsByEmail(email)) {
+            email = cleanFirstName + "." + cleanLastName + suffix + "@inventsight.com";
+            suffix++;
+        }
+        
+        System.out.println("📧 Generated unique email: " + email);
+        return email;
+    }
+    
+    /**
+     * Generate password for employee in format: firstnamelastname123!
+     * If email has suffix (e.g., john.white1), password becomes: johnwhite1123!
+     * 
+     * @param firstName Employee's first name
+     * @param lastName Employee's last name
+     * @param email Generated email (to extract suffix if exists)
+     * @return Generated password
+     */
+    private String generateEmployeePassword(String firstName, String lastName, String email) {
+        // Convert to lowercase and remove special characters
+        String cleanFirstName = firstName.toLowerCase().trim().replaceAll("[^a-z]", "");
+        String cleanLastName = lastName.toLowerCase().trim().replaceAll("[^a-z]", "");
+        
+        // Extract suffix number from email if exists (e.g., john.white1@... → 1)
+        String suffix = "";
+        String emailPrefix = email.split("@")[0]; // Get part before @
+        
+        // Check if email ends with a number (e.g., john.white1)
+        if (emailPrefix.matches(".*\\d+$")) {
+            // Extract the trailing digits
+            suffix = emailPrefix.replaceAll(".*?(\\d+)$", "$1");
+        }
+        
+        String password = cleanFirstName + cleanLastName + suffix + "123!";
+        System.out.println("🔑 Generated password format: " + cleanFirstName + cleanLastName + suffix + "123!");
+        
+        return password;
+    }
+    
+    /**
      * Create employee with automatic user account creation and relationship tracking
      * @param employee The employee to create
      * @param employer The user who is creating this employee (employer)
@@ -83,8 +140,12 @@ public class EmployeeService {
         System.out.println("👤 Created by employer: " + employer.getUsername());
         
         // Validate required fields
-        if (employee.getEmail() == null || employee.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("Employee email is required for user account creation");
+        if (employee.getFirstName() == null || employee.getFirstName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Employee first name is required");
+        }
+        
+        if (employee.getLastName() == null || employee.getLastName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Employee last name is required");
         }
         
         if (employee.getStore() == null) {
@@ -95,25 +156,23 @@ public class EmployeeService {
             throw new IllegalArgumentException("Employee must be associated with a company");
         }
         
-        // Check for duplicate email in users table
-        if (userRepository.existsByEmail(employee.getEmail())) {
-            throw new DuplicateResourceException("User with email already exists: " + employee.getEmail());
-        }
+        // Generate unique email in format: firstname.lastname@inventsight.com
+        String generatedEmail = generateUniqueEmail(employee.getFirstName(), employee.getLastName());
+        employee.setEmail(generatedEmail);
+        System.out.println("📧 Employee email: " + generatedEmail);
         
-        // Check for duplicate email in employees table
-        if (employeeRepository.existsByEmail(employee.getEmail())) {
-            throw new DuplicateResourceException("Employee with email already exists: " + employee.getEmail());
-        }
-        
-        // Generate password
-        String password = generatePassword(employee.getCompany(), employee.getStore(), employee.getEmail());
-        System.out.println("🔑 Password generated for employee account");
+        // Generate password in format: firstnamelastname123! (with suffix if email has number)
+        String generatedPassword = generateEmployeePassword(
+            employee.getFirstName(), 
+            employee.getLastName(), 
+            generatedEmail
+        );
         
         // Create user account for employee
         User employeeUser = new User();
-        employeeUser.setUsername(employee.getEmail()); // Use email as username
-        employeeUser.setEmail(employee.getEmail());
-        employeeUser.setPassword(passwordEncoder.encode(password));
+        employeeUser.setUsername(generatedEmail); // Use generated email as username
+        employeeUser.setEmail(generatedEmail);
+        employeeUser.setPassword(passwordEncoder.encode(generatedPassword));
         employeeUser.setFirstName(employee.getFirstName());
         employeeUser.setLastName(employee.getLastName());
         employeeUser.setPhone(employee.getPhoneNumber());
@@ -151,38 +210,12 @@ public class EmployeeService {
             employer.getUsername(),
             "EMPLOYEE_WITH_USER_CREATED",
             "EMPLOYEE",
-            "New employee with user account created: " + employee.getFullName() + " - " + employee.getTitle()
+            "New employee with user account created: " + employee.getFullName() + 
+            " - Email: " + generatedEmail + " - " + employee.getTitle()
         );
         
         System.out.println("✅ InventSight employee created with user account: " + savedEmployee.getFullName());
         return savedEmployee;
-    }
-    
-    /**
-     * Generate password for employee user account
-     * Default: companyName + storeName OR email + "12345" if null/empty
-     * Ensures minimum password length of 8 characters
-     */
-    private String generatePassword(Company company, Store store, String email) {
-        String companyName = company != null ? company.getName() : null;
-        String storeName = store != null ? store.getStoreName() : null;
-        
-        // Check if both company and store names are available and not empty
-        if (companyName != null && !companyName.trim().isEmpty() && 
-            storeName != null && !storeName.trim().isEmpty()) {
-            // Remove spaces and special characters, keep alphanumeric only
-            String cleanCompanyName = companyName.replaceAll("[^a-zA-Z0-9]", "");
-            String cleanStoreName = storeName.replaceAll("[^a-zA-Z0-9]", "");
-            String password = cleanCompanyName + cleanStoreName;
-            
-            // Ensure minimum password length of 8 characters
-            if (password.length() >= 8) {
-                return password;
-            }
-        }
-        
-        // Fallback: use email + "12345" - ensures minimum 8 characters
-        return email + "12345";
     }
     
     public Employee updateEmployee(UUID employeeId, Employee employeeUpdates) {
