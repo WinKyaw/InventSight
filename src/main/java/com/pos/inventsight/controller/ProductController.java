@@ -7,10 +7,12 @@ import com.pos.inventsight.dto.StockUpdateRequest;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.PermissionType;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.service.ProductService;
 import com.pos.inventsight.service.OneTimePermissionService;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.repository.sql.UserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +31,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -48,6 +51,9 @@ public class ProductController {
     @Autowired
     private UserRepository userRepository;
     
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
     // GET /products - Get all products with pagination
     @GetMapping
     public ResponseEntity<?> getAllProducts(
@@ -62,8 +68,20 @@ public class ProductController {
         try {
             String username = authentication.getName();
             System.out.println("📦 InventSight - Fetching products for user: " + username);
-            System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
-            System.out.println("👤 Current User: WinKyaw");
+            
+            // Get current user and company associations
+            User currentUser = userService.getUserByUsername(username);
+            List<CompanyStoreUser> userMemberships = companyStoreUserRepository.findByUserAndIsActiveTrue(currentUser);
+            
+            if (userMemberships.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You must be associated with a company to view products"));
+            }
+            
+            // Get company IDs user belongs to
+            Set<UUID> userCompanyIds = userMemberships.stream()
+                .map(membership -> membership.getCompany().getId())
+                .collect(Collectors.toSet());
             
             Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
             Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
@@ -71,16 +89,17 @@ public class ProductController {
             Page<Product> productsPage;
             
             if (search != null && !search.trim().isEmpty()) {
-                productsPage = productService.searchProducts(search, pageable);
-                System.out.println("🔍 InventSight - Search results: " + productsPage.getTotalElements() + " products found");
+                Page<Product> searchResults = productService.searchProducts(search, pageable);
+                List<Product> filtered = filterProductsByCompany(searchResults.getContent(), userCompanyIds);
+                productsPage = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
             } else if (category != null && !category.trim().isEmpty()) {
-                List<Product> filteredProducts = productService.getProductsByCategory(category);
-                productsPage = convertListToPage(filteredProducts, pageable);
-                System.out.println("🏷️ InventSight - Category filter: " + productsPage.getTotalElements() + " products found");
+                List<Product> categoryProducts = productService.getProductsByCategory(category);
+                List<Product> filtered = filterProductsByCompany(categoryProducts, userCompanyIds);
+                productsPage = convertListToPage(filtered, pageable);
             } else {
                 List<Product> allProducts = productService.getAllActiveProducts();
-                productsPage = convertListToPage(allProducts, pageable);
-                System.out.println("📋 InventSight - Retrieved " + productsPage.getTotalElements() + " active products");
+                List<Product> filtered = filterProductsByCompany(allProducts, userCompanyIds);
+                productsPage = convertListToPage(filtered, pageable);
             }
             
             List<ProductResponse> productResponses = productsPage.getContent().stream()
@@ -99,7 +118,7 @@ public class ProductController {
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            System.out.println("❌ InventSight - Error fetching products: " + e.getMessage());
+            System.out.println("❌ Error fetching products: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to fetch products: " + e.getMessage()));
         }
@@ -506,6 +525,18 @@ public class ProductController {
         product.setLowStockThreshold(request.getLowStockThreshold());
         product.setReorderLevel(request.getReorderLevel());
         return product;
+    }
+    
+    /**
+     * Helper method to filter products by user's company IDs
+     * Only returns products whose store belongs to one of the user's companies
+     */
+    private List<Product> filterProductsByCompany(List<Product> products, Set<UUID> userCompanyIds) {
+        return products.stream()
+            .filter(p -> p.getStore() != null 
+                && p.getStore().getCompany() != null 
+                && userCompanyIds.contains(p.getStore().getCompany().getId()))
+            .collect(Collectors.toList());
     }
     
     private <T> Page<T> convertListToPage(List<T> list, Pageable pageable) {

@@ -38,6 +38,7 @@ public class EmployeeController {
     
     // Get all active employees
     @GetMapping
+    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')")
     public ResponseEntity<List<Employee>> getAllEmployees() {
         System.out.println("👥 InventSight - Fetching all active employees");
         System.out.println("📅 Current Date and Time (UTC): 2025-08-26 09:12:40");
@@ -51,6 +52,7 @@ public class EmployeeController {
     
     // Get employee by ID
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')")
     public ResponseEntity<Employee> getEmployeeById(@PathVariable UUID id) {
         System.out.println("👤 InventSight - Fetching employee with ID: " + id);
         
@@ -206,6 +208,7 @@ public class EmployeeController {
     
     // Get employee statistics
     @GetMapping("/statistics")
+    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')")
     public ResponseEntity<EmployeeStatistics> getEmployeeStatistics() {
         System.out.println("📊 InventSight - Generating employee statistics");
         
@@ -229,6 +232,7 @@ public class EmployeeController {
     
     // PUT /employees/{id} - Update employee information
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')")
     public ResponseEntity<?> updateEmployee(@PathVariable UUID id, 
                                           @Valid @RequestBody EmployeeRequest employeeRequest,
                                           Authentication authentication) {
@@ -296,7 +300,7 @@ public class EmployeeController {
     
     // PUT /employees/{id}/role - Update employee role (admin only)
     @PutMapping("/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')")
     public ResponseEntity<?> updateEmployeeRole(@PathVariable UUID id, 
                                               @RequestBody Map<String, String> roleRequest,
                                               Authentication authentication) {
