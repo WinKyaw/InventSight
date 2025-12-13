@@ -100,8 +100,8 @@ public class EmployeeService {
     }
     
     /**
-     * Generate password for employee in format: firstnamelastname123!
-     * If email has suffix (e.g., john.white1), password becomes: johnwhite1123!
+     * Generate password for employee in format: Firstnamelastname123!
+     * If email has suffix (e.g., john.white1), password becomes: Johnwhite1123!
      * 
      * @param firstName Employee's first name
      * @param lastName Employee's last name
@@ -109,9 +109,13 @@ public class EmployeeService {
      * @return Generated password
      */
     private String generateEmployeePassword(String firstName, String lastName, String email) {
-        // Convert to lowercase and remove special characters
-        String cleanFirstName = firstName.toLowerCase().trim().replaceAll("[^a-z]", "");
+        // Clean and remove special characters
+        String cleanFirstName = firstName.trim().replaceAll("[^a-zA-Z]", "");
         String cleanLastName = lastName.toLowerCase().trim().replaceAll("[^a-z]", "");
+        
+        // Capitalize first letter of first name, rest lowercase
+        String formattedFirstName = cleanFirstName.substring(0, 1).toUpperCase() + 
+                                    cleanFirstName.substring(1).toLowerCase();
         
         // Extract suffix number from email if exists (e.g., john.white1@... → 1)
         String suffix = "";
@@ -123,8 +127,9 @@ public class EmployeeService {
             suffix = emailPrefix.replaceAll(".*?(\\d+)$", "$1");
         }
         
-        String password = cleanFirstName + cleanLastName + suffix + "123!";
-        System.out.println("🔑 Generated password format: " + cleanFirstName + cleanLastName + suffix + "123!");
+        // Format: Firstnamelastname123! (capital F, rest lowercase, ends with numbers and !)
+        String password = formattedFirstName + cleanLastName + suffix + "123!";
+        System.out.println("🔑 Generated password format: " + formattedFirstName + cleanLastName + suffix + "123!");
         
         return password;
     }
