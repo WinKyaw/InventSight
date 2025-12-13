@@ -89,22 +89,17 @@ public class ProductController {
             Page<Product> productsPage;
             
             if (search != null && !search.trim().isEmpty()) {
-                productsPage = productService.searchProducts(search, pageable);
-                // Filter by company
-                List<Product> filtered = productsPage.getContent().stream()
-                    .filter(p -> p.getStore() != null && p.getStore().getCompany() != null && userCompanyIds.contains(p.getStore().getCompany().getId()))
-                    .collect(Collectors.toList());
+                Page<Product> searchResults = productService.searchProducts(search, pageable);
+                List<Product> filtered = filterProductsByCompany(searchResults.getContent(), userCompanyIds);
                 productsPage = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
             } else if (category != null && !category.trim().isEmpty()) {
-                List<Product> filteredProducts = productService.getProductsByCategory(category).stream()
-                    .filter(p -> p.getStore() != null && p.getStore().getCompany() != null && userCompanyIds.contains(p.getStore().getCompany().getId()))
-                    .collect(Collectors.toList());
-                productsPage = convertListToPage(filteredProducts, pageable);
+                List<Product> categoryProducts = productService.getProductsByCategory(category);
+                List<Product> filtered = filterProductsByCompany(categoryProducts, userCompanyIds);
+                productsPage = convertListToPage(filtered, pageable);
             } else {
-                List<Product> allProducts = productService.getAllActiveProducts().stream()
-                    .filter(p -> p.getStore() != null && p.getStore().getCompany() != null && userCompanyIds.contains(p.getStore().getCompany().getId()))
-                    .collect(Collectors.toList());
-                productsPage = convertListToPage(allProducts, pageable);
+                List<Product> allProducts = productService.getAllActiveProducts();
+                List<Product> filtered = filterProductsByCompany(allProducts, userCompanyIds);
+                productsPage = convertListToPage(filtered, pageable);
             }
             
             List<ProductResponse> productResponses = productsPage.getContent().stream()
@@ -530,6 +525,18 @@ public class ProductController {
         product.setLowStockThreshold(request.getLowStockThreshold());
         product.setReorderLevel(request.getReorderLevel());
         return product;
+    }
+    
+    /**
+     * Helper method to filter products by user's company IDs
+     * Only returns products whose store belongs to one of the user's companies
+     */
+    private List<Product> filterProductsByCompany(List<Product> products, Set<UUID> userCompanyIds) {
+        return products.stream()
+            .filter(p -> p.getStore() != null 
+                && p.getStore().getCompany() != null 
+                && userCompanyIds.contains(p.getStore().getCompany().getId()))
+            .collect(Collectors.toList());
     }
     
     private <T> Page<T> convertListToPage(List<T> list, Pageable pageable) {
