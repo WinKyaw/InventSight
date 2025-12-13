@@ -237,8 +237,8 @@ public class EmployeeServiceTest {
         when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> {
             String rawPassword = invocation.getArgument(0);
-            // Verify password follows new format: firstnamelastname123!
-            assertEquals("johndoe123!", rawPassword);
+            // Verify password follows new format: Firstnamelastname123!
+            assertEquals("Johndoe123!", rawPassword);
             return "encodedPassword";
         });
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -261,7 +261,7 @@ public class EmployeeServiceTest {
         employeeService.createEmployeeWithUser(testEmployee, testEmployer);
         
         // Assert
-        verify(passwordEncoder).encode("johndoe123!");
+        verify(passwordEncoder).encode("Johndoe123!");
     }
     
     @Test
@@ -274,8 +274,8 @@ public class EmployeeServiceTest {
         when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> {
             String rawPassword = invocation.getArgument(0);
-            // Verify password includes suffix: johndoe1123!
-            assertEquals("johndoe1123!", rawPassword);
+            // Verify password includes suffix: Johndoe1123!
+            assertEquals("Johndoe1123!", rawPassword);
             return "encodedPassword";
         });
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -295,7 +295,7 @@ public class EmployeeServiceTest {
         employeeService.createEmployeeWithUser(testEmployee, testEmployer);
         
         // Assert
-        verify(passwordEncoder).encode("johndoe1123!");
+        verify(passwordEncoder).encode("Johndoe1123!");
     }
     
     @Test
@@ -339,8 +339,8 @@ public class EmployeeServiceTest {
         when(employeeRepository.existsByEmail(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> {
             String rawPassword = invocation.getArgument(0);
-            // Verify password has special characters removed
-            assertEquals("obriensmithjones123!", rawPassword);
+            // Verify password has special characters removed and first letter capitalized
+            assertEquals("Obriensmithjones123!", rawPassword);
             return "encodedPassword";
         });
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -360,6 +360,6 @@ public class EmployeeServiceTest {
         employeeService.createEmployeeWithUser(testEmployee, testEmployer);
         
         // Assert
-        verify(passwordEncoder).encode("obriensmithjones123!");
+        verify(passwordEncoder).encode("Obriensmithjones123!");
     }
 }
