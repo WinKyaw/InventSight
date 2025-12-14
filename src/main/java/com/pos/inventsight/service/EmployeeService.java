@@ -7,9 +7,11 @@ import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Company;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.EmployeeRelationship;
+import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.repository.sql.EmployeeRepository;
 import com.pos.inventsight.repository.sql.EmployeeRelationshipRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
+import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +35,9 @@ public class EmployeeService {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private UserStoreRoleRepository userStoreRoleRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -213,6 +218,16 @@ public class EmployeeService {
         );
         employeeRelationshipRepository.save(relationship);
         System.out.println("✅ Employee relationship created");
+        
+        // ✅ ADD: Create UserStoreRole for backward compatibility with legacy store permissions
+        UserStoreRole userStoreRole = new UserStoreRole(
+            savedUser,                    // employee user account
+            employee.getStore(),          // store employee belongs to
+            UserRole.EMPLOYEE,            // role (always EMPLOYEE initially)
+            employer.getUsername()        // created by
+        );
+        userStoreRoleRepository.save(userStoreRole);
+        System.out.println("✅ UserStoreRole created for backward compatibility");
         
         // Log activity
         activityLogService.logActivity(

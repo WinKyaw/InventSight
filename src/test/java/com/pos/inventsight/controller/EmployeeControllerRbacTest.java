@@ -23,8 +23,8 @@ public class EmployeeControllerRbacTest {
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "GET /employees should have @PreAuthorize annotation");
-        assertEquals("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')", preAuthorize.value(),
-            "GET /employees should require MANAGER, OWNER, or ADMIN role");
+        assertEquals("hasAnyAuthority('ROLE_MANAGER', 'ROLE_OWNER', 'ROLE_ADMIN')", preAuthorize.value(),
+            "GET /employees should require ROLE_MANAGER, ROLE_OWNER, or ROLE_ADMIN authority");
     }
 
     /**
@@ -36,8 +36,8 @@ public class EmployeeControllerRbacTest {
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "GET /employees/{id} should have @PreAuthorize annotation");
-        assertEquals("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')", preAuthorize.value(),
-            "GET /employees/{id} should require MANAGER, OWNER, or ADMIN role");
+        assertEquals("hasAnyAuthority('ROLE_MANAGER', 'ROLE_OWNER', 'ROLE_ADMIN')", preAuthorize.value(),
+            "GET /employees/{id} should require ROLE_MANAGER, ROLE_OWNER, or ROLE_ADMIN authority");
     }
 
     /**
@@ -49,8 +49,8 @@ public class EmployeeControllerRbacTest {
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "GET /employees/statistics should have @PreAuthorize annotation");
-        assertEquals("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')", preAuthorize.value(),
-            "GET /employees/statistics should require MANAGER, OWNER, or ADMIN role");
+        assertEquals("hasAnyAuthority('ROLE_MANAGER', 'ROLE_OWNER', 'ROLE_ADMIN')", preAuthorize.value(),
+            "GET /employees/statistics should require ROLE_MANAGER, ROLE_OWNER, or ROLE_ADMIN authority");
     }
 
     /**
@@ -63,13 +63,13 @@ public class EmployeeControllerRbacTest {
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "PUT /employees/{id} should have @PreAuthorize annotation");
-        assertEquals("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')", preAuthorize.value(),
-            "PUT /employees/{id} should require MANAGER, OWNER, or ADMIN role");
+        assertEquals("hasAnyAuthority('ROLE_MANAGER', 'ROLE_OWNER', 'ROLE_ADMIN')", preAuthorize.value(),
+            "PUT /employees/{id} should require ROLE_MANAGER, ROLE_OWNER, or ROLE_ADMIN authority");
     }
 
     /**
      * Test that PUT /employees/{id}/role has @PreAuthorize annotation with correct roles
-     * This is the main fix - changed from hasRole('ADMIN') to hasAnyRole('MANAGER', 'OWNER', 'ADMIN')
+     * This is the main fix - changed from hasRole('ADMIN') to hasAnyAuthority('ROLE_MANAGER', 'ROLE_OWNER', 'ROLE_ADMIN')
      */
     @Test
     public void testUpdateEmployeeRole_HasCorrectPreAuthorizeAnnotation() throws NoSuchMethodException {
@@ -78,7 +78,7 @@ public class EmployeeControllerRbacTest {
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "PUT /employees/{id}/role should have @PreAuthorize annotation");
-        assertEquals("hasAnyRole('MANAGER', 'OWNER', 'ADMIN')", preAuthorize.value(),
-            "PUT /employees/{id}/role should now allow MANAGER, OWNER, and ADMIN roles (not just ADMIN)");
+        assertEquals("hasAnyAuthority('ROLE_MANAGER', 'ROLE_OWNER', 'ROLE_ADMIN')", preAuthorize.value(),
+            "PUT /employees/{id}/role should now allow ROLE_MANAGER, ROLE_OWNER, and ROLE_ADMIN authorities (using hasAnyAuthority)");
     }
 }
