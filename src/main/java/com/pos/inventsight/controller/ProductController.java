@@ -8,11 +8,13 @@ import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.PermissionType;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
+import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.service.ProductService;
 import com.pos.inventsight.service.OneTimePermissionService;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,10 +30,12 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
@@ -54,6 +58,9 @@ public class ProductController {
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
     
+    @Autowired
+    private UserStoreRoleRepository userStoreRoleRepository;
+    
     // GET /products - Get all products with pagination
     @GetMapping
     public ResponseEntity<?> getAllProducts(
@@ -69,19 +76,43 @@ public class ProductController {
             String username = authentication.getName();
             System.out.println("📦 InventSight - Fetching products for user: " + username);
             
-            // Get current user and company associations
+            // Get current user
             User currentUser = userService.getUserByUsername(username);
-            List<CompanyStoreUser> userMemberships = companyStoreUserRepository.findByUserAndIsActiveTrue(currentUser);
             
-            if (userMemberships.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new ApiResponse(false, "You must be associated with a company to view products"));
+            // Try CompanyStoreUser first (new multi-tenant system)
+            List<CompanyStoreUser> userMemberships = companyStoreUserRepository.findByUserAndIsActiveTrue(currentUser);
+            final Set<UUID> userCompanyIds;
+            
+            if (!userMemberships.isEmpty()) {
+                // Get company IDs from CompanyStoreUser
+                userCompanyIds = userMemberships.stream()
+                    .map(membership -> membership.getCompany().getId())
+                    .collect(Collectors.toSet());
+                System.out.println("👤 User belongs to " + userCompanyIds.size() + " company(ies) via CompanyStoreUser");
+            } else {
+                // Fallback: Check UserStoreRole (legacy table)
+                List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(currentUser);
+                
+                if (userStoreRoles.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(false, "You must be associated with a company or store to view products"));
+                }
+                
+                // Get company IDs from stores
+                userCompanyIds = userStoreRoles.stream()
+                    .map(role -> role.getStore())
+                    .filter(Objects::nonNull)
+                    .map(store -> store.getCompany())
+                    .filter(Objects::nonNull)
+                    .map(company -> company.getId())
+                    .collect(Collectors.toSet());
+                System.out.println("👤 User belongs to " + userCompanyIds.size() + " company(ies) via UserStoreRole");
             }
             
-            // Get company IDs user belongs to
-            Set<UUID> userCompanyIds = userMemberships.stream()
-                .map(membership -> membership.getCompany().getId())
-                .collect(Collectors.toSet());
+            if (userCompanyIds.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "No valid company associations found"));
+            }
             
             Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
             Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
@@ -119,6 +150,7 @@ public class ProductController {
             
         } catch (Exception e) {
             System.out.println("❌ Error fetching products: " + e.getMessage());
+            System.err.println("❌ Stack trace: " + e.getClass().getName() + " - " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to fetch products: " + e.getMessage()));
         }
