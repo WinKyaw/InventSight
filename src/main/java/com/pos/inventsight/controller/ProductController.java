@@ -83,7 +83,7 @@ public class ProductController {
             List<CompanyStoreUser> userMemberships = companyStoreUserRepository.findByUserAndIsActiveTrue(currentUser);
             final Set<UUID> userCompanyIds;
             
-            if (userMemberships != null && !userMemberships.isEmpty()) {
+            if (!userMemberships.isEmpty()) {
                 // Get company IDs from CompanyStoreUser
                 userCompanyIds = userMemberships.stream()
                     .map(membership -> membership.getCompany().getId())
@@ -93,7 +93,7 @@ public class ProductController {
                 // Fallback: Check UserStoreRole (legacy table)
                 List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(currentUser);
                 
-                if (userStoreRoles == null || userStoreRoles.isEmpty()) {
+                if (userStoreRoles.isEmpty()) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse(false, "You must be associated with a company or store to view products"));
                 }
@@ -150,7 +150,7 @@ public class ProductController {
             
         } catch (Exception e) {
             System.out.println("❌ Error fetching products: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("❌ Stack trace: " + e.getClass().getName() + " - " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to fetch products: " + e.getMessage()));
         }
