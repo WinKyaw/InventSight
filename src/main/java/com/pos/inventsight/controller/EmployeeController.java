@@ -279,7 +279,7 @@ public class EmployeeController {
     
     // DELETE /employees/{id} - Deactivate employee (admin only)
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> deactivateEmployee(@PathVariable UUID id, Authentication authentication) {
         try {
             String username = authentication.getName();

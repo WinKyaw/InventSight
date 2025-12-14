@@ -121,27 +121,15 @@ public class ProductController {
             
             if (search != null && !search.trim().isEmpty()) {
                 Page<Product> searchResults = productService.searchProducts(search, pageable);
-                List<Product> filtered = searchResults.getContent().stream()
-                    .filter(p -> p.getStore() != null 
-                        && p.getStore().getCompany() != null 
-                        && userCompanyIds.contains(p.getStore().getCompany().getId()))
-                    .collect(Collectors.toList());
+                List<Product> filtered = filterProductsByCompany(searchResults.getContent(), userCompanyIds);
                 productsPage = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
             } else if (category != null && !category.trim().isEmpty()) {
                 List<Product> categoryProducts = productService.getProductsByCategory(category);
-                List<Product> filtered = categoryProducts.stream()
-                    .filter(p -> p.getStore() != null 
-                        && p.getStore().getCompany() != null 
-                        && userCompanyIds.contains(p.getStore().getCompany().getId()))
-                    .collect(Collectors.toList());
+                List<Product> filtered = filterProductsByCompany(categoryProducts, userCompanyIds);
                 productsPage = convertListToPage(filtered, pageable);
             } else {
                 List<Product> allProducts = productService.getAllActiveProducts();
-                List<Product> filtered = allProducts.stream()
-                    .filter(p -> p.getStore() != null 
-                        && p.getStore().getCompany() != null 
-                        && userCompanyIds.contains(p.getStore().getCompany().getId()))
-                    .collect(Collectors.toList());
+                List<Product> filtered = filterProductsByCompany(allProducts, userCompanyIds);
                 productsPage = convertListToPage(filtered, pageable);
             }
             
