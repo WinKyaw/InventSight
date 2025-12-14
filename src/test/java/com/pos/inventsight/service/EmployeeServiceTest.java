@@ -4,6 +4,7 @@ import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.EmployeeRelationshipRepository;
 import com.pos.inventsight.repository.sql.EmployeeRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
+import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ public class EmployeeServiceTest {
     
     @Mock
     private UserRepository userRepository;
+    
+    @Mock
+    private UserStoreRoleRepository userStoreRoleRepository;
     
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -82,6 +86,10 @@ public class EmployeeServiceTest {
         testEmployee.setHourlyRate(new BigDecimal("15.00"));
         testEmployee.setCompany(testCompany);
         testEmployee.setStore(testStore);
+        
+        // Common mock setup for UserStoreRoleRepository (lenient to avoid issues with tests that fail before reaching this code)
+        lenient().when(userStoreRoleRepository.save(any(UserStoreRole.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
     }
     
     @Test
