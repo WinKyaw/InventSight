@@ -3,7 +3,9 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.*;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserPreferences;
+import com.pos.inventsight.model.sql.UserNavigationPreference;
 import com.pos.inventsight.service.UserPreferencesService;
+import com.pos.inventsight.service.UserNavigationPreferenceService;
 import com.pos.inventsight.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +26,9 @@ public class UserPreferencesController {
     
     @Autowired
     private UserPreferencesService userPreferencesService;
+    
+    @Autowired
+    private UserNavigationPreferenceService navigationPreferenceService;
     
     @Autowired
     private UserService userService;
@@ -131,6 +136,62 @@ public class UserPreferencesController {
             UserPreferencesResponse response = new UserPreferencesResponse(preferences);
             
             return ResponseEntity.ok(new GenericApiResponse<>(true, "Theme preference updated successfully", response));
+                    
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Get current user's navigation preferences.
+     * Returns role-based navigation tabs.
+     * 
+     * @param authentication the authenticated user
+     * @return the user's navigation preferences
+     */
+    @GetMapping("/me/navigation-preferences")
+    @Operation(summary = "Get navigation preferences", description = "Retrieve the authenticated user's navigation tab preferences")
+    public ResponseEntity<GenericApiResponse<NavigationPreferencesResponse>> getNavigationPreferences(
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            UserNavigationPreference preferences = navigationPreferenceService.getNavigationPreferences(
+                    user.getId(), user.getRole());
+            NavigationPreferencesResponse response = new NavigationPreferencesResponse(preferences);
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Navigation preferences retrieved successfully", response));
+                    
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Update current user's navigation preferences.
+     * Validates that preferred tabs are within available tabs based on role.
+     * 
+     * @param authentication the authenticated user
+     * @param request the navigation preferences request
+     * @return the updated navigation preferences
+     */
+    @PostMapping("/me/navigation-preferences")
+    @Operation(summary = "Update navigation preferences", description = "Update the authenticated user's navigation tab preferences")
+    public ResponseEntity<GenericApiResponse<NavigationPreferencesResponse>> updateNavigationPreferences(
+            Authentication authentication,
+            @Valid @RequestBody NavigationPreferencesRequest request) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            UserNavigationPreference preferences = navigationPreferenceService.updateNavigationPreferences(
+                    user.getId(), request.getPreferredTabs());
+            NavigationPreferencesResponse response = new NavigationPreferencesResponse(preferences);
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Navigation preferences updated successfully", response));
                     
         } catch (Exception e) {
             return ResponseEntity.badRequest()

@@ -62,6 +62,9 @@ public class UserService implements UserDetailsService {
     @Autowired
     private UserPreferencesService userPreferencesService;
     
+    @Autowired
+    private UserNavigationPreferenceService navigationPreferenceService;
+    
     // Authentication Methods
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -163,6 +166,10 @@ public class UserService implements UserDetailsService {
         // Auto-create default user preferences
         userPreferencesService.createDefaultPreferences(savedUser.getId());
         System.out.println("⚙️ Default user preferences created");
+        
+        // Auto-create default navigation preferences based on role
+        navigationPreferenceService.createDefaultPreferences(savedUser.getId(), savedUser.getRole());
+        System.out.println("🧭 Default navigation preferences created");
         
         // Log activity
         activityLogService.logActivity(
