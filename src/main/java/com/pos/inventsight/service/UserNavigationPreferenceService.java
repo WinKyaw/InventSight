@@ -113,6 +113,7 @@ public class UserNavigationPreferenceService {
         
         switch (userRole) {
             case OWNER:
+            case CO_OWNER:
             case MANAGER:
             case ADMIN:
                 return GM_PLUS_TABS;

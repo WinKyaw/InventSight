@@ -107,6 +107,23 @@ public class UserNavigationPreferenceServiceTest {
     }
     
     @Test
+    void createDefaultPreferences_CoOwnerRole_ReturnsGMPlusTabs() {
+        // Given
+        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(testPreferences);
+        
+        // When
+        UserNavigationPreference result = navigationPreferenceService.createDefaultPreferences(testUserId, UserRole.CO_OWNER);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(testUserId, result.getUserId());
+        assertTrue(result.getAvailableTabs().contains("items"));
+        assertTrue(result.getAvailableTabs().contains("receipt"));
+        assertTrue(result.getAvailableTabs().contains("team"));
+        verify(navigationPreferenceRepository).save(any(UserNavigationPreference.class));
+    }
+    
+    @Test
     void createDefaultPreferences_AdminRole_ReturnsGMPlusTabs() {
         // Given
         when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(testPreferences);
