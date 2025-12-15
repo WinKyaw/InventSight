@@ -42,7 +42,6 @@ public class UserNavigationPreference {
     
     // Constructors
     public UserNavigationPreference() {
-        this.modifiedAt = LocalDateTime.now();
         this.preferredTabs = new ArrayList<>();
         this.availableTabs = new ArrayList<>();
     }

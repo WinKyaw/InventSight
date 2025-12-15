@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -73,7 +72,7 @@ public class UserNavigationPreferenceService {
         }
         
         preferences.setPreferredTabs(preferredTabs);
-        preferences.setModifiedAt(LocalDateTime.now());
+        // modifiedAt will be set automatically by @PreUpdate
         
         return navigationPreferenceRepository.save(preferences);
     }
@@ -94,7 +93,7 @@ public class UserNavigationPreferenceService {
         List<String> defaultTabs = getDefaultTabsForRole(userRole);
         
         UserNavigationPreference preferences = new UserNavigationPreference(userId, defaultTabs, defaultTabs);
-        preferences.setModifiedAt(LocalDateTime.now());
+        // modifiedAt will be set automatically by @PrePersist
         
         return navigationPreferenceRepository.save(preferences);
     }
