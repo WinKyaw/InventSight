@@ -193,9 +193,6 @@ public class UserPreferencesController {
             
             return ResponseEntity.ok(new GenericApiResponse<>(true, "Navigation preferences updated successfully", response));
                     
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(new GenericApiResponse<>(false, e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new GenericApiResponse<>(false, e.getMessage(), null));
