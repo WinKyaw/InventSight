@@ -155,7 +155,7 @@ public class UserService implements UserDetailsService {
         
         System.out.println("🏢 Company created: " + savedCompany.getName() + " (ID: " + savedCompany.getId() + ")");
         System.out.println("🏪 Default store created: " + savedStore.getStoreName() + " (ID: " + savedStore.getId() + ")");
-        System.out.println("👑 User assigned as FOUNDER with company-level access");
+        System.out.println("👑 User assigned as GENERAL MANAGER (Founder) with company-level access");
         System.out.println("🎯 Default tenant set for automatic login: " + savedCompany.getId());
         
         // Set tenant context for the new user to ensure proper association

@@ -639,9 +639,19 @@ public class AuthController {
             user.setPassword(registerRequest.getPassword());
             user.setFirstName(registerRequest.getFirstName());
             user.setLastName(registerRequest.getLastName());
-            user.setRole(UserRole.USER); // Default role
+            user.setRole(UserRole.MANAGER); // Founder gets General Manager role
             
             User savedUser = userService.createUser(user);
+            
+            // Auto-send verification email
+            try {
+                String verificationToken = emailVerificationService.generateVerificationToken(savedUser.getEmail());
+                emailVerificationService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+                System.out.println("✅ Verification email sent to: " + savedUser.getEmail());
+            } catch (Exception emailError) {
+                System.err.println("⚠️ Warning: Failed to send verification email: " + emailError.getMessage());
+                // Don't fail registration if email fails
+            }
             
             // Generate tenant-bound JWT token for immediate login with default tenant
             // User now has defaultTenantId set automatically by createUser
@@ -738,9 +748,19 @@ public class AuthController {
             user.setPassword(signupRequest.getPassword());
             user.setFirstName(signupRequest.getFirstName());
             user.setLastName(signupRequest.getLastName());
-            user.setRole(UserRole.USER); // Default role
+            user.setRole(UserRole.MANAGER); // Founder gets General Manager role
             
             User savedUser = userService.createUser(user);
+            
+            // Auto-send verification email
+            try {
+                String verificationToken = emailVerificationService.generateVerificationToken(savedUser.getEmail());
+                emailVerificationService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+                System.out.println("✅ Verification email sent to: " + savedUser.getEmail());
+            } catch (Exception emailError) {
+                System.err.println("⚠️ Warning: Failed to send verification email: " + emailError.getMessage());
+                // Don't fail registration if email fails
+            }
             
             // Generate tenant-bound JWT tokens with default tenant
             // User now has defaultTenantId set automatically by createUser
