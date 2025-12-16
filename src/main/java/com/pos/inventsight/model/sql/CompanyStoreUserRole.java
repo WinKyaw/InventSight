@@ -188,11 +188,13 @@ public class CompanyStoreUserRole {
     
     /**
      * Validate that direct FKs match companyStoreUser FKs
-     * @return true if consistent or if companyStoreUser is null
+     * @return true if consistent
      */
     public boolean isConsistent() {
         if (companyStoreUser == null) {
-            return true; // No companyStoreUser to validate against
+            // If companyStoreUser is null, we're using the new architecture with direct FKs
+            // Validate that at least user and company are set
+            return user != null && company != null;
         }
         
         // Check if direct FKs match companyStoreUser FKs

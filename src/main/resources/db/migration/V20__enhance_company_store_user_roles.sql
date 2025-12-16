@@ -21,27 +21,41 @@ WHERE csur.company_store_user_id = csu.id
 AND csur.user_id IS NULL;
 
 -- Step 3: Fix FOUNDER bug and set permanent flag
--- Map users.role to appropriate CompanyRole values
--- Fix incorrect role assignments where users.role doesn't match csur.role
+-- This is critical business logic that corrects role mismatches between users.role and company_store_user_roles.role
+-- The bug occurred when employees were incorrectly assigned FOUNDER role instead of EMPLOYEE role
+
+-- Map users.role to appropriate CompanyRole values with comprehensive coverage:
+-- UserRole.OWNER → CompanyRole.FOUNDER (for company founders)
+-- UserRole.CO_OWNER → CompanyRole.GENERAL_MANAGER (for co-owners)
+-- UserRole.MANAGER → CompanyRole.GENERAL_MANAGER (for managers)
+-- UserRole.ADMIN → CompanyRole.GENERAL_MANAGER (for admins)
+-- UserRole.EMPLOYEE → CompanyRole.EMPLOYEE (MUST NOT be FOUNDER!)
+
 UPDATE company_store_user_roles csur
 SET 
+    -- Set permanent flag based on user's global role
     permanent = CASE 
         WHEN u.role IN ('OWNER', 'CO_OWNER', 'ADMIN') THEN TRUE
         ELSE FALSE
     END,
-    -- Comprehensive role mapping based on users.role
+    -- Fix incorrect role assignments with comprehensive mapping
     role = CASE
-        -- Fix FOUNDER bug: EMPLOYEE should never have FOUNDER role
+        -- CRITICAL FIX: EMPLOYEE should NEVER have FOUNDER role
         WHEN u.role = 'EMPLOYEE' AND csur.role = 'FOUNDER' THEN 'EMPLOYEE'
-        -- Map OWNER to appropriate company role
+        
+        -- Map OWNER to appropriate company role (FOUNDER or CEO)
         WHEN u.role = 'OWNER' AND csur.role = 'FOUNDER' THEN 'FOUNDER'
         WHEN u.role = 'OWNER' AND csur.role NOT IN ('FOUNDER', 'CEO') THEN 'FOUNDER'
-        -- Map CO_OWNER to CEO or GENERAL_MANAGER
+        
+        -- Map CO_OWNER to management role
         WHEN u.role = 'CO_OWNER' AND csur.role = 'EMPLOYEE' THEN 'GENERAL_MANAGER'
-        -- Map MANAGER to appropriate management role
+        
+        -- Map MANAGER to management role
         WHEN u.role = 'MANAGER' AND csur.role = 'EMPLOYEE' THEN 'GENERAL_MANAGER'
-        -- Map ADMIN to appropriate role
+        
+        -- Map ADMIN to management role
         WHEN u.role = 'ADMIN' AND csur.role = 'EMPLOYEE' THEN 'GENERAL_MANAGER'
+        
         -- Keep existing role if it's already appropriate
         ELSE csur.role
     END

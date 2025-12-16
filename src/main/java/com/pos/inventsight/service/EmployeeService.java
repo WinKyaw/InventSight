@@ -241,12 +241,14 @@ public class EmployeeService {
         System.out.println("✅ UserStoreRole created for backward compatibility");
         
         // FIX: Create CompanyStoreUser entry for employee
+        // Constructor: CompanyStoreUser(Company company, Store store, User user, CompanyRole role, String assignedBy)
+        // This links the employee's user account to the company and store with EMPLOYEE role
         CompanyStoreUser companyStoreUser = new CompanyStoreUser(
-            employee.getCompany(),        // company
-            employee.getStore(),          // store
-            savedUser,                    // user
-            CompanyRole.EMPLOYEE,         // role (employee level)
-            employer.getUsername()        // created by
+            employee.getCompany(),        // company - which company the employee belongs to
+            employee.getStore(),          // store - which store the employee works at
+            savedUser,                    // user - the employee's user account
+            CompanyRole.EMPLOYEE,         // role - company role level (EMPLOYEE)
+            employer.getUsername()        // assignedBy - who created this relationship
         );
         companyStoreUserRepository.save(companyStoreUser);
         System.out.println("✅ CompanyStoreUser created for employee");
