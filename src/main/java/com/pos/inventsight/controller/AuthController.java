@@ -22,6 +22,8 @@ import com.pos.inventsight.config.JwtUtils;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -64,6 +66,8 @@ import java.util.Map;
 @CrossOrigin(origins = "*", maxAge = 3600)
 @ConditionalOnProperty(name = "inventsight.security.local-login.enabled", havingValue = "true", matchIfMissing = false)
 public class AuthController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -639,9 +643,12 @@ public class AuthController {
             user.setPassword(registerRequest.getPassword());
             user.setFirstName(registerRequest.getFirstName());
             user.setLastName(registerRequest.getLastName());
-            user.setRole(UserRole.USER); // Default role
+            user.setRole(UserRole.MANAGER); // Founder gets General Manager role
             
             User savedUser = userService.createUser(user);
+            
+            // Auto-send verification email
+            sendVerificationEmailAfterRegistration(savedUser);
             
             // Generate tenant-bound JWT token for immediate login with default tenant
             // User now has defaultTenantId set automatically by createUser
@@ -738,9 +745,12 @@ public class AuthController {
             user.setPassword(signupRequest.getPassword());
             user.setFirstName(signupRequest.getFirstName());
             user.setLastName(signupRequest.getLastName());
-            user.setRole(UserRole.USER); // Default role
+            user.setRole(UserRole.MANAGER); // Founder gets General Manager role
             
             User savedUser = userService.createUser(user);
+            
+            // Auto-send verification email
+            sendVerificationEmailAfterRegistration(savedUser);
             
             // Generate tenant-bound JWT tokens with default tenant
             // User now has defaultTenantId set automatically by createUser
@@ -1542,6 +1552,22 @@ public class AuthController {
             System.out.println("❌ Token refresh error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new AuthResponse("Token refresh failed: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Helper method to send verification email after user registration
+     * Handles email sending errors gracefully without failing registration
+     */
+    private void sendVerificationEmailAfterRegistration(User user) {
+        try {
+            String verificationToken = emailVerificationService.generateVerificationToken(user.getEmail());
+            emailVerificationService.sendVerificationEmail(user.getEmail(), verificationToken);
+            logger.info("✅ Verification email sent to: {}", user.getEmail());
+        } catch (Exception emailError) {
+            logger.warn("⚠️ Warning: Failed to send verification email to {}: {}", 
+                user.getEmail(), emailError.getMessage());
+            // Don't fail registration if email fails
         }
     }
 }
