@@ -5,6 +5,9 @@ import com.pos.inventsight.model.sql.EmployeeStatus;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
+import com.pos.inventsight.model.sql.CompanyStoreUserRole;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.EmployeeRelationship;
 import com.pos.inventsight.model.sql.UserStoreRole;
@@ -12,6 +15,8 @@ import com.pos.inventsight.repository.sql.EmployeeRepository;
 import com.pos.inventsight.repository.sql.EmployeeRelationshipRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +43,12 @@ public class EmployeeService {
     
     @Autowired
     private UserStoreRoleRepository userStoreRoleRepository;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -228,6 +239,30 @@ public class EmployeeService {
         );
         userStoreRoleRepository.save(userStoreRole);
         System.out.println("✅ UserStoreRole created for backward compatibility");
+        
+        // FIX: Create CompanyStoreUser entry for employee
+        CompanyStoreUser companyStoreUser = new CompanyStoreUser(
+            employee.getCompany(),        // company
+            employee.getStore(),          // store
+            savedUser,                    // user
+            CompanyRole.EMPLOYEE,         // role (employee level)
+            employer.getUsername()        // created by
+        );
+        companyStoreUserRepository.save(companyStoreUser);
+        System.out.println("✅ CompanyStoreUser created for employee");
+        
+        // FIX: Create CompanyStoreUserRole entry with permanent=false for employee
+        CompanyStoreUserRole employeeRole = new CompanyStoreUserRole(
+            savedUser,                    // user
+            employee.getCompany(),        // company
+            employee.getStore(),          // store
+            CompanyRole.EMPLOYEE,         // role
+            employer.getUsername(),       // assigned_by
+            false                         // permanent=false for employees
+        );
+        employeeRole.setCompanyStoreUser(companyStoreUser); // Set the relationship
+        companyStoreUserRoleRepository.save(employeeRole);
+        System.out.println("✅ CompanyStoreUserRole created with permanent=false");
         
         // Log activity
         activityLogService.logActivity(
