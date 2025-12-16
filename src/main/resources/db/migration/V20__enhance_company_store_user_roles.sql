@@ -21,18 +21,28 @@ WHERE csur.company_store_user_id = csu.id
 AND csur.user_id IS NULL;
 
 -- Step 3: Fix FOUNDER bug and set permanent flag
--- If users.role = 'OWNER', the role should be mapped to CompanyRole based on actual user role
--- If users.role = 'EMPLOYEE', role should be 'EMPLOYEE' (NOT FOUNDER!)
+-- Map users.role to appropriate CompanyRole values
+-- Fix incorrect role assignments where users.role doesn't match csur.role
 UPDATE company_store_user_roles csur
 SET 
     permanent = CASE 
         WHEN u.role IN ('OWNER', 'CO_OWNER', 'ADMIN') THEN TRUE
         ELSE FALSE
     END,
-    -- Fix incorrect FOUNDER assignments for employees
+    -- Comprehensive role mapping based on users.role
     role = CASE
+        -- Fix FOUNDER bug: EMPLOYEE should never have FOUNDER role
         WHEN u.role = 'EMPLOYEE' AND csur.role = 'FOUNDER' THEN 'EMPLOYEE'
+        -- Map OWNER to appropriate company role
         WHEN u.role = 'OWNER' AND csur.role = 'FOUNDER' THEN 'FOUNDER'
+        WHEN u.role = 'OWNER' AND csur.role NOT IN ('FOUNDER', 'CEO') THEN 'FOUNDER'
+        -- Map CO_OWNER to CEO or GENERAL_MANAGER
+        WHEN u.role = 'CO_OWNER' AND csur.role = 'EMPLOYEE' THEN 'GENERAL_MANAGER'
+        -- Map MANAGER to appropriate management role
+        WHEN u.role = 'MANAGER' AND csur.role = 'EMPLOYEE' THEN 'GENERAL_MANAGER'
+        -- Map ADMIN to appropriate role
+        WHEN u.role = 'ADMIN' AND csur.role = 'EMPLOYEE' THEN 'GENERAL_MANAGER'
+        -- Keep existing role if it's already appropriate
         ELSE csur.role
     END
 FROM users u

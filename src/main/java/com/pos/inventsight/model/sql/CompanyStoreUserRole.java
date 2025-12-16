@@ -86,12 +86,8 @@ public class CompanyStoreUserRole {
         this();
         this.companyStoreUser = companyStoreUser;
         this.role = role;
-        // Set direct FKs from companyStoreUser
-        if (companyStoreUser != null) {
-            this.user = companyStoreUser.getUser();
-            this.company = companyStoreUser.getCompany();
-            this.store = companyStoreUser.getStore();
-        }
+        // Sync direct FKs from companyStoreUser for consistency
+        syncDirectFKs();
     }
     
     public CompanyStoreUserRole(CompanyStoreUser companyStoreUser, CompanyRole role, String assignedBy) {
@@ -104,6 +100,7 @@ public class CompanyStoreUserRole {
         this.permanent = permanent;
     }
     
+    // Constructor for direct creation without CompanyStoreUser (for new architecture)
     public CompanyStoreUserRole(User user, Company company, Store store, CompanyRole role, String assignedBy, Boolean permanent) {
         this();
         this.user = user;
@@ -112,6 +109,16 @@ public class CompanyStoreUserRole {
         this.role = role;
         this.assignedBy = assignedBy;
         this.permanent = permanent;
+        // companyStoreUser will be set later if needed
+    }
+    
+    // Helper method to sync direct FKs from companyStoreUser
+    private void syncDirectFKs() {
+        if (this.companyStoreUser != null) {
+            this.user = this.companyStoreUser.getUser();
+            this.company = this.companyStoreUser.getCompany();
+            this.store = this.companyStoreUser.getStore();
+        }
     }
     
     // Getters and Setters
@@ -121,12 +128,8 @@ public class CompanyStoreUserRole {
     public CompanyStoreUser getCompanyStoreUser() { return companyStoreUser; }
     public void setCompanyStoreUser(CompanyStoreUser companyStoreUser) { 
         this.companyStoreUser = companyStoreUser;
-        // Auto-sync direct FKs
-        if (companyStoreUser != null) {
-            this.user = companyStoreUser.getUser();
-            this.company = companyStoreUser.getCompany();
-            this.store = companyStoreUser.getStore();
-        }
+        // Auto-sync direct FKs when companyStoreUser is set
+        syncDirectFKs();
     }
     
     public User getUser() { return user; }
@@ -183,8 +186,36 @@ public class CompanyStoreUserRole {
         this.updatedAt = LocalDateTime.now();
     }
     
+    /**
+     * Validate that direct FKs match companyStoreUser FKs
+     * @return true if consistent or if companyStoreUser is null
+     */
+    public boolean isConsistent() {
+        if (companyStoreUser == null) {
+            return true; // No companyStoreUser to validate against
+        }
+        
+        // Check if direct FKs match companyStoreUser FKs
+        boolean userMatches = (user == null && companyStoreUser.getUser() == null) || 
+                              (user != null && user.equals(companyStoreUser.getUser()));
+        boolean companyMatches = (company == null && companyStoreUser.getCompany() == null) || 
+                                 (company != null && company.equals(companyStoreUser.getCompany()));
+        boolean storeMatches = (store == null && companyStoreUser.getStore() == null) || 
+                               (store != null && store.equals(companyStoreUser.getStore()));
+        
+        return userMatches && companyMatches && storeMatches;
+    }
+    
     @PreUpdate
     public void updateTimestamp() {
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    @PrePersist
+    public void prePersist() {
+        // Ensure direct FKs are synced before persisting
+        if (companyStoreUser != null && !isConsistent()) {
+            syncDirectFKs();
+        }
     }
 }
