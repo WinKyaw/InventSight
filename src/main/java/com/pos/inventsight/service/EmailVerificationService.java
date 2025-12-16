@@ -160,6 +160,7 @@ public class EmailVerificationService {
             String body = String.format(
                 "Hello,\n\n" +
                 "Thank you for registering with InventSight!\n\n" +
+                "You have been registered as the OWNER of your company with full access to all features.\n\n" +
                 "Please verify your email address by clicking the link below:\n\n" +
                 "%s\n\n" +
                 "This link will expire in %d hours.\n\n" +

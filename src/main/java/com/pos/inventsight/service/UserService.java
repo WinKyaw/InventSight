@@ -7,6 +7,7 @@ import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Company;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.SubscriptionLevel;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
@@ -151,11 +152,12 @@ public class UserService implements UserDetailsService {
         // Set default tenant to the newly created company for automatic tenant binding
         // Update in single operation to minimize database round-trips
         savedUser.setDefaultTenantId(savedCompany.getId());
+        savedUser.setSubscriptionLevel(SubscriptionLevel.ENTERPRISE); // Founder gets enterprise subscription
         savedUser = userRepository.save(savedUser);
         
         System.out.println("🏢 Company created: " + savedCompany.getName() + " (ID: " + savedCompany.getId() + ")");
         System.out.println("🏪 Default store created: " + savedStore.getStoreName() + " (ID: " + savedStore.getId() + ")");
-        System.out.println("👑 User assigned as GENERAL MANAGER (Founder) with company-level access");
+        System.out.println("👑 User assigned as OWNER (Founder) with full company control");
         System.out.println("🎯 Default tenant set for automatic login: " + savedCompany.getId());
         
         // Set tenant context for the new user to ensure proper association

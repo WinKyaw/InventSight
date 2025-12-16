@@ -643,7 +643,7 @@ public class AuthController {
             user.setPassword(registerRequest.getPassword());
             user.setFirstName(registerRequest.getFirstName());
             user.setLastName(registerRequest.getLastName());
-            user.setRole(UserRole.MANAGER); // Founder gets General Manager role
+            user.setRole(UserRole.OWNER); // Founder gets OWNER role
             
             User savedUser = userService.createUser(user);
             
@@ -745,7 +745,7 @@ public class AuthController {
             user.setPassword(signupRequest.getPassword());
             user.setFirstName(signupRequest.getFirstName());
             user.setLastName(signupRequest.getLastName());
-            user.setRole(UserRole.MANAGER); // Founder gets General Manager role
+            user.setRole(UserRole.OWNER); // Founder gets OWNER role
             
             User savedUser = userService.createUser(user);
             
