@@ -1,5 +1,6 @@
 package com.pos.inventsight.controller;
 
+import com.pos.inventsight.constants.RoleConstants;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.WarehouseRequest;
 import com.pos.inventsight.dto.WarehouseResponse;
@@ -40,7 +41,7 @@ public class WarehouseController {
      * POST /api/warehouses
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('OWNER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
                                            Authentication authentication) {
         try {
@@ -125,7 +126,7 @@ public class WarehouseController {
      * PUT /api/warehouses/{id}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OWNER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> updateWarehouse(@PathVariable UUID id,
                                            @Valid @RequestBody WarehouseRequest request,
                                            Authentication authentication) {
@@ -162,7 +163,7 @@ public class WarehouseController {
      * DELETE /api/warehouses/{id}
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OWNER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> deleteWarehouse(@PathVariable UUID id,
                                            Authentication authentication) {
         try {
@@ -287,9 +288,6 @@ public class WarehouseController {
      * Helper method to check if user is GM+ level
      */
     private boolean isGMPlusRole(UserRole role) {
-        return role == UserRole.OWNER 
-            || role == UserRole.CO_OWNER 
-            || role == UserRole.MANAGER 
-            || role == UserRole.ADMIN;
+        return RoleConstants.isGMPlus(role);
     }
 }
