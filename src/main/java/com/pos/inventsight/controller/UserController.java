@@ -16,6 +16,7 @@ import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.ActivityLogService;
+import com.pos.inventsight.util.RoleUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -133,7 +134,7 @@ public class UserController {
             
             // Filter out expired roles
             List<CompanyStoreUserRole> validRoles = roles.stream()
-                .filter(role -> !isExpired(role))
+                .filter(role -> !RoleUtils.isExpired(role))
                 .collect(Collectors.toList());
             
             if (validRoles.isEmpty()) {
@@ -143,7 +144,7 @@ public class UserController {
             }
             
             // Get highest priority role
-            CompanyStoreUserRole activeRole = getHighestPriorityRole(validRoles);
+            CompanyStoreUserRole activeRole = RoleUtils.getHighestPriorityRole(validRoles);
             
             UserRoleResponse response = UserRoleResponse.fromCompanyRole(
                 user, 
@@ -509,43 +510,5 @@ public class UserController {
             return "";
         }
         return fileName.substring(fileName.lastIndexOf("."));
-    }
-    
-    /**
-     * Check if a role has expired
-     */
-    private boolean isExpired(CompanyStoreUserRole role) {
-        if (role.getExpiresAt() == null) {
-            return false; // Permanent roles never expire
-        }
-        return LocalDateTime.now().isAfter(role.getExpiresAt());
-    }
-    
-    /**
-     * Get highest priority role from list
-     * Priority: FOUNDER > CEO > GENERAL_MANAGER > STORE_MANAGER > EMPLOYEE
-     */
-    private CompanyStoreUserRole getHighestPriorityRole(List<CompanyStoreUserRole> roles) {
-        return roles.stream()
-            .min((r1, r2) -> {
-                int priority1 = getRolePriority(r1.getRole());
-                int priority2 = getRolePriority(r2.getRole());
-                return Integer.compare(priority1, priority2);
-            })
-            .orElse(roles.get(0));
-    }
-    
-    /**
-     * Get role priority (lower number = higher priority)
-     */
-    private int getRolePriority(CompanyRole role) {
-        return switch (role) {
-            case FOUNDER -> 1;
-            case CEO -> 2;
-            case GENERAL_MANAGER -> 3;
-            case STORE_MANAGER -> 4;
-            case EMPLOYEE -> 5;
-            default -> 99;
-        };
     }
 }

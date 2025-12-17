@@ -22,6 +22,7 @@ import com.pos.inventsight.service.PasswordValidationService;
 import com.pos.inventsight.service.RateLimitingService;
 import com.pos.inventsight.service.RefreshTokenService;
 import com.pos.inventsight.config.JwtUtils;
+import com.pos.inventsight.util.RoleUtils;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 
@@ -325,13 +326,13 @@ public class AuthController {
                 
                 // Filter out expired roles
                 List<CompanyStoreUserRole> validRoles = roles.stream()
-                    .filter(role -> role.getExpiresAt() == null || LocalDateTime.now().isBefore(role.getExpiresAt()))
+                    .filter(role -> !RoleUtils.isExpired(role))
                     .collect(Collectors.toList());
                 
                 if (!validRoles.isEmpty()) {
                     // Use highest priority company role
-                    CompanyStoreUserRole highestRole = getHighestPriorityRole(validRoles);
-                    activeRole = mapCompanyRoleToUserRole(highestRole.getRole());
+                    CompanyStoreUserRole highestRole = RoleUtils.getHighestPriorityRole(validRoles);
+                    activeRole = RoleUtils.mapCompanyRoleToUserRole(highestRole.getRole());
                 }
             }
             
@@ -1606,47 +1607,5 @@ public class AuthController {
                 user.getEmail(), emailError.getMessage());
             // Don't fail registration if email fails
         }
-    }
-    
-    /**
-     * Get highest priority role from list
-     * Priority: FOUNDER > CEO > GENERAL_MANAGER > STORE_MANAGER > EMPLOYEE
-     */
-    private CompanyStoreUserRole getHighestPriorityRole(List<CompanyStoreUserRole> roles) {
-        return roles.stream()
-            .min((r1, r2) -> {
-                int priority1 = getCompanyRolePriority(r1.getRole());
-                int priority2 = getCompanyRolePriority(r2.getRole());
-                return Integer.compare(priority1, priority2);
-            })
-            .orElse(roles.get(0));
-    }
-    
-    /**
-     * Get company role priority (lower number = higher priority)
-     */
-    private int getCompanyRolePriority(CompanyRole role) {
-        return switch (role) {
-            case FOUNDER -> 1;
-            case CEO -> 2;
-            case GENERAL_MANAGER -> 3;
-            case STORE_MANAGER -> 4;
-            case EMPLOYEE -> 5;
-            default -> 99;
-        };
-    }
-    
-    /**
-     * Map CompanyRole to UserRole for compatibility
-     * This ensures the frontend gets roles it understands
-     */
-    private String mapCompanyRoleToUserRole(CompanyRole companyRole) {
-        return switch (companyRole) {
-            case FOUNDER, CEO -> "OWNER";
-            case GENERAL_MANAGER -> "MANAGER";
-            case STORE_MANAGER -> "MANAGER";
-            case EMPLOYEE -> "EMPLOYEE";
-            default -> "EMPLOYEE";
-        };
     }
 }
