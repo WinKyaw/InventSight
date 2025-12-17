@@ -28,6 +28,7 @@ import java.util.HashMap;
 @RestController
 @RequestMapping("/receipts")
 @CrossOrigin(origins = "*", maxAge = 3600)
+@PreAuthorize("isAuthenticated()")
 public class ReceiptController {
     
     @Autowired
