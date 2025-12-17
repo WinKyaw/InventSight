@@ -140,6 +140,31 @@ public class UserNavigationPreferenceServiceTest {
     }
     
     @Test
+    void createDefaultPreferences_FounderRole_ReturnsGMPlusTabs() {
+        // Given
+        UserNavigationPreference gmPrefs = new UserNavigationPreference(testUserId);
+        gmPrefs.setId(UUID.randomUUID());
+        gmPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "employees", "calendar", "dashboard", "reports", "warehouse", "settings"));
+        gmPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "employees"));
+        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(gmPrefs);
+        
+        // When
+        UserNavigationPreference result = navigationPreferenceService.createDefaultPreferences(testUserId, UserRole.FOUNDER);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(testUserId, result.getUserId());
+        assertTrue(result.getAvailableTabs().contains("items"));
+        assertTrue(result.getAvailableTabs().contains("receipt"));
+        assertTrue(result.getAvailableTabs().contains("employees"));
+        // Verify FOUNDER (GM+ role) has access to team management
+        assertTrue(result.getAvailableTabs().contains("calendar"));
+        assertTrue(result.getAvailableTabs().contains("dashboard"));
+        assertTrue(result.getAvailableTabs().contains("reports"));
+        verify(navigationPreferenceRepository).save(any(UserNavigationPreference.class));
+    }
+    
+    @Test
     void createDefaultPreferences_AdminRole_ReturnsGMPlusTabs() {
         // Given
         UserNavigationPreference gmPrefs = new UserNavigationPreference(testUserId);
