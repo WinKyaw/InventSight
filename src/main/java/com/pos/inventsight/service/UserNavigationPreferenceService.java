@@ -1,5 +1,6 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.constants.RoleConstants;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.UserNavigationPreference;
 import com.pos.inventsight.model.sql.UserRole;
@@ -90,7 +91,7 @@ public class UserNavigationPreferenceService {
     /**
      * Create default navigation preferences based on user role.
      * 
-     * GM+ (OWNER, CO_OWNER, MANAGER, ADMIN): ["items", "receipt", "team"]
+     * GM+ (OWNER, FOUNDER, CO_OWNER, MANAGER, ADMIN): ["items", "receipt", "team"]
      * Employee: ["items", "receipt", "calendar"]
      * 
      * @param userId the user's UUID
@@ -112,23 +113,20 @@ public class UserNavigationPreferenceService {
     /**
      * Check if role is GM+ level (has team access).
      * 
-     * GM+ Roles: OWNER, CO_OWNER, MANAGER, ADMIN
+     * GM+ Roles: OWNER, FOUNDER, CO_OWNER, MANAGER, ADMIN
      * Below GM: EMPLOYEE, CASHIER, CUSTOMER, MERCHANT, PARTNER, USER
      * 
      * @param role the user's role
      * @return true if role is GM+ level
      */
     private boolean isGMPlusRole(UserRole role) {
-        return role == UserRole.OWNER 
-            || role == UserRole.CO_OWNER 
-            || role == UserRole.MANAGER 
-            || role == UserRole.ADMIN;
+        return RoleConstants.isGMPlus(role);
     }
     
     /**
      * Get default tabs based on user role.
      * 
-     * GM+ (OWNER, CO_OWNER, MANAGER, ADMIN): Can access team management
+     * GM+ (OWNER, FOUNDER, CO_OWNER, MANAGER, ADMIN): Can access team management
      * Below GM (EMPLOYEE, CASHIER, CUSTOMER, etc): Cannot access team
      * 
      * @param userRole the user's role

@@ -56,7 +56,7 @@ public class PermissionController {
      * Grant a one-time permission (GM+ only)
      */
     @PostMapping("/grant")
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> grantPermission(
             @Valid @RequestBody GrantPermissionRequest request,
             Authentication authentication) {
@@ -210,7 +210,7 @@ public class PermissionController {
      * Get all permissions granted by current user (GM+ only)
      */
     @GetMapping("/granted-by-me")
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> getPermissionsGrantedByMe(Authentication authentication) {
         try {
             String username = authentication.getName();

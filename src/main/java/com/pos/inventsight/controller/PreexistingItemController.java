@@ -67,7 +67,7 @@ public class PreexistingItemController {
      * Create a new item (GM+ only)
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> createItem(
             @Valid @RequestBody PreexistingItemRequest request,
             Authentication authentication) {
@@ -103,7 +103,7 @@ public class PreexistingItemController {
      * Update an item (GM+ only)
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> updateItem(
             @PathVariable UUID id,
             @Valid @RequestBody PreexistingItemRequest request,
@@ -140,7 +140,7 @@ public class PreexistingItemController {
      * Soft delete an item (GM+ only)
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> deleteItem(
             @PathVariable UUID id,
             Authentication authentication) {
@@ -163,7 +163,7 @@ public class PreexistingItemController {
      * Export items as JSON (GM+ only)
      */
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> exportItems(
             @RequestParam UUID storeId,
             Authentication authentication) {
@@ -193,7 +193,7 @@ public class PreexistingItemController {
      * Import items from JSON file (GM+ only)
      */
     @PostMapping("/import")
-    @PreAuthorize("hasAnyRole('MANAGER', 'OWNER', 'CO_OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> importItems(
             @RequestParam UUID targetStoreId,
             @RequestParam("file") MultipartFile file,

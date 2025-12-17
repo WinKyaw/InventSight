@@ -1,5 +1,6 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.constants.RoleConstants;
 import com.pos.inventsight.model.sql.OneTimePermission;
 import com.pos.inventsight.model.sql.PermissionType;
 import com.pos.inventsight.model.sql.User;
@@ -187,8 +188,7 @@ public class OneTimePermissionService {
             // First check legacy UserRole for backward compatibility
             if (user.getRole() != null) {
                 UserRole role = user.getRole();
-                if (role == UserRole.MANAGER || role == UserRole.OWNER || 
-                    role == UserRole.CO_OWNER || role == UserRole.ADMIN) {
+                if (RoleConstants.isGMPlus(role)) {
                     logger.debug("✅ Manager privileges granted via legacy UserRole: {} for user ID: {}", role, user.getId());
                     return true;
                 }
