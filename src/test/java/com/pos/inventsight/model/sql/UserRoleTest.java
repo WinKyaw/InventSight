@@ -11,11 +11,12 @@ public class UserRoleTest {
         // Test that all expected roles are present in the enum
         UserRole[] roles = UserRole.values();
         
-        // Verify expected count of roles (10 total roles)
-        assertEquals(10, roles.length, "UserRole should have 10 roles");
+        // Verify expected count of roles (11 total roles including FOUNDER)
+        assertEquals(11, roles.length, "UserRole should have 11 roles");
         
         // Verify primary roles exist
         assertNotNull(UserRole.valueOf("OWNER"));
+        assertNotNull(UserRole.valueOf("FOUNDER"));
         assertNotNull(UserRole.valueOf("CO_OWNER"));
         assertNotNull(UserRole.valueOf("MANAGER"));
         assertNotNull(UserRole.valueOf("EMPLOYEE"));
