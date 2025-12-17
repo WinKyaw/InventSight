@@ -3,12 +3,16 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.WarehouseRequest;
 import com.pos.inventsight.dto.WarehouseResponse;
+import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Warehouse;
+import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,15 +32,30 @@ public class WarehouseController {
     @Autowired
     private WarehouseService warehouseService;
 
+    @Autowired
+    private UserService userService;
+
     /**
-     * Create a new warehouse
+     * Create a new warehouse (GM+ only)
      * POST /api/warehouses
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('OWNER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
                                            Authentication authentication) {
         try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            // ✅ Additional check for GM+ level
+            if (!isGMPlusRole(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Only General Managers and above can create warehouses"));
+            }
+            
             WarehouseResponse warehouse = warehouseService.createWarehouse(request, authentication);
+            
+            System.out.println("✅ Warehouse created by " + username + " (Role: " + user.getRole() + ")");
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -56,10 +75,11 @@ public class WarehouseController {
     }
 
     /**
-     * Get all warehouses
+     * Get all warehouses (all authenticated users can view)
      * GET /api/warehouses
      */
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getAllWarehouses() {
         try {
             List<WarehouseResponse> warehouses = warehouseService.getAllActiveWarehouses();
@@ -101,14 +121,23 @@ public class WarehouseController {
     }
 
     /**
-     * Update warehouse
+     * Update warehouse (GM+ only)
      * PUT /api/warehouses/{id}
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('OWNER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> updateWarehouse(@PathVariable UUID id,
                                            @Valid @RequestBody WarehouseRequest request,
                                            Authentication authentication) {
         try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            if (!isGMPlusRole(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Only General Managers and above can update warehouses"));
+            }
+            
             WarehouseResponse warehouse = warehouseService.updateWarehouse(id, request, authentication);
             
             Map<String, Object> response = new HashMap<>();
@@ -129,13 +158,22 @@ public class WarehouseController {
     }
 
     /**
-     * Delete warehouse (deactivate)
+     * Delete warehouse (deactivate) (GM+ only)
      * DELETE /api/warehouses/{id}
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('OWNER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> deleteWarehouse(@PathVariable UUID id,
                                            Authentication authentication) {
         try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            if (!isGMPlusRole(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Only General Managers and above can delete warehouses"));
+            }
+            
             warehouseService.deleteWarehouse(id, authentication);
             
             return ResponseEntity.ok(new ApiResponse(true, "Warehouse deactivated successfully"));
@@ -243,5 +281,15 @@ public class WarehouseController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Error fetching statistics: " + e.getMessage()));
         }
+    }
+
+    /**
+     * Helper method to check if user is GM+ level
+     */
+    private boolean isGMPlusRole(UserRole role) {
+        return role == UserRole.OWNER 
+            || role == UserRole.CO_OWNER 
+            || role == UserRole.MANAGER 
+            || role == UserRole.ADMIN;
     }
 }
