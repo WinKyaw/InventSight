@@ -75,7 +75,11 @@ public class UserNavigationPreferenceServiceTest {
     @Test
     void createDefaultPreferences_ManagerRole_ReturnsGMPlusTabs() {
         // Given
-        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(testPreferences);
+        UserNavigationPreference gmPrefs = new UserNavigationPreference(testUserId);
+        gmPrefs.setId(UUID.randomUUID());
+        gmPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "team", "calendar", "dashboard", "reports"));
+        gmPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "team"));
+        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(gmPrefs);
         
         // When
         UserNavigationPreference result = navigationPreferenceService.createDefaultPreferences(testUserId, UserRole.MANAGER);
@@ -86,13 +90,21 @@ public class UserNavigationPreferenceServiceTest {
         assertTrue(result.getAvailableTabs().contains("items"));
         assertTrue(result.getAvailableTabs().contains("receipt"));
         assertTrue(result.getAvailableTabs().contains("team"));
+        // Verify GM+ roles have access to additional tabs
+        assertTrue(result.getAvailableTabs().contains("calendar"));
+        assertTrue(result.getAvailableTabs().contains("dashboard"));
+        assertTrue(result.getAvailableTabs().contains("reports"));
         verify(navigationPreferenceRepository).save(any(UserNavigationPreference.class));
     }
     
     @Test
     void createDefaultPreferences_OwnerRole_ReturnsGMPlusTabs() {
         // Given
-        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(testPreferences);
+        UserNavigationPreference gmPrefs = new UserNavigationPreference(testUserId);
+        gmPrefs.setId(UUID.randomUUID());
+        gmPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "team", "calendar", "dashboard", "reports"));
+        gmPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "team"));
+        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(gmPrefs);
         
         // When
         UserNavigationPreference result = navigationPreferenceService.createDefaultPreferences(testUserId, UserRole.OWNER);
@@ -109,7 +121,11 @@ public class UserNavigationPreferenceServiceTest {
     @Test
     void createDefaultPreferences_CoOwnerRole_ReturnsGMPlusTabs() {
         // Given
-        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(testPreferences);
+        UserNavigationPreference gmPrefs = new UserNavigationPreference(testUserId);
+        gmPrefs.setId(UUID.randomUUID());
+        gmPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "team", "calendar", "dashboard", "reports"));
+        gmPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "team"));
+        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(gmPrefs);
         
         // When
         UserNavigationPreference result = navigationPreferenceService.createDefaultPreferences(testUserId, UserRole.CO_OWNER);
@@ -126,7 +142,11 @@ public class UserNavigationPreferenceServiceTest {
     @Test
     void createDefaultPreferences_AdminRole_ReturnsGMPlusTabs() {
         // Given
-        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(testPreferences);
+        UserNavigationPreference gmPrefs = new UserNavigationPreference(testUserId);
+        gmPrefs.setId(UUID.randomUUID());
+        gmPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "team", "calendar", "dashboard", "reports"));
+        gmPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "team"));
+        when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(gmPrefs);
         
         // When
         UserNavigationPreference result = navigationPreferenceService.createDefaultPreferences(testUserId, UserRole.ADMIN);
@@ -145,7 +165,7 @@ public class UserNavigationPreferenceServiceTest {
         // Given
         UserNavigationPreference employeePrefs = new UserNavigationPreference(testUserId);
         employeePrefs.setId(UUID.randomUUID());
-        employeePrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar"));
+        employeePrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar", "dashboard"));
         employeePrefs.setPreferredTabs(Arrays.asList("items", "receipt", "calendar"));
         when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(employeePrefs);
         
@@ -158,7 +178,10 @@ public class UserNavigationPreferenceServiceTest {
         assertTrue(result.getAvailableTabs().contains("items"));
         assertTrue(result.getAvailableTabs().contains("receipt"));
         assertTrue(result.getAvailableTabs().contains("calendar"));
+        assertTrue(result.getAvailableTabs().contains("dashboard"));
+        // Verify employees do NOT have access to "team" or "reports"
         assertFalse(result.getAvailableTabs().contains("team"));
+        assertFalse(result.getAvailableTabs().contains("reports"));
         verify(navigationPreferenceRepository).save(any(UserNavigationPreference.class));
     }
     
@@ -167,7 +190,7 @@ public class UserNavigationPreferenceServiceTest {
         // Given
         UserNavigationPreference cashierPrefs = new UserNavigationPreference(testUserId);
         cashierPrefs.setId(UUID.randomUUID());
-        cashierPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar"));
+        cashierPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar", "dashboard"));
         cashierPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "calendar"));
         when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(cashierPrefs);
         
@@ -189,7 +212,7 @@ public class UserNavigationPreferenceServiceTest {
         // Given
         UserNavigationPreference defaultPrefs = new UserNavigationPreference(testUserId);
         defaultPrefs.setId(UUID.randomUUID());
-        defaultPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar"));
+        defaultPrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar", "dashboard"));
         defaultPrefs.setPreferredTabs(Arrays.asList("items", "receipt", "calendar"));
         when(navigationPreferenceRepository.save(any(UserNavigationPreference.class))).thenReturn(defaultPrefs);
         
@@ -244,6 +267,30 @@ public class UserNavigationPreferenceServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> {
             navigationPreferenceService.updateNavigationPreferences(testUserId, tabs);
         });
+        
+        verify(navigationPreferenceRepository).findByUserId(testUserId);
+        verify(navigationPreferenceRepository, never()).save(any(UserNavigationPreference.class));
+    }
+    
+    @Test
+    void updateNavigationPreferences_EmployeeTriesToAccessTeam_ThrowsException() {
+        // Given - Employee preferences without "team" in available tabs
+        UserNavigationPreference employeePrefs = new UserNavigationPreference(testUserId);
+        employeePrefs.setId(UUID.randomUUID());
+        employeePrefs.setAvailableTabs(Arrays.asList("items", "receipt", "calendar", "dashboard"));
+        employeePrefs.setPreferredTabs(Arrays.asList("items", "receipt", "calendar"));
+        
+        List<String> invalidTabsWithTeam = Arrays.asList("items", "receipt", "team");
+        when(navigationPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.of(employeePrefs));
+        
+        // When / Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            navigationPreferenceService.updateNavigationPreferences(testUserId, invalidTabsWithTeam);
+        });
+        
+        // Verify the exception message mentions team access denied
+        assertTrue(exception.getMessage().contains("Access denied") || 
+                   exception.getMessage().contains("not available"));
         
         verify(navigationPreferenceRepository).findByUserId(testUserId);
         verify(navigationPreferenceRepository, never()).save(any(UserNavigationPreference.class));
