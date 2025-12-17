@@ -65,9 +65,19 @@ public class UserNavigationPreferenceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Navigation preferences not found for user: " + userId));
         
         // Validate that all preferred tabs are in available tabs
+        List<String> availableTabs = preferences.getAvailableTabs();
         for (String tab : preferredTabs) {
-            if (!preferences.getAvailableTabs().contains(tab)) {
-                throw new IllegalArgumentException("Tab '" + tab + "' is not available for this user");
+            if (!availableTabs.contains(tab)) {
+                // Provide specific error message for team tab access denial
+                if ("team".equals(tab)) {
+                    throw new IllegalArgumentException(
+                        "Access denied: Team management requires General Manager level or above"
+                    );
+                }
+                throw new IllegalArgumentException(
+                    "Tab '" + tab + "' is not available for this user. " +
+                    "Available tabs: " + availableTabs
+                );
             }
         }
         
@@ -80,7 +90,7 @@ public class UserNavigationPreferenceService {
     /**
      * Create default navigation preferences based on user role.
      * 
-     * GM+ (MANAGER, OWNER, ADMIN): ["items", "receipt", "team"]
+     * GM+ (OWNER, CO_OWNER, MANAGER, ADMIN): ["items", "receipt", "team"]
      * Employee: ["items", "receipt", "calendar"]
      * 
      * @param userId the user's UUID
@@ -91,15 +101,35 @@ public class UserNavigationPreferenceService {
         logger.info("Creating default navigation preferences for user: {} with role: {}", userId, userRole);
         
         List<String> defaultTabs = getDefaultTabsForRole(userRole);
+        List<String> availableTabs = getAvailableTabsForRole(userRole);
         
-        UserNavigationPreference preferences = new UserNavigationPreference(userId, defaultTabs, defaultTabs);
+        UserNavigationPreference preferences = new UserNavigationPreference(userId, defaultTabs, availableTabs);
         // modifiedAt will be set automatically by @PrePersist
         
         return navigationPreferenceRepository.save(preferences);
     }
     
     /**
+     * Check if role is GM+ level (has team access).
+     * 
+     * GM+ Roles: OWNER, CO_OWNER, MANAGER, ADMIN
+     * Below GM: EMPLOYEE, CASHIER, CUSTOMER, MERCHANT, PARTNER, USER
+     * 
+     * @param role the user's role
+     * @return true if role is GM+ level
+     */
+    private boolean isGMPlusRole(UserRole role) {
+        return role == UserRole.OWNER 
+            || role == UserRole.CO_OWNER 
+            || role == UserRole.MANAGER 
+            || role == UserRole.ADMIN;
+    }
+    
+    /**
      * Get default tabs based on user role.
+     * 
+     * GM+ (OWNER, CO_OWNER, MANAGER, ADMIN): Can access team management
+     * Below GM (EMPLOYEE, CASHIER, CUSTOMER, etc): Cannot access team
      * 
      * @param userRole the user's role
      * @return list of default tab names
@@ -110,16 +140,26 @@ public class UserNavigationPreferenceService {
             return EMPLOYEE_TABS;
         }
         
-        switch (userRole) {
-            case OWNER:
-            case CO_OWNER:
-            case MANAGER:
-            case ADMIN:
-                return GM_PLUS_TABS;
-            case EMPLOYEE:
-            case CASHIER:
-            default:
-                return EMPLOYEE_TABS;
+        if (isGMPlusRole(userRole)) {
+            return GM_PLUS_TABS;
+        }
+        return EMPLOYEE_TABS;
+    }
+    
+    /**
+     * Get available tabs based on user role.
+     * Below-GM users cannot access "team" tab at all.
+     * 
+     * @param role the user's role
+     * @return list of available tab names
+     */
+    private List<String> getAvailableTabsForRole(UserRole role) {
+        if (isGMPlusRole(role)) {
+            // GM+ can access all tabs including team
+            return Arrays.asList("items", "receipt", "team", "calendar", "dashboard", "reports");
+        } else {
+            // Below GM - NO TEAM ACCESS!
+            return Arrays.asList("items", "receipt", "calendar", "dashboard");
         }
     }
     

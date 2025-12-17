@@ -10,10 +10,15 @@ import com.pos.inventsight.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * REST controller for managing user preferences including language, theme, and favorite tabs.
@@ -23,6 +28,8 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "User Preferences", description = "User preference management")
 public class UserPreferencesController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserPreferencesController.class);
     
     @Autowired
     private UserPreferencesService userPreferencesService;
@@ -146,11 +153,12 @@ public class UserPreferencesController {
     /**
      * Get current user's navigation preferences.
      * Returns role-based navigation tabs.
+     * Supports both /me/navigation-preferences and /navigation-preferences for backward compatibility.
      * 
      * @param authentication the authenticated user
      * @return the user's navigation preferences
      */
-    @GetMapping("/me/navigation-preferences")
+    @GetMapping({"/me/navigation-preferences", "/navigation-preferences"})
     @Operation(summary = "Get navigation preferences", description = "Retrieve the authenticated user's navigation tab preferences")
     public ResponseEntity<GenericApiResponse<NavigationPreferencesResponse>> getNavigationPreferences(
             Authentication authentication) {
@@ -165,7 +173,8 @@ public class UserPreferencesController {
             return ResponseEntity.ok(new GenericApiResponse<>(true, "Navigation preferences retrieved successfully", response));
                     
         } catch (Exception e) {
-            return ResponseEntity.badRequest()
+            logger.error("Error fetching navigation preferences", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new GenericApiResponse<>(false, e.getMessage(), null));
         }
     }
@@ -173,12 +182,13 @@ public class UserPreferencesController {
     /**
      * Update current user's navigation preferences.
      * Validates that preferred tabs are within available tabs based on role.
+     * Supports both /me/navigation-preferences and /navigation-preferences for backward compatibility.
      * 
      * @param authentication the authenticated user
      * @param request the navigation preferences request
      * @return the updated navigation preferences
      */
-    @PostMapping("/me/navigation-preferences")
+    @PostMapping({"/me/navigation-preferences", "/navigation-preferences"})
     @Operation(summary = "Update navigation preferences", description = "Update the authenticated user's navigation tab preferences")
     public ResponseEntity<GenericApiResponse<NavigationPreferencesResponse>> updateNavigationPreferences(
             Authentication authentication,
@@ -193,8 +203,46 @@ public class UserPreferencesController {
             
             return ResponseEntity.ok(new GenericApiResponse<>(true, "Navigation preferences updated successfully", response));
                     
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid navigation preferences update", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new GenericApiResponse<>(false, e.getMessage(), null));
         } catch (Exception e) {
-            return ResponseEntity.badRequest()
+            logger.error("Error updating navigation preferences", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Get available navigation tabs for current user based on role.
+     * This tells the frontend which tabs to show in the Menu.
+     * 
+     * @param authentication the authenticated user
+     * @return list of available tabs
+     */
+    @GetMapping({"/me/navigation-preferences/available", "/navigation-preferences/available"})
+    @Operation(
+        summary = "Get available navigation tabs", 
+        description = "Get list of tabs user can access based on their role (for Menu filtering)"
+    )
+    public ResponseEntity<GenericApiResponse<List<String>>> getAvailableTabs(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            UserNavigationPreference preferences = navigationPreferenceService.getNavigationPreferences(
+                    user.getId(), user.getRole());
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(
+                true, 
+                "Available tabs retrieved successfully", 
+                preferences.getAvailableTabs()
+            ));
+                    
+        } catch (Exception e) {
+            logger.error("Error fetching available tabs", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new GenericApiResponse<>(false, e.getMessage(), null));
         }
     }
