@@ -26,6 +26,10 @@ public class UserNavigationPreferenceService {
     
     private static final Logger logger = LoggerFactory.getLogger(UserNavigationPreferenceService.class);
     
+    // Tab name constants
+    private static final String TAB_EMPLOYEES = "employees";
+    private static final String TAB_TEAM = "team";  // Legacy - for backward compatibility
+    
     // Role-based default tabs
     private static final List<String> GM_PLUS_DEFAULT_TABS = Arrays.asList("items", "receipt", "employees");
     private static final List<String> GM_PLUS_AVAILABLE_TABS = Arrays.asList(
@@ -75,8 +79,8 @@ public class UserNavigationPreferenceService {
         List<String> availableTabs = preferences.getAvailableTabs();
         for (String tab : preferredTabs) {
             if (!availableTabs.contains(tab)) {
-                // Provide specific error message for team tab access denial
-                if ("team".equals(tab) || "employees".equals(tab)) {
+                // Provide specific error message for team tab access denial (supports both legacy "team" and new "employees" keys)
+                if (TAB_TEAM.equals(tab) || TAB_EMPLOYEES.equals(tab)) {
                     throw new IllegalArgumentException(
                         "Access denied: Team management requires General Manager level or above"
                     );

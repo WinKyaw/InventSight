@@ -321,20 +321,21 @@ public class UserPreferencesController {
             List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
             
             if (!companies.isEmpty()) {
-                // Use first company as primary
+                // Use first company as primary (companies are typically ordered by creation date)
+                // TODO: Consider adding explicit primary company flag or user preference
                 Company primaryCompany = companies.get(0);
                 
                 List<CompanyStoreUserRole> roles = companyStoreUserRoleRepository
                     .findByUserAndCompanyAndIsActiveTrue(user, primaryCompany);
                 
-                // Filter out expired roles
+                // Filter out expired roles (extract current time to avoid repeated system calls)
+                LocalDateTime now = LocalDateTime.now();
                 List<CompanyStoreUserRole> validRoles = roles.stream()
-                    .filter(role -> role.getExpiresAt() == null || 
-                                   LocalDateTime.now().isBefore(role.getExpiresAt()))
+                    .filter(role -> role.getExpiresAt() == null || now.isBefore(role.getExpiresAt()))
                     .toList();
                 
                 if (!validRoles.isEmpty()) {
-                    // Return highest priority role converted to UserRole
+                    // Return highest priority role (first role is highest priority based on CompanyRole enum order)
                     CompanyRole companyRole = validRoles.get(0).getRole();
                     UserRole mappedRole = mapCompanyRoleToUserRole(companyRole);
                     logger.info("✅ Using company role: {} → UserRole: {}", companyRole, mappedRole);
