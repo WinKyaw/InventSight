@@ -28,4 +28,11 @@ public interface UserNavigationPreferenceRepository extends JpaRepository<UserNa
      * @return true if preferences exist, false otherwise
      */
     boolean existsByUserId(UUID userId);
+    
+    /**
+     * Delete navigation preferences by user ID.
+     * 
+     * @param userId the user's UUID
+     */
+    void deleteByUserId(UUID userId);
 }

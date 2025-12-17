@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -26,8 +27,16 @@ public class UserNavigationPreferenceService {
     private static final Logger logger = LoggerFactory.getLogger(UserNavigationPreferenceService.class);
     
     // Role-based default tabs
-    private static final List<String> GM_PLUS_TABS = Arrays.asList("items", "receipt", "team");
-    private static final List<String> EMPLOYEE_TABS = Arrays.asList("items", "receipt", "calendar");
+    private static final List<String> GM_PLUS_DEFAULT_TABS = Arrays.asList("items", "receipt", "employees");
+    private static final List<String> GM_PLUS_AVAILABLE_TABS = Arrays.asList(
+        "items", "receipt", "employees", "calendar", "dashboard", "reports", "warehouse", "settings"
+    );
+    
+    private static final List<String> EMPLOYEE_DEFAULT_TABS = Arrays.asList("items", "receipt", "calendar");
+    private static final List<String> EMPLOYEE_AVAILABLE_TABS = Arrays.asList(
+        "items", "receipt", "calendar", "dashboard", "reports", "warehouse", "settings"
+        // Note: NO "employees" for non-GM users
+    );
     
     @Autowired
     private UserNavigationPreferenceRepository navigationPreferenceRepository;
@@ -41,13 +50,10 @@ public class UserNavigationPreferenceService {
      * @return the user navigation preferences
      */
     public UserNavigationPreference getNavigationPreferences(UUID userId, UserRole userRole) {
-        logger.debug("Fetching navigation preferences for user: {}", userId);
+        logger.info("Getting navigation preferences for user: {} with role: {}", userId, userRole);
         
         return navigationPreferenceRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    logger.info("Creating default navigation preferences for user: {} with role: {}", userId, userRole);
-                    return createDefaultPreferences(userId, userRole);
-                });
+                .orElseGet(() -> createDefaultPreferences(userId, userRole));
     }
     
     /**
@@ -70,7 +76,7 @@ public class UserNavigationPreferenceService {
         for (String tab : preferredTabs) {
             if (!availableTabs.contains(tab)) {
                 // Provide specific error message for team tab access denial
-                if ("team".equals(tab)) {
+                if ("team".equals(tab) || "employees".equals(tab)) {
                     throw new IllegalArgumentException(
                         "Access denied: Team management requires General Manager level or above"
                     );
@@ -91,7 +97,7 @@ public class UserNavigationPreferenceService {
     /**
      * Create default navigation preferences based on user role.
      * 
-     * GM+ (OWNER, FOUNDER, CO_OWNER, MANAGER, ADMIN): ["items", "receipt", "team"]
+     * GM+ (OWNER, FOUNDER, CO_OWNER, MANAGER, ADMIN): ["items", "receipt", "employees"]
      * Employee: ["items", "receipt", "calendar"]
      * 
      * @param userId the user's UUID
@@ -107,7 +113,12 @@ public class UserNavigationPreferenceService {
         UserNavigationPreference preferences = new UserNavigationPreference(userId, defaultTabs, availableTabs);
         // modifiedAt will be set automatically by @PrePersist
         
-        return navigationPreferenceRepository.save(preferences);
+        UserNavigationPreference saved = navigationPreferenceRepository.save(preferences);
+        
+        logger.info("✅ Created navigation preferences - Default: {}, Available: {}", 
+            defaultTabs, availableTabs);
+        
+        return saved;
     }
     
     /**
@@ -135,29 +146,29 @@ public class UserNavigationPreferenceService {
     private List<String> getDefaultTabsForRole(UserRole userRole) {
         if (userRole == null) {
             logger.warn("User role is null, defaulting to EMPLOYEE tabs");
-            return EMPLOYEE_TABS;
+            return new ArrayList<>(EMPLOYEE_DEFAULT_TABS);
         }
         
         if (isGMPlusRole(userRole)) {
-            return GM_PLUS_TABS;
+            return new ArrayList<>(GM_PLUS_DEFAULT_TABS);
         }
-        return EMPLOYEE_TABS;
+        return new ArrayList<>(EMPLOYEE_DEFAULT_TABS);
     }
     
     /**
      * Get available tabs based on user role.
-     * Below-GM users cannot access "team" tab at all.
+     * Below-GM users cannot access "employees" tab at all.
      * 
      * @param role the user's role
      * @return list of available tab names
      */
     private List<String> getAvailableTabsForRole(UserRole role) {
         if (isGMPlusRole(role)) {
-            // GM+ can access all tabs including team
-            return Arrays.asList("items", "receipt", "team", "calendar", "dashboard", "reports");
+            // GM+ can access all tabs including employees
+            return new ArrayList<>(GM_PLUS_AVAILABLE_TABS);
         } else {
-            // Below GM - NO TEAM ACCESS!
-            return Arrays.asList("items", "receipt", "calendar", "dashboard");
+            // Below GM - NO EMPLOYEES ACCESS!
+            return new ArrayList<>(EMPLOYEE_AVAILABLE_TABS);
         }
     }
     
