@@ -68,18 +68,17 @@ public class UserNavigationPreferenceService {
         List<String> availableTabs = preferences.getAvailableTabs();
         for (String tab : preferredTabs) {
             if (!availableTabs.contains(tab)) {
+                // Provide specific error message for team tab access denial
+                if ("team".equals(tab)) {
+                    throw new IllegalArgumentException(
+                        "Access denied: Team management requires General Manager level or above"
+                    );
+                }
                 throw new IllegalArgumentException(
                     "Tab '" + tab + "' is not available for this user. " +
                     "Available tabs: " + availableTabs
                 );
             }
-        }
-        
-        // Additional validation: If user tries to add "team" but doesn't have access
-        if (preferredTabs.contains("team") && !availableTabs.contains("team")) {
-            throw new IllegalArgumentException(
-                "Access denied: Team management requires General Manager level or above"
-            );
         }
         
         preferences.setPreferredTabs(preferredTabs);
