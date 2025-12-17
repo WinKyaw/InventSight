@@ -12,6 +12,9 @@ import com.pos.inventsight.dto.RefreshTokenRequest;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.RefreshToken;
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.CompanyStoreUserRole;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.ActivityLogService;
 import com.pos.inventsight.service.EmailVerificationService;
@@ -19,6 +22,7 @@ import com.pos.inventsight.service.PasswordValidationService;
 import com.pos.inventsight.service.RateLimitingService;
 import com.pos.inventsight.service.RefreshTokenService;
 import com.pos.inventsight.config.JwtUtils;
+import com.pos.inventsight.util.RoleUtils;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
 
@@ -42,7 +46,10 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Authentication Controller
@@ -95,6 +102,9 @@ public class AuthController {
     
     @Autowired
     private com.pos.inventsight.repository.sql.CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private com.pos.inventsight.service.MfaService mfaService;
@@ -302,6 +312,30 @@ public class AuthController {
                 metadata
             );
             
+            // ✅ Get active company role
+            List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+            String activeRole = user.getRole().name(); // Default to global role
+            UUID primaryCompanyId = null;
+            
+            if (!companies.isEmpty()) {
+                Company company = companies.get(0); // Use first company as primary
+                primaryCompanyId = company.getId();
+                
+                List<CompanyStoreUserRole> roles = companyStoreUserRoleRepository
+                    .findByUserAndCompanyAndIsActiveTrue(user, company);
+                
+                // Filter out expired roles
+                List<CompanyStoreUserRole> validRoles = roles.stream()
+                    .filter(role -> !RoleUtils.isExpired(role))
+                    .collect(Collectors.toList());
+                
+                if (!validRoles.isEmpty()) {
+                    // Use highest priority company role
+                    CompanyStoreUserRole highestRole = RoleUtils.getHighestPriorityRole(validRoles);
+                    activeRole = RoleUtils.mapCompanyRoleToUserRole(highestRole.getRole());
+                }
+            }
+            
             // Create response
             AuthResponse authResponse = new AuthResponse(
                 jwt,
@@ -309,10 +343,14 @@ public class AuthController {
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
-                user.getRole().name(),
+                activeRole, // ✅ Active role, not global role
                 "InventSight",
                 jwtExpirationMs
             );
+            
+            // ✅ Also include global role and company ID
+            authResponse.setGlobalRole(user.getRole().name());
+            authResponse.setCompanyId(primaryCompanyId);
             
             System.out.println("✅ User authenticated successfully: " + user.getEmail());
             return ResponseEntity.ok(authResponse);

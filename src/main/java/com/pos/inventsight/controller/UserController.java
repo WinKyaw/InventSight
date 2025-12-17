@@ -3,13 +3,20 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.UserProfileRequest;
 import com.pos.inventsight.dto.UserSettingsRequest;
+import com.pos.inventsight.dto.UserRoleResponse;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserProfile;
 import com.pos.inventsight.model.sql.UserSettings;
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyStoreUserRole;
+import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.repository.sql.UserProfileRepository;
 import com.pos.inventsight.repository.sql.UserSettingsRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.ActivityLogService;
+import com.pos.inventsight.util.RoleUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -27,8 +34,10 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/users")
@@ -49,6 +58,12 @@ public class UserController {
     
     @Autowired
     private com.pos.inventsight.service.SubscriptionService subscriptionService;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Value("${app.upload.dir:${user.dir}/uploads}")
     private String uploadDir;
@@ -84,6 +99,66 @@ public class UserController {
             System.err.println("❌ Error fetching user profile: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Error fetching user profile: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * GET /users/me/active-role - Get user's current active role in their company/store.
+     * This is the role that should be used for navigation and permissions.
+     * 
+     * Priority:
+     * 1. Active, non-expired role from company_store_user_roles
+     * 2. Fallback to users.role if no company role found
+     */
+    @GetMapping("/me/active-role")
+    public ResponseEntity<?> getActiveRole(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            // Get user's companies
+            List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+            
+            if (companies.isEmpty()) {
+                // No company association - use global role
+                UserRoleResponse response = UserRoleResponse.fromGlobalRole(user);
+                return ResponseEntity.ok(new ApiResponse(true, "Active role retrieved", response));
+            }
+            
+            // Use the first company as primary (in a real system, you might want to track a preferred company)
+            Company company = companies.get(0);
+            
+            // Get all active roles for user in this company
+            List<CompanyStoreUserRole> roles = companyStoreUserRoleRepository
+                .findByUserAndCompanyAndIsActiveTrue(user, company);
+            
+            // Filter out expired roles
+            List<CompanyStoreUserRole> validRoles = roles.stream()
+                .filter(role -> !RoleUtils.isExpired(role))
+                .collect(Collectors.toList());
+            
+            if (validRoles.isEmpty()) {
+                // No active company roles - use global role
+                UserRoleResponse response = UserRoleResponse.fromGlobalRole(user);
+                return ResponseEntity.ok(new ApiResponse(true, "Active role retrieved (fallback)", response));
+            }
+            
+            // Get highest priority role
+            CompanyStoreUserRole activeRole = RoleUtils.getHighestPriorityRole(validRoles);
+            
+            UserRoleResponse response = UserRoleResponse.fromCompanyRole(
+                user, 
+                company, 
+                activeRole
+            );
+            
+            return ResponseEntity.ok(new ApiResponse(true, "Active role retrieved", response));
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error getting active role: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                .body(new ApiResponse(false, "Error retrieving active role: " + e.getMessage()));
         }
     }
     
