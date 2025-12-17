@@ -11,6 +11,8 @@ public class AuthResponse {
     private String email;
     private String fullName;
     private String role;
+    private String globalRole; // Global role from users table
+    private UUID companyId; // User's primary company ID
     private String system;
     private LocalDateTime timestamp;
     private String message;
@@ -59,6 +61,12 @@ public class AuthResponse {
     
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    
+    public String getGlobalRole() { return globalRole; }
+    public void setGlobalRole(String globalRole) { this.globalRole = globalRole; }
+    
+    public UUID getCompanyId() { return companyId; }
+    public void setCompanyId(UUID companyId) { this.companyId = companyId; }
     
     public String getSystem() { return system; }
     public void setSystem(String system) { this.system = system; }
