@@ -7,12 +7,14 @@ import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Company;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.CompanyStoreUserRole;
 import com.pos.inventsight.model.sql.SubscriptionLevel;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.repository.sql.CompanyRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.tenant.TenantContext;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.DuplicateResourceException;
@@ -53,6 +55,9 @@ public class UserService implements UserDetailsService {
     
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -115,6 +120,9 @@ public class UserService implements UserDetailsService {
             user.setEmailVerified(false);
         }
         
+        // FIX: Set user.role = OWNER for founders (not just creating CompanyStoreUser with FOUNDER role)
+        user.setRole(UserRole.OWNER);
+        
         // Note: We save the user initially, then update with default_tenant_id after company creation
         // This is necessary because company creation depends on the saved user entity
         User savedUser = userRepository.save(user);
@@ -144,6 +152,18 @@ public class UserService implements UserDetailsService {
         // Create company-user relationship with founder role
         CompanyStoreUser companyStoreUser = new CompanyStoreUser(savedCompany, savedUser, CompanyRole.FOUNDER, savedUser.getUsername());
         companyStoreUserRepository.save(companyStoreUser);
+        
+        // FIX: Create CompanyStoreUserRole entry with permanent=true for founder
+        CompanyStoreUserRole founderRole = new CompanyStoreUserRole(
+            savedUser,           // user
+            savedCompany,        // company  
+            null,                // store (null for company-level role)
+            CompanyRole.FOUNDER, // role
+            savedUser.getUsername(), // assigned_by
+            true                 // permanent=true for founders
+        );
+        founderRole.setCompanyStoreUser(companyStoreUser); // Set the relationship
+        companyStoreUserRoleRepository.save(founderRole);
         
         // Create legacy user-store role mapping for backward compatibility
         UserStoreRole userStoreRole = new UserStoreRole(savedUser, savedStore, UserRole.OWNER, savedUser.getUsername());

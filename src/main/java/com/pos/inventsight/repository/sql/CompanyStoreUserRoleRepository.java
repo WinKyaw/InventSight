@@ -3,6 +3,8 @@ package com.pos.inventsight.repository.sql;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.CompanyStoreUserRole;
+import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.Company;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -61,4 +63,38 @@ public interface CompanyStoreUserRoleRepository extends JpaRepository<CompanySto
      * Delete all roles for a membership (for cleanup)
      */
     void deleteByCompanyStoreUser(CompanyStoreUser companyStoreUser);
+    
+    // ===== NEW: Direct FK-based queries =====
+    
+    /**
+     * Find all active roles for a user across all companies
+     */
+    List<CompanyStoreUserRole> findByUserAndIsActiveTrue(User user);
+    
+    /**
+     * Find all active roles for a user in a specific company
+     */
+    List<CompanyStoreUserRole> findByUserAndCompanyAndIsActiveTrue(User user, Company company);
+    
+    /**
+     * Find all active roles for a user in a specific company (by UUID)
+     */
+    @Query("SELECT r FROM CompanyStoreUserRole r WHERE r.user = :user AND r.company.id = :companyId AND r.isActive = true")
+    List<CompanyStoreUserRole> findByUserAndCompanyIdAndIsActiveTrue(@Param("user") User user, @Param("companyId") UUID companyId);
+    
+    /**
+     * Find permanent roles for a user
+     */
+    List<CompanyStoreUserRole> findByUserAndPermanentTrueAndIsActiveTrue(User user);
+    
+    /**
+     * Find roles that have expired
+     */
+    @Query("SELECT r FROM CompanyStoreUserRole r WHERE r.expiresAt IS NOT NULL AND r.expiresAt < CURRENT_TIMESTAMP AND r.isActive = true")
+    List<CompanyStoreUserRole> findExpiredRoles();
+    
+    /**
+     * Check if user has a specific role in a company
+     */
+    boolean existsByUserAndCompanyAndRoleAndIsActiveTrue(User user, Company company, CompanyRole role);
 }

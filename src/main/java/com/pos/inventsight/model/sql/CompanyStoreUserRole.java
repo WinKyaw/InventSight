@@ -10,6 +10,7 @@ import java.util.UUID;
 /**
  * Many-to-many mapping entity for roles per company/store membership.
  * Allows multiple roles per (user, company[, store]) via separate records.
+ * Enhanced with direct FKs to user, company, and store for simplified queries.
  */
 @Entity
 @Table(name = "company_store_user_roles",
@@ -26,6 +27,21 @@ public class CompanyStoreUserRole {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_store_user_id", nullable = false)
     private CompanyStoreUser companyStoreUser;
+    
+    // Direct FK to user for simplified queries without joining through company_store_user
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    // Direct FK to company for filtering by company
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+    
+    // Direct FK to store (nullable for company-level roles)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
     
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -47,6 +63,14 @@ public class CompanyStoreUserRole {
     @Column(name = "revoked_by", length = 100)
     private String revokedBy;
     
+    // Timestamp when role expires (null for permanent roles)
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+    
+    // TRUE for founders and permanent roles, FALSE for temporary assignments
+    @Column(name = "permanent")
+    private Boolean permanent = false;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
     
@@ -62,13 +86,39 @@ public class CompanyStoreUserRole {
         this();
         this.companyStoreUser = companyStoreUser;
         this.role = role;
+        // Sync direct FKs from companyStoreUser for consistency
+        syncDirectFKs();
     }
     
     public CompanyStoreUserRole(CompanyStoreUser companyStoreUser, CompanyRole role, String assignedBy) {
+        this(companyStoreUser, role);
+        this.assignedBy = assignedBy;
+    }
+    
+    public CompanyStoreUserRole(CompanyStoreUser companyStoreUser, CompanyRole role, String assignedBy, Boolean permanent) {
+        this(companyStoreUser, role, assignedBy);
+        this.permanent = permanent;
+    }
+    
+    // Constructor for direct creation without CompanyStoreUser (for new architecture)
+    public CompanyStoreUserRole(User user, Company company, Store store, CompanyRole role, String assignedBy, Boolean permanent) {
         this();
-        this.companyStoreUser = companyStoreUser;
+        this.user = user;
+        this.company = company;
+        this.store = store;
         this.role = role;
         this.assignedBy = assignedBy;
+        this.permanent = permanent;
+        // companyStoreUser will be set later if needed
+    }
+    
+    // Helper method to sync direct FKs from companyStoreUser
+    private void syncDirectFKs() {
+        if (this.companyStoreUser != null) {
+            this.user = this.companyStoreUser.getUser();
+            this.company = this.companyStoreUser.getCompany();
+            this.store = this.companyStoreUser.getStore();
+        }
     }
     
     // Getters and Setters
@@ -76,7 +126,20 @@ public class CompanyStoreUserRole {
     public void setId(UUID id) { this.id = id; }
     
     public CompanyStoreUser getCompanyStoreUser() { return companyStoreUser; }
-    public void setCompanyStoreUser(CompanyStoreUser companyStoreUser) { this.companyStoreUser = companyStoreUser; }
+    public void setCompanyStoreUser(CompanyStoreUser companyStoreUser) { 
+        this.companyStoreUser = companyStoreUser;
+        // Auto-sync direct FKs when companyStoreUser is set
+        syncDirectFKs();
+    }
+    
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    
+    public Company getCompany() { return company; }
+    public void setCompany(Company company) { this.company = company; }
+    
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
     
     public CompanyRole getRole() { return role; }
     public void setRole(CompanyRole role) { this.role = role; }
@@ -95,6 +158,12 @@ public class CompanyStoreUserRole {
     
     public String getRevokedBy() { return revokedBy; }
     public void setRevokedBy(String revokedBy) { this.revokedBy = revokedBy; }
+    
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+    
+    public Boolean getPermanent() { return permanent; }
+    public void setPermanent(Boolean permanent) { this.permanent = permanent; }
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
@@ -117,8 +186,38 @@ public class CompanyStoreUserRole {
         this.updatedAt = LocalDateTime.now();
     }
     
+    /**
+     * Validate that direct FKs match companyStoreUser FKs
+     * @return true if consistent
+     */
+    public boolean isConsistent() {
+        if (companyStoreUser == null) {
+            // If companyStoreUser is null, we're using the new architecture with direct FKs
+            // Validate that at least user and company are set
+            return user != null && company != null;
+        }
+        
+        // Check if direct FKs match companyStoreUser FKs
+        boolean userMatches = (user == null && companyStoreUser.getUser() == null) || 
+                              (user != null && user.equals(companyStoreUser.getUser()));
+        boolean companyMatches = (company == null && companyStoreUser.getCompany() == null) || 
+                                 (company != null && company.equals(companyStoreUser.getCompany()));
+        boolean storeMatches = (store == null && companyStoreUser.getStore() == null) || 
+                               (store != null && store.equals(companyStoreUser.getStore()));
+        
+        return userMatches && companyMatches && storeMatches;
+    }
+    
     @PreUpdate
     public void updateTimestamp() {
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    @PrePersist
+    public void prePersist() {
+        // Ensure direct FKs are synced before persisting
+        if (companyStoreUser != null && !isConsistent()) {
+            syncDirectFKs();
+        }
     }
 }

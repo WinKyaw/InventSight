@@ -49,6 +49,12 @@ public class EmployeeServiceTest {
     @Mock
     private UserService userService;
     
+    @Mock
+    private com.pos.inventsight.repository.sql.CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Mock
+    private com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
+    
     @InjectMocks
     private EmployeeService employeeService;
     
