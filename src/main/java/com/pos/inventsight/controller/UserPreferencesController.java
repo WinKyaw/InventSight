@@ -27,7 +27,7 @@ import java.util.List;
  * REST controller for managing user preferences including language, theme, and favorite tabs.
  */
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/user")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "User Preferences", description = "User preference management")
 public class UserPreferencesController {
