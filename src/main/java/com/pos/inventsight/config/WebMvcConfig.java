@@ -1,5 +1,7 @@
 package com.pos.inventsight.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.web.servlet.config.annotation.*;
@@ -16,6 +18,8 @@ import org.springframework.web.servlet.config.annotation.*;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
     
+    private static final Logger logger = LoggerFactory.getLogger(WebMvcConfig.class);
+    
     /**
      * Configure path matching to ensure controllers are matched correctly
      */
@@ -27,7 +31,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // Disable suffix pattern matching (e.g., /users.json)
         configurer.setUseSuffixPatternMatch(false);
         
-        System.out.println("🔧 WebMvcConfig: Path matching configured (trailing slash=false, suffix pattern=false)");
+        logger.info("🔧 WebMvcConfig: Path matching configured (trailing slash=false, suffix pattern=false)");
     }
     
     /**
@@ -48,9 +52,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // ✅ FIX: Set LOWEST priority so controllers are checked FIRST
         registry.setOrder(Ordered.LOWEST_PRECEDENCE);
         
-        System.out.println("🔧 WebMvcConfig: Static resource handlers configured with LOWEST priority");
-        System.out.println("   - /static/** -> classpath:/static/, classpath:/public/");
-        System.out.println("   - /favicon.ico -> classpath:/");
+        logger.info("🔧 WebMvcConfig: Static resource handlers configured with LOWEST priority");
+        logger.info("   - /static/** -> classpath:/static/, classpath:/public/");
+        logger.info("   - /favicon.ico -> classpath:/");
     }
     
     /**
@@ -66,7 +70,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .maxAge(3600);
         
-        System.out.println("🔧 WebMvcConfig: CORS configured (origin patterns=*, credentials=controller-level)");
+        logger.info("🔧 WebMvcConfig: CORS configured (origin patterns=*, credentials=controller-level)");
     }
 
     /**

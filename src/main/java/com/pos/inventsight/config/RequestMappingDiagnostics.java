@@ -10,6 +10,8 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Diagnostic component to log all registered request mappings at startup.
@@ -34,14 +36,11 @@ public class RequestMappingDiagnostics implements ApplicationListener<Applicatio
         logger.info("📋 REGISTERED REQUEST MAPPINGS ({} total)", handlerMethods.size());
         logger.info("================================================================================");
         
-        // Use array to allow modification inside lambda
-        final boolean[] foundNavigationPreferences = {false};
-        final int[] userPreferencesCount = {0};
+        AtomicBoolean foundNavigationPreferences = new AtomicBoolean(false);
+        AtomicInteger userPreferencesCount = new AtomicInteger(0);
         
         handlerMethods.forEach((mapping, method) -> {
-            String patterns = mapping.getPathPatternsCondition() != null 
-                ? mapping.getPathPatternsCondition().getPatterns().toString()
-                : mapping.getPatternsCondition().getPatterns().toString();
+            String patterns = extractPatterns(mapping);
             String httpMethods = mapping.getMethodsCondition().getMethods().toString();
             String handler = method.getBeanType().getSimpleName() + "." + method.getMethod().getName() + "()";
             
@@ -49,24 +48,36 @@ public class RequestMappingDiagnostics implements ApplicationListener<Applicatio
             
             // Check for navigation preferences endpoint
             if (patterns.contains("/navigation-preferences")) {
-                foundNavigationPreferences[0] = true;
+                foundNavigationPreferences.set(true);
             }
             
             // Count UserPreferencesController endpoints
             if (method.getBeanType().getSimpleName().equals("UserPreferencesController")) {
-                userPreferencesCount[0]++;
+                userPreferencesCount.incrementAndGet();
             }
         });
         
         logger.info("================================================================================");
-        logger.info("✅ UserPreferencesController endpoints: {}", userPreferencesCount[0]);
-        logger.info("✅ Navigation preferences endpoint found: {}", foundNavigationPreferences[0]);
+        logger.info("✅ UserPreferencesController endpoints: {}", userPreferencesCount.get());
+        logger.info("✅ Navigation preferences endpoint found: {}", foundNavigationPreferences.get());
         logger.info("================================================================================");
         
-        if (!foundNavigationPreferences[0]) {
+        if (!foundNavigationPreferences.get()) {
             logger.error("❌ CRITICAL: Navigation preferences endpoint NOT registered!");
             logger.error("   Expected: GET /api/user/navigation-preferences");
             logger.error("   Check UserPreferencesController is being scanned");
+        }
+    }
+    
+    /**
+     * Extract path patterns from RequestMappingInfo.
+     * Handles both PathPatternsCondition (newer) and PatternsCondition (legacy).
+     */
+    private String extractPatterns(RequestMappingInfo mapping) {
+        if (mapping.getPathPatternsCondition() != null) {
+            return mapping.getPathPatternsCondition().getPatterns().toString();
+        } else {
+            return mapping.getPatternsCondition().getPatterns().toString();
         }
     }
 }
