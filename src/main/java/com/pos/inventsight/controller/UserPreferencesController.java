@@ -1,9 +1,11 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.*;
-import com.pos.inventsight.model.sql.User;
-import com.pos.inventsight.model.sql.UserPreferences;
-import com.pos.inventsight.model.sql.UserNavigationPreference;
+import com.pos.inventsight.model.sql.*;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
+import com.pos.inventsight.repository.sql.UserNavigationPreferenceRepository;
+import com.pos.inventsight.service.CompanyService;
 import com.pos.inventsight.service.UserPreferencesService;
 import com.pos.inventsight.service.UserNavigationPreferenceService;
 import com.pos.inventsight.service.UserService;
@@ -18,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -39,6 +42,18 @@ public class UserPreferencesController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private CompanyService companyService;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
+    
+    @Autowired
+    private UserNavigationPreferenceRepository navigationPreferenceRepository;
     
     /**
      * Get current user's preferences.
@@ -166,14 +181,25 @@ public class UserPreferencesController {
             String username = authentication.getName();
             User user = userService.getUserByUsername(username);
             
+            // ✅ Get active company role
+            UserRole activeRole = getActiveRole(user);
+            
+            logger.info("📱 Getting navigation preferences for {} with active role: {}", username, activeRole);
+            
             UserNavigationPreference preferences = navigationPreferenceService.getNavigationPreferences(
-                    user.getId(), user.getRole());
+                    user.getId(), 
+                    activeRole  // ✅ Use active role
+            );
             NavigationPreferencesResponse response = new NavigationPreferencesResponse(preferences);
             
-            return ResponseEntity.ok(new GenericApiResponse<>(true, "Navigation preferences retrieved successfully", response));
+            return ResponseEntity.ok(new GenericApiResponse<>(
+                true, 
+                "Navigation preferences retrieved successfully", 
+                response
+            ));
                     
         } catch (Exception e) {
-            logger.error("Error fetching navigation preferences", e);
+            logger.error("❌ Error fetching navigation preferences", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new GenericApiResponse<>(false, e.getMessage(), null));
         }
@@ -231,8 +257,11 @@ public class UserPreferencesController {
             String username = authentication.getName();
             User user = userService.getUserByUsername(username);
             
+            // ✅ Get active company role
+            UserRole activeRole = getActiveRole(user);
+            
             UserNavigationPreference preferences = navigationPreferenceService.getNavigationPreferences(
-                    user.getId(), user.getRole());
+                    user.getId(), activeRole);
             
             return ResponseEntity.ok(new GenericApiResponse<>(
                 true, 
@@ -244,6 +273,109 @@ public class UserPreferencesController {
             logger.error("Error fetching available tabs", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Clear navigation preferences cache for current user.
+     * Forces recreation of navigation preferences on next request.
+     * 
+     * @param authentication the authenticated user
+     * @return success response
+     */
+    @DeleteMapping({"/me/navigation-preferences/cache", "/navigation-preferences/cache"})
+    @Operation(summary = "Clear navigation cache", description = "Clear navigation preferences cache to force refresh")
+    public ResponseEntity<GenericApiResponse<Void>> clearNavigationCache(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            // Delete existing preferences to force recreation
+            navigationPreferenceRepository.deleteByUserId(user.getId());
+            
+            logger.info("🗑️ Cleared navigation cache for user: {}", username);
+            
+            return ResponseEntity.ok(new GenericApiResponse<>(
+                true, 
+                "Navigation cache cleared successfully", 
+                null
+            ));
+            
+        } catch (Exception e) {
+            logger.error("❌ Error clearing navigation cache", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new GenericApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Get user's active role from company_store_user_roles, fallback to global role.
+     * Converts CompanyRole to UserRole for navigation system compatibility.
+     * 
+     * @param user the user
+     * @return the active UserRole
+     */
+    private UserRole getActiveRole(User user) {
+        try {
+            // Get user's companies
+            List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+            
+            if (!companies.isEmpty()) {
+                // Use first company as primary (companies are typically ordered by creation date)
+                // TODO: Consider adding explicit primary company flag or user preference
+                Company primaryCompany = companies.get(0);
+                
+                List<CompanyStoreUserRole> roles = companyStoreUserRoleRepository
+                    .findByUserAndCompanyAndIsActiveTrue(user, primaryCompany);
+                
+                // Filter out expired roles (extract current time to avoid repeated system calls)
+                LocalDateTime now = LocalDateTime.now();
+                List<CompanyStoreUserRole> validRoles = roles.stream()
+                    .filter(role -> role.getExpiresAt() == null || now.isBefore(role.getExpiresAt()))
+                    .toList();
+                
+                if (!validRoles.isEmpty()) {
+                    // Return highest priority role (first role is highest priority based on CompanyRole enum order)
+                    CompanyRole companyRole = validRoles.get(0).getRole();
+                    UserRole mappedRole = mapCompanyRoleToUserRole(companyRole);
+                    logger.info("✅ Using company role: {} → UserRole: {}", companyRole, mappedRole);
+                    return mappedRole;
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("⚠️ Could not get company role, using global role: {}", e.getMessage());
+        }
+        
+        // Fallback to global role
+        logger.info("ℹ️ Using global role: {}", user.getRole());
+        return user.getRole();
+    }
+    
+    /**
+     * Map CompanyRole to equivalent UserRole for navigation system.
+     * 
+     * @param companyRole the company role
+     * @return the equivalent UserRole
+     */
+    private UserRole mapCompanyRoleToUserRole(CompanyRole companyRole) {
+        if (companyRole == null) {
+            return UserRole.EMPLOYEE;
+        }
+        
+        switch (companyRole) {
+            case FOUNDER:
+                return UserRole.FOUNDER;
+            case CEO:
+                return UserRole.OWNER;
+            case GENERAL_MANAGER:
+                return UserRole.MANAGER;
+            case STORE_MANAGER:
+                return UserRole.MANAGER;
+            case EMPLOYEE:
+                return UserRole.EMPLOYEE;
+            default:
+                logger.warn("Unknown CompanyRole: {}, defaulting to EMPLOYEE", companyRole);
+                return UserRole.EMPLOYEE;
         }
     }
 }
