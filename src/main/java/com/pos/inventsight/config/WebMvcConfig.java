@@ -1,6 +1,7 @@
 package com.pos.inventsight.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.web.servlet.config.annotation.*;
 
 /**
@@ -30,8 +31,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
     }
     
     /**
-     * Configure static resource handlers ONLY for specific paths
-     * This prevents API paths from being treated as static resources
+     * Configure static resource handlers with LOWEST priority
+     * Controllers should be checked BEFORE static resources
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -44,10 +45,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/favicon.ico")
                 .addResourceLocations("classpath:/");
         
-        // Set order to give controllers priority
-        registry.setOrder(1);
+        // ✅ FIX: Set LOWEST priority so controllers are checked FIRST
+        registry.setOrder(Ordered.LOWEST_PRECEDENCE);
         
-        System.out.println("🔧 WebMvcConfig: Static resource handlers configured");
+        System.out.println("🔧 WebMvcConfig: Static resource handlers configured with LOWEST priority");
         System.out.println("   - /static/** -> classpath:/static/, classpath:/public/");
         System.out.println("   - /favicon.ico -> classpath:/");
     }
