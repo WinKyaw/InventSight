@@ -8,6 +8,8 @@ import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.repository.sql.UserActiveStoreRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class UserActiveStoreService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserActiveStoreService.class);
     
     @Autowired
     private UserActiveStoreRepository userActiveStoreRepository;
@@ -58,13 +62,13 @@ public class UserActiveStoreService {
             activeStore.setStore(store);
             userActiveStoreRepository.save(activeStore);
             
-            System.out.println("✅ Updated active store for user " + user.getUsername() + " to: " + store.getStoreName());
+            logger.info("Updated active store for user {} to: {}", user.getUsername(), store.getStoreName());
         } else {
             // Create new
             UserActiveStore activeStore = new UserActiveStore(user, store);
             userActiveStoreRepository.save(activeStore);
             
-            System.out.println("✅ Set initial active store for user " + user.getUsername() + " to: " + store.getStoreName());
+            logger.info("Set initial active store for user {} to: {}", user.getUsername(), store.getStoreName());
         }
     }
     
@@ -128,7 +132,7 @@ public class UserActiveStoreService {
         if (firstStore != null) {
             setUserActiveStore(user, firstStore.getId());
         } else {
-            System.out.println("⚠️ No stores available for user: " + user.getUsername());
+            logger.warn("No stores available for user: {}", user.getUsername());
         }
     }
     

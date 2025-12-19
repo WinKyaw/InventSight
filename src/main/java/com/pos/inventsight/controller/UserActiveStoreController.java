@@ -5,7 +5,6 @@ import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.service.UserActiveStoreService;
 import com.pos.inventsight.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,11 +18,13 @@ import java.util.UUID;
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class UserActiveStoreController {
     
-    @Autowired
-    private UserActiveStoreService userActiveStoreService;
+    private final UserActiveStoreService userActiveStoreService;
+    private final UserService userService;
     
-    @Autowired
-    private UserService userService;
+    public UserActiveStoreController(UserActiveStoreService userActiveStoreService, UserService userService) {
+        this.userActiveStoreService = userActiveStoreService;
+        this.userService = userService;
+    }
     
     /**
      * GET /api/user/active-store - Get current active store
