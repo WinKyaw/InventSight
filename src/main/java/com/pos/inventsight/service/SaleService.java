@@ -5,6 +5,7 @@ import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.SaleStatus;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.repository.sql.SaleRepository;
 import com.pos.inventsight.repository.sql.SaleItemRepository;
 import com.pos.inventsight.dto.SaleRequest;
