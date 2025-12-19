@@ -237,6 +237,46 @@ public class PermissionController {
     }
     
     /**
+     * POST /api/permissions/check-batch - Check multiple permissions at once
+     */
+    @PostMapping("/check-batch")
+    public ResponseEntity<?> checkPermissionsBatch(
+            @RequestBody BatchPermissionRequest request,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = findUserByEmailOrUsername(username);
+            
+            System.out.println("🔐 Batch permission check for user: " + username);
+            System.out.println("📋 Checking permissions: " + request.getPermissions());
+            
+            Map<String, Boolean> results = new HashMap<>();
+            
+            for (String permissionTypeStr : request.getPermissions()) {
+                try {
+                    PermissionType permissionType = PermissionType.valueOf(permissionTypeStr);
+                    boolean hasPermission = permissionService.canPerformAction(user, permissionType);
+                    results.put(permissionTypeStr, hasPermission);
+                    System.out.println("  - " + permissionTypeStr + ": " + hasPermission);
+                } catch (IllegalArgumentException e) {
+                    // If permission type is invalid, return false
+                    results.put(permissionTypeStr, false);
+                    System.out.println("  - " + permissionTypeStr + ": false (invalid type)");
+                }
+            }
+            
+            System.out.println("✅ Batch permission check completed");
+            
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            System.err.println("❌ Batch permission check failed: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error checking permissions: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * Convert OneTimePermission to PermissionResponse
      */
     private PermissionResponse convertToResponse(OneTimePermission permission) {
@@ -257,5 +297,22 @@ public class PermissionController {
             response.setStoreId(permission.getStore().getId());
         }
         return response;
+    }
+    
+    /**
+     * Request DTO for batch permission check
+     */
+    public static class BatchPermissionRequest {
+        private List<String> permissions;
+
+        public BatchPermissionRequest() {}
+
+        public List<String> getPermissions() {
+            return permissions;
+        }
+
+        public void setPermissions(List<String> permissions) {
+            this.permissions = permissions;
+        }
     }
 }
