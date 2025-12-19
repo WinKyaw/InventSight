@@ -93,4 +93,23 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     
     @Query("SELECT s.customerEmail, SUM(s.totalAmount) as totalSpent FROM Sale s WHERE s.store = :store AND s.status = 'COMPLETED' AND s.customerEmail IS NOT NULL GROUP BY s.customerEmail ORDER BY totalSpent DESC")
     List<Object[]> findTopCustomersByRevenueByStore(@Param("store") Store store);
+    
+    /**
+     * Find all receipts by employee (processed by)
+     */
+    List<Sale> findByProcessedById(UUID userId);
+    
+    /**
+     * Find receipts by employee and date range
+     */
+    List<Sale> findByProcessedByIdAndCreatedAtBetween(
+        UUID userId, 
+        LocalDateTime startDate, 
+        LocalDateTime endDate
+    );
+    
+    /**
+     * Find receipts by employee with pagination
+     */
+    Page<Sale> findByProcessedById(UUID userId, Pageable pageable);
 }

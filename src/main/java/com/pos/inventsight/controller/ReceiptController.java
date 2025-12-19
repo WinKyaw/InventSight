@@ -6,6 +6,8 @@ import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.UserRole;
+import com.pos.inventsight.repository.sql.SaleRepository;
 import com.pos.inventsight.service.SaleService;
 import com.pos.inventsight.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,10 +23,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/receipts")
@@ -37,6 +42,9 @@ public class ReceiptController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private SaleRepository saleRepository;
     
     // GET /receipts - Get all receipts for authenticated user
     @GetMapping
@@ -273,5 +281,74 @@ public class ReceiptController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Error searching receipts: " + e.getMessage()));
         }
+    }
+    
+    /**
+     * GET /receipts/employee/{employeeId} - Get receipts by employee for a specific date
+     * GM+ only
+     */
+    @GetMapping("/employee/{employeeId}")
+    public ResponseEntity<?> getReceiptsByEmployee(
+            @PathVariable UUID employeeId,
+            @RequestParam(required = false) String date,  // Format: YYYY-MM-DD
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            // Check if user is GM+
+            if (!isGMPlus(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Access denied. GM+ role required."));
+            }
+            
+            System.out.println("📊 Getting receipts for employee: " + employeeId);
+            System.out.println("📅 Date filter: " + (date != null ? date : "all time"));
+            
+            List<Sale> receipts;
+            
+            if (date != null) {
+                // Parse date and get receipts for that day
+                LocalDate queryDate = LocalDate.parse(date);
+                LocalDateTime startOfDay = queryDate.atStartOfDay();
+                LocalDateTime endOfDay = queryDate.atTime(23, 59, 59);
+                
+                receipts = saleRepository.findByProcessedByIdAndCreatedAtBetween(
+                    employeeId, startOfDay, endOfDay
+                );
+                
+                System.out.println("✅ Found " + receipts.size() + " receipts for " + date);
+            } else {
+                // Get all receipts for employee
+                receipts = saleRepository.findByProcessedById(employeeId);
+                
+                System.out.println("✅ Found " + receipts.size() + " total receipts");
+            }
+            
+            // Convert to DTOs
+            List<SaleResponse> response = receipts.stream()
+                .map(sale -> saleService.toSaleResponse(sale))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))  // Newest first
+                .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching employee receipts: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error fetching receipts: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Check if user has GM+ privileges
+     */
+    private boolean isGMPlus(User user) {
+        UserRole role = user.getRole();
+        return role == UserRole.MANAGER ||
+               role == UserRole.OWNER ||
+               role == UserRole.FOUNDER ||
+               role == UserRole.CO_OWNER ||
+               role == UserRole.ADMIN;
     }
 }
