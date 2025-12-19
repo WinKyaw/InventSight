@@ -2,6 +2,7 @@ package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.SaleRequest;
+import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.User;
@@ -111,7 +112,7 @@ public class ReceiptController {
             System.out.println("🧾 InventSight - Creating new receipt for user: " + username);
             System.out.println("📊 Receipt items count: " + request.getItems().size());
             
-            Sale receipt = saleService.createSale(request, user.getId());
+            SaleResponse receipt = saleService.createSale(request, user.getId());
             
             System.out.println("✅ Created receipt: " + receipt.getReceiptNumber());
             return ResponseEntity.status(HttpStatus.CREATED).body(receipt);
