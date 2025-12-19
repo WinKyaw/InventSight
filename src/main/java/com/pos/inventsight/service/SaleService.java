@@ -9,6 +9,7 @@ import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.repository.sql.SaleRepository;
 import com.pos.inventsight.repository.sql.SaleItemRepository;
 import com.pos.inventsight.dto.SaleRequest;
+import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.InsufficientStockException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,7 +54,7 @@ public class SaleService {
     private static final BigDecimal TAX_RATE = new BigDecimal("0.08"); // 8% tax rate
     
     // Sale Processing
-    public Sale processSale(SaleRequest request, UUID userId) {
+    public SaleResponse processSale(SaleRequest request, UUID userId) {
         System.out.println("🧾 Processing new sale for user: " + userId);
         System.out.println("📅 Sale time: 2025-08-26 08:47:36");
         System.out.println("👤 Processed by: WinKyaw");
@@ -153,7 +154,8 @@ public class SaleService {
         System.out.println("✅ Sale completed: " + savedSale.getReceiptNumber() + 
                          " - Total: $" + savedSale.getTotalAmount());
         
-        return savedSale;
+        // Convert to DTO and return
+        return convertToSaleResponse(savedSale);
     }
     
     // CRUD Operations
@@ -260,7 +262,7 @@ public class SaleService {
     }
     
     // Additional methods for Receipt API
-    public Sale createSale(SaleRequest request, UUID userId) {
+    public SaleResponse createSale(SaleRequest request, UUID userId) {
         return processSale(request, userId);
     }
     
@@ -430,6 +432,67 @@ public class SaleService {
         }
         
         return filteredSales;
+    }
+    
+    // DTO Conversion Methods
+    public SaleResponse toSaleResponse(Sale sale) {
+        return convertToSaleResponse(sale);
+    }
+    
+    private SaleResponse convertToSaleResponse(Sale sale) {
+        SaleResponse response = new SaleResponse();
+        response.setId(sale.getId());
+        response.setReceiptNumber(sale.getReceiptNumber());
+        response.setSubtotal(sale.getSubtotal());
+        response.setTaxAmount(sale.getTaxAmount());
+        response.setDiscountAmount(sale.getDiscountAmount());
+        response.setTotalAmount(sale.getTotalAmount());
+        response.setStatus(sale.getStatus());
+        
+        // Store info
+        if (sale.getStore() != null) {
+            response.setStoreId(sale.getStore().getId());
+            response.setStoreName(sale.getStore().getStoreName());
+        }
+        
+        // User info
+        if (sale.getProcessedBy() != null) {
+            response.setProcessedById(sale.getProcessedBy().getId());
+            response.setProcessedByUsername(sale.getProcessedBy().getUsername());
+            response.setProcessedByFullName(sale.getProcessedBy().getFullName());
+        }
+        
+        // Customer info
+        response.setCustomerName(sale.getCustomerName());
+        response.setCustomerEmail(sale.getCustomerEmail());
+        response.setCustomerPhone(sale.getCustomerPhone());
+        
+        response.setPaymentMethod(sale.getPaymentMethod());
+        response.setNotes(sale.getNotes());
+        
+        // Items
+        if (sale.getItems() != null) {
+            List<SaleResponse.SaleItemDTO> itemDTOs = new ArrayList<>();
+            for (SaleItem item : sale.getItems()) {
+                SaleResponse.SaleItemDTO itemDTO = new SaleResponse.SaleItemDTO();
+                itemDTO.setId(item.getId());
+                if (item.getProduct() != null) {
+                    itemDTO.setProductId(item.getProduct().getId());
+                }
+                itemDTO.setProductName(item.getProductName());
+                itemDTO.setProductSku(item.getProductSku());
+                itemDTO.setQuantity(item.getQuantity());
+                itemDTO.setUnitPrice(item.getUnitPrice());
+                itemDTO.setTotalPrice(item.getTotalPrice());
+                itemDTOs.add(itemDTO);
+            }
+            response.setItems(itemDTOs);
+        }
+        
+        response.setCreatedAt(sale.getCreatedAt());
+        response.setUpdatedAt(sale.getUpdatedAt());
+        
+        return response;
     }
     
     // Inner class for dashboard summary

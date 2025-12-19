@@ -12,6 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "stores")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Store {
     
     @Id
