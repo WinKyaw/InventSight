@@ -435,6 +435,10 @@ public class SaleService {
     }
     
     // DTO Conversion Methods
+    public SaleResponse toSaleResponse(Sale sale) {
+        return convertToSaleResponse(sale);
+    }
+    
     private SaleResponse convertToSaleResponse(Sale sale) {
         SaleResponse response = new SaleResponse();
         response.setId(sale.getId());

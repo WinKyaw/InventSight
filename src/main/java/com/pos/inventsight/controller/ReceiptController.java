@@ -57,8 +57,14 @@ public class ReceiptController {
             
             Page<Sale> receipts = saleService.getSalesByUserId(user.getId(), pageable);
             
+            // Convert entities to DTOs
+            List<SaleResponse> receiptDTOs = new java.util.ArrayList<>();
+            for (Sale sale : receipts.getContent()) {
+                receiptDTOs.add(saleService.toSaleResponse(sale));
+            }
+            
             Map<String, Object> response = new HashMap<>();
-            response.put("receipts", receipts.getContent());
+            response.put("receipts", receiptDTOs);
             response.put("currentPage", receipts.getNumber());
             response.put("totalItems", receipts.getTotalElements());
             response.put("totalPages", receipts.getTotalPages());
@@ -91,8 +97,11 @@ public class ReceiptController {
                     .body(new ApiResponse(false, "Access denied: You can only view your own receipts"));
             }
             
+            // Convert to DTO
+            SaleResponse receiptDTO = saleService.toSaleResponse(receipt);
+            
             System.out.println("✅ Retrieved receipt: " + receipt.getReceiptNumber());
-            return ResponseEntity.ok(receipt);
+            return ResponseEntity.ok(receiptDTO);
             
         } catch (Exception e) {
             System.err.println("❌ Error fetching receipt: " + e.getMessage());
@@ -146,8 +155,11 @@ public class ReceiptController {
             
             Sale updatedReceipt = saleService.updateSale(id, request);
             
+            // Convert to DTO
+            SaleResponse receiptDTO = saleService.toSaleResponse(updatedReceipt);
+            
             System.out.println("✅ Updated receipt: " + updatedReceipt.getReceiptNumber());
-            return ResponseEntity.ok(updatedReceipt);
+            return ResponseEntity.ok(receiptDTO);
             
         } catch (Exception e) {
             System.err.println("❌ Error updating receipt: " + e.getMessage());
@@ -199,8 +211,11 @@ public class ReceiptController {
             
             Sale updatedReceipt = saleService.addItemsToSale(id, items);
             
+            // Convert to DTO
+            SaleResponse receiptDTO = saleService.toSaleResponse(updatedReceipt);
+            
             System.out.println("✅ Added items to receipt: " + updatedReceipt.getReceiptNumber());
-            return ResponseEntity.ok(updatedReceipt);
+            return ResponseEntity.ok(receiptDTO);
             
         } catch (Exception e) {
             System.err.println("❌ Error adding items to receipt: " + e.getMessage());
@@ -232,16 +247,22 @@ public class ReceiptController {
             List<Sale> receipts = saleService.searchReceipts(user.getId(), startDate, endDate, 
                 customerName, customerEmail, receiptNumber, status);
             
+            // Convert entities to DTOs
+            List<SaleResponse> receiptDTOs = new java.util.ArrayList<>();
+            for (Sale sale : receipts) {
+                receiptDTOs.add(saleService.toSaleResponse(sale));
+            }
+            
             // Apply pagination manually if needed
             int start = page * size;
-            int end = Math.min((start + size), receipts.size());
-            List<Sale> paginatedReceipts = receipts.subList(start, end);
+            int end = Math.min((start + size), receiptDTOs.size());
+            List<SaleResponse> paginatedReceipts = receiptDTOs.subList(start, end);
             
             Map<String, Object> response = new HashMap<>();
             response.put("receipts", paginatedReceipts);
             response.put("currentPage", page);
-            response.put("totalItems", receipts.size());
-            response.put("totalPages", (int) Math.ceil((double) receipts.size() / size));
+            response.put("totalItems", receiptDTOs.size());
+            response.put("totalPages", (int) Math.ceil((double) receiptDTOs.size() / size));
             response.put("pageSize", size);
             
             System.out.println("✅ Found " + receipts.size() + " receipts matching search criteria");
