@@ -46,6 +46,9 @@ public class SaleService {
     @Autowired
     private InventoryAnalyticsService inventoryAnalyticsService;
     
+    @Autowired
+    private UserActiveStoreService userActiveStoreService;
+    
     private static final BigDecimal TAX_RATE = new BigDecimal("0.08"); // 8% tax rate
     
     // Sale Processing
@@ -56,9 +59,14 @@ public class SaleService {
         
         User user = userService.getUserById(userId);
         
+        // ✅ GET USER'S ACTIVE STORE
+        Store activeStore = userActiveStoreService.getUserActiveStoreOrThrow(userId);
+        System.out.println("🏪 Active store: " + activeStore.getStoreName() + " (ID: " + activeStore.getId() + ")");
+        
         // Create sale
         Sale sale = new Sale();
         sale.setProcessedBy(user);
+        sale.setStore(activeStore);  // ✅ SET STORE FROM USER'S ACTIVE STORE
         sale.setCustomerName(request.getCustomerName());
         sale.setCustomerEmail(request.getCustomerEmail());
         sale.setCustomerPhone(request.getCustomerPhone());
