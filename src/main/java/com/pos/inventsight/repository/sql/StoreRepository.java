@@ -1,6 +1,7 @@
 package com.pos.inventsight.repository.sql;
 
 import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.Company;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,4 +40,6 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     boolean existsByStoreName(String storeName);
     
     boolean existsByEmail(String email);
+    
+    List<Store> findByCompany(Company company);
 }

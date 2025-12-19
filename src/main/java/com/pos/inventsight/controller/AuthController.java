@@ -112,6 +112,9 @@ public class AuthController {
     @Autowired(required = false)
     private RefreshTokenService refreshTokenService;
     
+    @Autowired
+    private com.pos.inventsight.service.UserActiveStoreService userActiveStoreService;
+    
     @Value("${inventsight.security.jwt.expiration:86400000}")
     private Long jwtExpirationMs;
     
@@ -293,6 +296,9 @@ public class AuthController {
             
             // Update last login
             userService.updateLastLogin(user.getId());
+            
+            // ✅ INITIALIZE ACTIVE STORE IF NOT SET
+            userActiveStoreService.initializeUserActiveStore(user);
             
             // Log authentication activity
             Map<String, Object> metadata = new HashMap<>();
@@ -550,6 +556,9 @@ public class AuthController {
             
             // Update last login
             userService.updateLastLogin(user.getId());
+            
+            // ✅ INITIALIZE ACTIVE STORE IF NOT SET
+            userActiveStoreService.initializeUserActiveStore(user);
             
             // Log authentication activity
             Map<String, Object> metadata = new HashMap<>();
