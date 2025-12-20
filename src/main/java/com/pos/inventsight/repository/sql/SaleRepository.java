@@ -112,4 +112,41 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
      * Find receipts by employee with pagination
      */
     Page<Sale> findByProcessedById(UUID userId, Pageable pageable);
+    
+    /**
+     * Get cashier statistics (employee receipt counts)
+     * Returns list of [userId, fullName, count]
+     */
+    @Query("SELECT s.processedBy.id, s.processedBy.fullName, COUNT(s) " +
+           "FROM Sale s " +
+           "WHERE s.processedBy IS NOT NULL " +
+           "GROUP BY s.processedBy.id, s.processedBy.fullName " +
+           "ORDER BY COUNT(s) DESC")
+    List<Object[]> getCashierStats();
+    
+    /**
+     * Get cashier statistics for a specific store
+     */
+    @Query("SELECT s.processedBy.id, s.processedBy.fullName, COUNT(s) " +
+           "FROM Sale s " +
+           "WHERE s.processedBy IS NOT NULL " +
+           "AND s.store = :store " +
+           "GROUP BY s.processedBy.id, s.processedBy.fullName " +
+           "ORDER BY COUNT(s) DESC")
+    List<Object[]> getCashierStatsByStore(@Param("store") Store store);
+    
+    /**
+     * Get cashier statistics for a date range
+     */
+    @Query("SELECT s.processedBy.id, s.processedBy.fullName, COUNT(s) " +
+           "FROM Sale s " +
+           "WHERE s.processedBy IS NOT NULL " +
+           "AND s.createdAt >= :startDate " +
+           "AND s.createdAt <= :endDate " +
+           "GROUP BY s.processedBy.id, s.processedBy.fullName " +
+           "ORDER BY COUNT(s) DESC")
+    List<Object[]> getCashierStatsByDateRange(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+    );
 }
