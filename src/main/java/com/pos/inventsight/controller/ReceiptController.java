@@ -33,7 +33,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/receipts")
+@RequestMapping("/receipts")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @PreAuthorize("isAuthenticated()")
 public class ReceiptController {
