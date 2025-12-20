@@ -104,7 +104,9 @@ public class User implements UserDetails {
     // UserDetails implementation
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        // Return role without "ROLE_" prefix to match @PreAuthorize annotations
+        // that use hasAnyAuthority('OWNER', 'FOUNDER', etc.)
+        return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
     }
     
     @Override
