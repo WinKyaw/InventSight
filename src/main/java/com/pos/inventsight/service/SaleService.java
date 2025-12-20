@@ -536,7 +536,7 @@ public class SaleService {
         
         for (Object[] result : results) {
             UUID cashierId = (UUID) result[0];
-            String cashierName = ((String) result[1]).trim(); // Trim whitespace from concatenated name
+            String cashierName = result[1] != null ? ((String) result[1]).trim() : ""; // Trim whitespace from concatenated name
             Long receiptCount = (Long) result[2];
             
             stats.add(new CashierStatsDTO(cashierId, cashierName, receiptCount));
