@@ -1,6 +1,7 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.ApiResponse;
+import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.model.sql.Sale;
@@ -32,7 +33,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/receipts")
+@RequestMapping("/api/receipts")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @PreAuthorize("isAuthenticated()")
 public class ReceiptController {
@@ -337,6 +338,46 @@ public class ReceiptController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Error fetching receipts: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * GET /api/receipts/cashiers - Get cashier statistics
+     * Returns list of cashiers with their receipt counts
+     * Only accessible by GM+ users (OWNER, FOUNDER, CEO, GENERAL_MANAGER, ADMIN)
+     */
+    @GetMapping("/cashiers")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CEO', 'GENERAL_MANAGER', 'ADMIN')")
+    public ResponseEntity<?> getCashierStats(
+            @RequestParam(required = false) UUID storeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("📊 InventSight - Getting cashier stats for GM+ user: " + username);
+            
+            List<CashierStatsDTO> stats;
+            
+            if (storeId != null) {
+                System.out.println("📊 Filtering by store: " + storeId);
+                stats = saleService.getCashierStatsByStore(storeId);
+            } else if (startDate != null && endDate != null) {
+                System.out.println("📊 Filtering by date range: " + startDate + " to " + endDate);
+                stats = saleService.getCashierStatsByDateRange(startDate, endDate);
+            } else {
+                System.out.println("📊 Getting all cashier stats");
+                stats = saleService.getCashierStats();
+            }
+            
+            System.out.println("✅ Returning " + stats.size() + " cashier stats");
+            return ResponseEntity.ok(stats);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error getting cashier stats: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error getting cashier stats: " + e.getMessage()));
         }
     }
     

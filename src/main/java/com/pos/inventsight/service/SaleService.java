@@ -8,8 +8,10 @@ import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.repository.sql.SaleRepository;
 import com.pos.inventsight.repository.sql.SaleItemRepository;
+import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
+import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.InsufficientStockException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,9 @@ public class SaleService {
     
     @Autowired
     private UserActiveStoreService userActiveStoreService;
+    
+    @Autowired
+    private StoreRepository storeRepository;
     
     private static final BigDecimal TAX_RATE = new BigDecimal("0.08"); // 8% tax rate
     
@@ -493,6 +498,51 @@ public class SaleService {
         response.setUpdatedAt(sale.getUpdatedAt());
         
         return response;
+    }
+    
+    /**
+     * Get cashier statistics (for GM+ users)
+     * Returns count of receipts created by each cashier/employee
+     */
+    public List<CashierStatsDTO> getCashierStats() {
+        List<Object[]> results = saleRepository.getCashierStats();
+        return convertToCashierStats(results);
+    }
+    
+    /**
+     * Get cashier statistics for a specific store
+     */
+    public List<CashierStatsDTO> getCashierStatsByStore(UUID storeId) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + storeId));
+        
+        List<Object[]> results = saleRepository.getCashierStatsByStore(store);
+        return convertToCashierStats(results);
+    }
+    
+    /**
+     * Get cashier statistics for a date range
+     */
+    public List<CashierStatsDTO> getCashierStatsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
+        List<Object[]> results = saleRepository.getCashierStatsByDateRange(startDate, endDate);
+        return convertToCashierStats(results);
+    }
+    
+    /**
+     * Helper method to convert Object[] results to CashierStatsDTO list
+     */
+    private List<CashierStatsDTO> convertToCashierStats(List<Object[]> results) {
+        List<CashierStatsDTO> stats = new ArrayList<>();
+        
+        for (Object[] result : results) {
+            UUID cashierId = (UUID) result[0];
+            String cashierName = (String) result[1];
+            Long receiptCount = (Long) result[2];
+            
+            stats.add(new CashierStatsDTO(cashierId, cashierName, receiptCount));
+        }
+        
+        return stats;
     }
     
     // Inner class for dashboard summary
