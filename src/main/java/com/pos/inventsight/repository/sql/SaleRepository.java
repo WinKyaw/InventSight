@@ -117,33 +117,39 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
      * Get cashier statistics (employee receipt counts)
      * Returns list of [userId, fullName, count]
      */
-    @Query("SELECT s.processedBy.id, s.processedBy.fullName, COUNT(s) " +
+    @Query("SELECT s.processedBy.id, " +
+           "CONCAT(COALESCE(s.processedBy.firstName, ''), ' ', COALESCE(s.processedBy.lastName, '')), " +
+           "COUNT(s) " +
            "FROM Sale s " +
            "WHERE s.processedBy IS NOT NULL " +
-           "GROUP BY s.processedBy.id, s.processedBy.fullName " +
+           "GROUP BY s.processedBy.id, s.processedBy.firstName, s.processedBy.lastName " +
            "ORDER BY COUNT(s) DESC")
     List<Object[]> getCashierStats();
     
     /**
      * Get cashier statistics for a specific store
      */
-    @Query("SELECT s.processedBy.id, s.processedBy.fullName, COUNT(s) " +
+    @Query("SELECT s.processedBy.id, " +
+           "CONCAT(COALESCE(s.processedBy.firstName, ''), ' ', COALESCE(s.processedBy.lastName, '')), " +
+           "COUNT(s) " +
            "FROM Sale s " +
            "WHERE s.processedBy IS NOT NULL " +
            "AND s.store = :store " +
-           "GROUP BY s.processedBy.id, s.processedBy.fullName " +
+           "GROUP BY s.processedBy.id, s.processedBy.firstName, s.processedBy.lastName " +
            "ORDER BY COUNT(s) DESC")
     List<Object[]> getCashierStatsByStore(@Param("store") Store store);
     
     /**
      * Get cashier statistics for a date range
      */
-    @Query("SELECT s.processedBy.id, s.processedBy.fullName, COUNT(s) " +
+    @Query("SELECT s.processedBy.id, " +
+           "CONCAT(COALESCE(s.processedBy.firstName, ''), ' ', COALESCE(s.processedBy.lastName, '')), " +
+           "COUNT(s) " +
            "FROM Sale s " +
            "WHERE s.processedBy IS NOT NULL " +
            "AND s.createdAt >= :startDate " +
            "AND s.createdAt <= :endDate " +
-           "GROUP BY s.processedBy.id, s.processedBy.fullName " +
+           "GROUP BY s.processedBy.id, s.processedBy.firstName, s.processedBy.lastName " +
            "ORDER BY COUNT(s) DESC")
     List<Object[]> getCashierStatsByDateRange(
         @Param("startDate") LocalDateTime startDate,

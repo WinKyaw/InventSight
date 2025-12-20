@@ -39,4 +39,32 @@ public class SaleRepositoryTest {
         // Then - If we get here, the query compiled successfully
         assertThat(todaysSales).isNotNull();
     }
+    
+    @Test
+    public void testGetCashierStats_QueryCompilation() {
+        // This test verifies that the getCashierStats query compiles without syntax errors
+        // The query uses CONCAT to combine firstName and lastName instead of accessing
+        // a non-existent fullName database field
+        
+        // Given - Just call the method to test query compilation
+        List<Object[]> cashierStats = saleRepository.getCashierStats();
+        
+        // Then - If we get here, the query compiled successfully
+        assertThat(cashierStats).isNotNull();
+    }
+    
+    @Test
+    public void testGetCashierStatsByDateRange_QueryCompilation() {
+        // This test verifies that the getCashierStatsByDateRange query compiles
+        
+        // Given
+        LocalDateTime startDate = LocalDateTime.now().minusDays(7);
+        LocalDateTime endDate = LocalDateTime.now();
+        
+        // When - Call the method to test query compilation
+        List<Object[]> cashierStats = saleRepository.getCashierStatsByDateRange(startDate, endDate);
+        
+        // Then - If we get here, the query compiled successfully
+        assertThat(cashierStats).isNotNull();
+    }
 }
