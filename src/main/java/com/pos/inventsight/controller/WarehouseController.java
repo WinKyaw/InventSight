@@ -41,9 +41,13 @@ public class WarehouseController {
     /**
      * Create a new warehouse (GM+ only)
      * POST /api/warehouses
+     * 
+     * ✅ FIXED: Changed from hasAnyRole to hasAnyAuthority
+     * - hasAnyRole adds "ROLE_" prefix → checks for ROLE_OWNER
+     * - hasAnyAuthority checks exact value → checks for OWNER
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
                                            BindingResult bindingResult,
                                            Authentication authentication) {
@@ -171,7 +175,7 @@ public class WarehouseController {
      * PUT /api/warehouses/{id}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> updateWarehouse(@PathVariable UUID id,
                                            @Valid @RequestBody WarehouseRequest request,
                                            Authentication authentication) {
@@ -208,7 +212,7 @@ public class WarehouseController {
      * DELETE /api/warehouses/{id}
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> deleteWarehouse(@PathVariable UUID id,
                                            Authentication authentication) {
         try {
