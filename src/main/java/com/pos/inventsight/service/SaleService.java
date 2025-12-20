@@ -506,17 +506,7 @@ public class SaleService {
      */
     public List<CashierStatsDTO> getCashierStats() {
         List<Object[]> results = saleRepository.getCashierStats();
-        List<CashierStatsDTO> stats = new ArrayList<>();
-        
-        for (Object[] result : results) {
-            UUID cashierId = (UUID) result[0];
-            String cashierName = (String) result[1];
-            Long receiptCount = (Long) result[2];
-            
-            stats.add(new CashierStatsDTO(cashierId, cashierName, receiptCount));
-        }
-        
-        return stats;
+        return convertToCashierStats(results);
     }
     
     /**
@@ -524,20 +514,10 @@ public class SaleService {
      */
     public List<CashierStatsDTO> getCashierStatsByStore(UUID storeId) {
         Store store = storeRepository.findById(storeId)
-            .orElseThrow(() -> new RuntimeException("Store not found: " + storeId));
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + storeId));
         
         List<Object[]> results = saleRepository.getCashierStatsByStore(store);
-        List<CashierStatsDTO> stats = new ArrayList<>();
-        
-        for (Object[] result : results) {
-            UUID cashierId = (UUID) result[0];
-            String cashierName = (String) result[1];
-            Long receiptCount = (Long) result[2];
-            
-            stats.add(new CashierStatsDTO(cashierId, cashierName, receiptCount));
-        }
-        
-        return stats;
+        return convertToCashierStats(results);
     }
     
     /**
@@ -545,6 +525,13 @@ public class SaleService {
      */
     public List<CashierStatsDTO> getCashierStatsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         List<Object[]> results = saleRepository.getCashierStatsByDateRange(startDate, endDate);
+        return convertToCashierStats(results);
+    }
+    
+    /**
+     * Helper method to convert Object[] results to CashierStatsDTO list
+     */
+    private List<CashierStatsDTO> convertToCashierStats(List<Object[]> results) {
         List<CashierStatsDTO> stats = new ArrayList<>();
         
         for (Object[] result : results) {

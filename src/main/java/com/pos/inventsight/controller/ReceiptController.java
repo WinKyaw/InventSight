@@ -354,7 +354,7 @@ public class ReceiptController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             Authentication authentication) {
         try {
-            String username = authentication != null ? authentication.getName() : "unknown";
+            String username = authentication.getName();
             System.out.println("📊 InventSight - Getting cashier stats for GM+ user: " + username);
             
             List<CashierStatsDTO> stats;
