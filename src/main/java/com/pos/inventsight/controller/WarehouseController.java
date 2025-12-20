@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -43,7 +45,7 @@ public class WarehouseController {
     @PostMapping
     @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
-                                           org.springframework.validation.BindingResult bindingResult,
+                                           BindingResult bindingResult,
                                            Authentication authentication) {
         
         String username = authentication != null ? authentication.getName() : "unknown";
@@ -60,7 +62,7 @@ public class WarehouseController {
             System.err.println("❌ Validation errors:");
             
             Map<String, String> errors = new HashMap<>();
-            for (org.springframework.validation.FieldError error : bindingResult.getFieldErrors()) {
+            for (FieldError error : bindingResult.getFieldErrors()) {
                 String fieldName = error.getField();
                 String errorMessage = error.getDefaultMessage();
                 errors.put(fieldName, errorMessage);

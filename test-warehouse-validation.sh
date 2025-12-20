@@ -2,10 +2,30 @@
 
 # Test script for Warehouse Creation Validation Error Fix
 # This script tests the warehouse creation endpoint with various scenarios
+#
+# USAGE:
+#   1. Start the backend server: ./start-inventsight.sh
+#   2. Obtain a JWT token by logging in via /api/auth/login
+#   3. Set the TOKEN environment variable: export TOKEN="your-jwt-token"
+#   4. Run this script: ./test-warehouse-validation.sh
+#
+# ALTERNATIVE (without authentication):
+#   You can modify SecurityConfig to temporarily allow public access to /warehouses
+#   for testing purposes during development.
 
 echo "🧪 Testing Warehouse Creation Validation"
 echo "=========================================="
 echo ""
+
+# Get token from environment or use placeholder
+TOKEN="${TOKEN:-YOUR_TOKEN_HERE}"
+
+if [ "$TOKEN" = "YOUR_TOKEN_HERE" ]; then
+    echo "⚠️  WARNING: No JWT token provided. Set TOKEN environment variable."
+    echo "   Example: export TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\""
+    echo "   The tests will run but may fail with 401 Unauthorized."
+    echo ""
+fi
 
 # Base URL
 BASE_URL="http://localhost:8080/api"
@@ -22,7 +42,7 @@ echo "-------------------------------------------------------------------"
 # Test with missing location
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/warehouses" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "name": "Test Warehouse",
     "description": "Test Description"
@@ -52,7 +72,7 @@ echo "--------------------------------------------------------------"
 # Test with missing name
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/warehouses" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "location": "123 Main St",
     "description": "Test Description"
@@ -82,7 +102,7 @@ echo "---------------------------------------------------"
 # Test with valid data
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/warehouses" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "name": "Main Warehouse",
     "location": "123 Main Street",
