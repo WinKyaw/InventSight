@@ -178,6 +178,28 @@ public class SaleService {
         return saleRepository.findAll();
     }
     
+    /**
+     * Get all sales with pagination (no filter)
+     */
+    public Page<Sale> getAllSales(Pageable pageable) {
+        System.out.println("📋 SaleService: Getting all sales");
+        return saleRepository.findAll(pageable);
+    }
+    
+    /**
+     * Get sales by specific cashier/employee (processedBy)
+     */
+    public Page<Sale> getSalesByCashier(UUID cashierId, Pageable pageable) {
+        System.out.println("🔍 SaleService: Getting sales for cashier: " + cashierId);
+        
+        // Query by processedBy (the employee who created the receipt)
+        Page<Sale> sales = saleRepository.findByProcessedById(cashierId, pageable);
+        
+        System.out.println("✅ Found " + sales.getTotalElements() + " receipts for cashier");
+        
+        return sales;
+    }
+    
     public Page<Sale> getSalesByUserId(UUID userId, Pageable pageable) {
         return saleRepository.findByUserId(userId, pageable);
     }

@@ -47,24 +47,34 @@ public class ReceiptController {
     @Autowired
     private SaleRepository saleRepository;
     
-    // GET /receipts - Get all receipts for authenticated user
+    // GET /receipts - Get all receipts with optional cashier filter
     @GetMapping
     public ResponseEntity<?> getAllReceipts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) UUID cashierId,
             Authentication authentication) {
         try {
             String username = authentication.getName();
-            System.out.println("🧾 InventSight - Fetching receipts for user: " + username);
+            System.out.println("📄 InventSight - Getting receipts for user: " + username);
+            System.out.println("📄 Params - Page: " + page + ", Size: " + size + ", CashierId: " + (cashierId != null ? cashierId : "All"));
             
-            User user = userService.getUserByUsername(username);
             Sort sort = sortDir.equalsIgnoreCase("desc") ? 
                 Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
             Pageable pageable = PageRequest.of(page, size, sort);
             
-            Page<Sale> receipts = saleService.getSalesByUserId(user.getId(), pageable);
+            Page<Sale> receipts;
+            
+            // Filter by cashier if provided
+            if (cashierId != null) {
+                System.out.println("🔍 Filtering receipts by cashier/employee: " + cashierId);
+                receipts = saleService.getSalesByCashier(cashierId, pageable);
+            } else {
+                System.out.println("📋 Getting all receipts (no cashier filter)");
+                receipts = saleService.getAllSales(pageable);
+            }
             
             // Convert entities to DTOs
             List<SaleResponse> receiptDTOs = new java.util.ArrayList<>();
@@ -79,13 +89,15 @@ public class ReceiptController {
             response.put("totalPages", receipts.getTotalPages());
             response.put("pageSize", receipts.getSize());
             
-            System.out.println("✅ Retrieved " + receipts.getTotalElements() + " receipts for user: " + username);
+            System.out.println("✅ Returning " + receipts.getTotalElements() + " total receipts, " 
+                + receipts.getNumberOfElements() + " in this page");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            System.err.println("❌ Error fetching receipts: " + e.getMessage());
+            System.err.println("❌ Error getting receipts: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiResponse(false, "Error fetching receipts: " + e.getMessage()));
+                .body(new ApiResponse(false, "Error getting receipts: " + e.getMessage()));
         }
     }
     
