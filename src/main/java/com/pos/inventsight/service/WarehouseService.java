@@ -44,6 +44,11 @@ public class WarehouseService {
 
         String username = authentication.getName();
         User user = userService.getUserByUsername(username);
+        
+        // Enhanced logging
+        System.out.println("🏢 WarehouseService: Creating warehouse");
+        System.out.println("   Name: " + request.getName());
+        System.out.println("   Location: " + request.getLocation());
 
         // Check if warehouse with same name already exists
         if (warehouseRepository.existsByNameIgnoreCaseAndIsActiveTrue(request.getName())) {
@@ -70,6 +75,8 @@ public class WarehouseService {
         warehouse.setCreatedBy(username);
 
         warehouse = warehouseRepository.save(warehouse);
+        
+        System.out.println("✅ Warehouse saved with ID: " + warehouse.getId());
 
         // Log activity
         activityLogService.logActivity(

@@ -43,9 +43,39 @@ public class WarehouseController {
     @PostMapping
     @PreAuthorize("hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
+                                           org.springframework.validation.BindingResult bindingResult,
                                            Authentication authentication) {
+        
+        String username = authentication != null ? authentication.getName() : "unknown";
+        
+        // Log incoming request
+        System.out.println("➕ InventSight - Creating warehouse");
+        System.out.println("   User: " + username);
+        System.out.println("   Name: " + request.getName());
+        System.out.println("   Location: " + request.getLocation());
+        System.out.println("   Description: " + request.getDescription());
+        
+        // Check for validation errors
+        if (bindingResult.hasErrors()) {
+            System.err.println("❌ Validation errors:");
+            
+            Map<String, String> errors = new HashMap<>();
+            for (org.springframework.validation.FieldError error : bindingResult.getFieldErrors()) {
+                String fieldName = error.getField();
+                String errorMessage = error.getDefaultMessage();
+                errors.put(fieldName, errorMessage);
+                System.err.println("   - " + fieldName + ": " + errorMessage);
+            }
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Validation failed");
+            errorResponse.put("errors", errors);
+            
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
         try {
-            String username = authentication.getName();
             User user = userService.getUserByUsername(username);
             
             // ✅ Additional check for GM+ level
@@ -56,12 +86,12 @@ public class WarehouseController {
             
             WarehouseResponse warehouse = warehouseService.createWarehouse(request, authentication);
             
-            System.out.println("✅ Warehouse created by " + username + " (Role: " + user.getRole() + ")");
+            System.out.println("✅ Warehouse created: " + warehouse.getId());
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Warehouse created successfully");
-            response.put("warehouse", warehouse);
+            response.put("data", warehouse);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
             
@@ -70,6 +100,7 @@ public class WarehouseController {
                     .body(new ApiResponse(false, e.getMessage()));
         } catch (Exception e) {
             System.err.println("❌ Error creating warehouse: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Error creating warehouse: " + e.getMessage()));
         }
@@ -81,19 +112,25 @@ public class WarehouseController {
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getAllWarehouses() {
+    public ResponseEntity<?> getAllWarehouses(Authentication authentication) {
         try {
+            String username = authentication != null ? authentication.getName() : "unknown";
+            System.out.println("🏢 InventSight - Getting warehouses for user: " + username);
+            
             List<WarehouseResponse> warehouses = warehouseService.getAllActiveWarehouses();
+            
+            System.out.println("✅ Returning " + warehouses.size() + " warehouses");
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("warehouses", warehouses);
-            response.put("count", warehouses.size());
+            response.put("data", warehouses);
+            response.put("message", "Warehouses retrieved successfully");
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             System.err.println("❌ Error fetching warehouses: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Error fetching warehouses: " + e.getMessage()));
         }
@@ -104,13 +141,19 @@ public class WarehouseController {
      * GET /api/warehouses/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getWarehouseById(@PathVariable UUID id) {
+    public ResponseEntity<?> getWarehouseById(@PathVariable UUID id, Authentication authentication) {
         try {
+            String username = authentication != null ? authentication.getName() : "unknown";
+            System.out.println("🏢 InventSight - Getting warehouse " + id + " for user: " + username);
+            
             WarehouseResponse warehouse = warehouseService.getWarehouseById(id);
+            
+            System.out.println("✅ Returning warehouse: " + warehouse.getName());
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("warehouse", warehouse);
+            response.put("data", warehouse);
+            response.put("message", "Warehouse retrieved successfully");
             
             return ResponseEntity.ok(response);
             

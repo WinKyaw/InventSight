@@ -121,22 +121,27 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        System.out.println("✏️ InventSight - Validation error: Invalid request data");
-        System.out.println("📅 Error time: 2025-08-26 09:04:35");
+        System.err.println("✏️ InventSight - Validation error: Invalid request data");
         
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
+            FieldError fieldError = (FieldError) error;
+            String rejectedValue = fieldError.getRejectedValue() != null ? 
+                fieldError.getRejectedValue().toString() : "null";
             errors.put(fieldName, errorMessage);
+            
+            // Enhanced logging
+            System.err.println("Field error in object '" + error.getObjectName() + 
+                "' on field '" + fieldName + "': rejected value [" + rejectedValue + "]");
+            System.err.println("default message [" + errorMessage + "]");
         });
         
-        ValidationErrorResponse errorResponse = new ValidationErrorResponse(
-            "InventSight validation failed",
-            errors,
-            LocalDateTime.now(),
-            "InventSight System"
-        );
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("message", "Validation failed");
+        errorResponse.put("errors", errors);
         
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
