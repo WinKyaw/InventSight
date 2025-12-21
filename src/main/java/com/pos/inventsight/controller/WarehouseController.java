@@ -1,12 +1,12 @@
 package com.pos.inventsight.controller;
 
-import com.pos.inventsight.constants.RoleConstants;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.WarehouseRequest;
 import com.pos.inventsight.dto.WarehouseResponse;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Warehouse;
+import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseService;
 import jakarta.validation.Valid;
@@ -40,14 +40,10 @@ public class WarehouseController {
 
     /**
      * Create a new warehouse (GM+ only)
-     * POST /api/warehouses
-     * 
-     * ✅ FIXED: Changed from hasAnyRole to hasAnyAuthority
-     * - hasAnyRole adds "ROLE_" prefix → checks for ROLE_OWNER
-     * - hasAnyAuthority checks exact value → checks for OWNER
+     * ✅ UPDATED: Uses RoleConstants.CAN_MANAGE_WAREHOUSES
      */
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize(RoleConstants.CAN_MANAGE_WAREHOUSES)
     public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
                                            BindingResult bindingResult,
                                            Authentication authentication) {
@@ -172,10 +168,10 @@ public class WarehouseController {
 
     /**
      * Update warehouse (GM+ only)
-     * PUT /api/warehouses/{id}
+     * ✅ UPDATED: Uses RoleConstants.CAN_MANAGE_WAREHOUSES
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize(RoleConstants.CAN_MANAGE_WAREHOUSES)
     public ResponseEntity<?> updateWarehouse(@PathVariable UUID id,
                                            @Valid @RequestBody WarehouseRequest request,
                                            Authentication authentication) {
@@ -209,10 +205,10 @@ public class WarehouseController {
 
     /**
      * Delete warehouse (deactivate) (GM+ only)
-     * DELETE /api/warehouses/{id}
+     * ✅ UPDATED: Uses RoleConstants.CAN_MANAGE_WAREHOUSES
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize(RoleConstants.CAN_MANAGE_WAREHOUSES)
     public ResponseEntity<?> deleteWarehouse(@PathVariable UUID id,
                                            Authentication authentication) {
         try {
@@ -337,6 +333,6 @@ public class WarehouseController {
      * Helper method to check if user is GM+ level
      */
     private boolean isGMPlusRole(UserRole role) {
-        return RoleConstants.isGMPlus(role);
+        return com.pos.inventsight.constants.RoleConstants.isGMPlus(role);
     }
 }

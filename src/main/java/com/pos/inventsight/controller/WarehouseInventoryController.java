@@ -5,6 +5,7 @@ import com.pos.inventsight.dto.WarehouseInventoryAdditionRequest;
 import com.pos.inventsight.dto.WarehouseInventoryRequest;
 import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
+import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.WarehouseInventoryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 /**
  * REST Controller for warehouse inventory management with RBAC
+ * ✅ UPDATED: Now uses RoleConstants for consistent authorization
  */
 @RestController
 @RequestMapping("/warehouse-inventory")
@@ -33,11 +35,10 @@ public class WarehouseInventoryController {
 
     /**
      * Create or update warehouse inventory
-     * POST /api/warehouse-inventory
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER only
+     * ✅ UPDATED: Uses RoleConstants.GM_PLUS (includes OWNER)
      */
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> createOrUpdateInventory(@Valid @RequestBody WarehouseInventoryRequest request,
                                                    Authentication authentication) {
         try {
@@ -63,11 +64,10 @@ public class WarehouseInventoryController {
 
     /**
      * Add inventory to warehouse
-     * POST /api/warehouse-inventory/add
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+     * ✅ UPDATED: Uses RoleConstants.CAN_MODIFY_INVENTORY (includes OWNER)
      */
     @PostMapping("/add")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize(RoleConstants.CAN_MODIFY_INVENTORY)
     public ResponseEntity<?> addInventory(@Valid @RequestBody WarehouseInventoryAdditionRequest request,
                                         Authentication authentication) {
         try {
@@ -87,11 +87,10 @@ public class WarehouseInventoryController {
 
     /**
      * Withdraw inventory from warehouse
-     * POST /api/warehouse-inventory/withdraw
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE
+     * ✅ UPDATED: Uses RoleConstants.CAN_WITHDRAW_INVENTORY (includes OWNER)
      */
     @PostMapping("/withdraw")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize(RoleConstants.CAN_WITHDRAW_INVENTORY)
     public ResponseEntity<?> withdrawInventory(@Valid @RequestBody WarehouseInventoryWithdrawalRequest request,
                                              Authentication authentication) {
         try {
@@ -111,11 +110,10 @@ public class WarehouseInventoryController {
 
     /**
      * Reserve inventory
-     * POST /api/warehouse-inventory/reserve
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
+     * ✅ UPDATED: Uses RoleConstants.MANAGEMENT
      */
     @PostMapping("/reserve")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+    @PreAuthorize(RoleConstants.MANAGEMENT)
     public ResponseEntity<?> reserveInventory(@RequestParam UUID warehouseId,
                                             @RequestParam UUID productId,
                                             @RequestParam Integer quantity,
@@ -137,11 +135,10 @@ public class WarehouseInventoryController {
 
     /**
      * Release inventory reservation
-     * POST /api/warehouse-inventory/release
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER
+     * ✅ UPDATED: Uses RoleConstants.MANAGEMENT
      */
     @PostMapping("/release")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER')")
+    @PreAuthorize(RoleConstants.MANAGEMENT)
     public ResponseEntity<?> releaseReservation(@RequestParam UUID warehouseId,
                                                @RequestParam UUID productId,
                                                @RequestParam Integer quantity,
@@ -163,11 +160,10 @@ public class WarehouseInventoryController {
 
     /**
      * Get inventory for a warehouse
-     * GET /api/warehouse-inventory/warehouse/{warehouseId}
-     * RBAC: All authenticated users can view
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
      */
     @GetMapping("/warehouse/{warehouseId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
     public ResponseEntity<?> getWarehouseInventory(@PathVariable UUID warehouseId) {
         try {
             List<WarehouseInventoryResponse> inventory = warehouseInventoryService.getWarehouseInventory(warehouseId);
@@ -269,10 +265,10 @@ public class WarehouseInventoryController {
 
     /**
      * Get inventory value for warehouse
-     * GET /api/warehouse-inventory/warehouse/{warehouseId}/value
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
      */
     @GetMapping("/warehouse/{warehouseId}/value")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
     public ResponseEntity<?> getInventoryValue(@PathVariable UUID warehouseId) {
         try {
             Double totalValue = warehouseInventoryService.getTotalInventoryValue(warehouseId);
@@ -293,11 +289,10 @@ public class WarehouseInventoryController {
 
     /**
      * Edit inventory addition (same-day only)
-     * PUT /api/warehouse-inventory/additions/{additionId}
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE (own only)
+     * ✅ UPDATED: Uses RoleConstants.CAN_MODIFY_INVENTORY (includes OWNER)
      */
     @PutMapping("/additions/{additionId}")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize(RoleConstants.CAN_MODIFY_INVENTORY)
     public ResponseEntity<?> editAddition(@PathVariable UUID additionId,
                                          @Valid @RequestBody WarehouseInventoryAdditionRequest request,
                                          Authentication authentication) {
@@ -318,11 +313,10 @@ public class WarehouseInventoryController {
 
     /**
      * Edit inventory withdrawal (same-day only)
-     * PUT /api/warehouse-inventory/withdrawals/{withdrawalId}
-     * RBAC: FOUNDER, CEO, GENERAL_MANAGER, STORE_MANAGER, EMPLOYEE (own only)
+     * ✅ UPDATED: Uses RoleConstants.CAN_WITHDRAW_INVENTORY (includes OWNER)
      */
     @PutMapping("/withdrawals/{withdrawalId}")
-    @PreAuthorize("hasAnyAuthority('FOUNDER', 'CEO', 'GENERAL_MANAGER', 'STORE_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize(RoleConstants.CAN_WITHDRAW_INVENTORY)
     public ResponseEntity<?> editWithdrawal(@PathVariable UUID withdrawalId,
                                            @Valid @RequestBody WarehouseInventoryWithdrawalRequest request,
                                            Authentication authentication) {
@@ -343,11 +337,10 @@ public class WarehouseInventoryController {
 
     /**
      * List inventory additions with filters
-     * GET /api/warehouse-inventory/warehouse/{warehouseId}/additions
-     * RBAC: All authenticated users can view
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
      */
     @GetMapping("/warehouse/{warehouseId}/additions")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
     public ResponseEntity<?> listAdditions(@PathVariable UUID warehouseId,
                                           @RequestParam(required = false) LocalDate startDate,
                                           @RequestParam(required = false) LocalDate endDate,
@@ -372,11 +365,10 @@ public class WarehouseInventoryController {
 
     /**
      * List inventory withdrawals with filters
-     * GET /api/warehouse-inventory/warehouse/{warehouseId}/withdrawals
-     * RBAC: All authenticated users can view
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
      */
     @GetMapping("/warehouse/{warehouseId}/withdrawals")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
     public ResponseEntity<?> listWithdrawals(@PathVariable UUID warehouseId,
                                             @RequestParam(required = false) LocalDate startDate,
                                             @RequestParam(required = false) LocalDate endDate,
