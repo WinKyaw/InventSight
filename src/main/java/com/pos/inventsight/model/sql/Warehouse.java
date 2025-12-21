@@ -1,5 +1,6 @@
 package com.pos.inventsight.model.sql;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
@@ -16,6 +17,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "warehouses")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Warehouse {
 
     @Id
@@ -88,6 +90,7 @@ public class Warehouse {
     // Company relationship for multi-tenant architecture
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Company company;
 
     // Constructors
