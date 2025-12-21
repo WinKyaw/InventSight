@@ -1,5 +1,6 @@
 package com.pos.inventsight.model.sql;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -17,6 +18,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "warehouse_inventory_additions")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class WarehouseInventoryAddition {
 
     @Id
@@ -28,11 +30,13 @@ public class WarehouseInventoryAddition {
     @NotNull(message = "Warehouse is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Warehouse warehouse;
 
     @NotNull(message = "Product is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Product product;
 
     @NotNull(message = "Quantity is required")
