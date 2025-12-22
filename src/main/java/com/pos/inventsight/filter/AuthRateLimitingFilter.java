@@ -72,7 +72,7 @@ public class AuthRateLimitingFilter implements Filter {
         String clientIp = getClientIp(httpRequest);
         
         // Check login endpoint
-        if (requestUri.endsWith("/auth/login") || requestUri.endsWith("/api/auth/login")) {
+        if (isLoginEndpoint(requestUri)) {
             if (!checkRateLimit(clientIp, loginBuckets, maxLoginAttempts, loginWindowMinutes)) {
                 logger.warn("⚠️ Auth rate limit exceeded for IP: {} on login", clientIp);
                 sendRateLimitError(httpResponse, "login", maxLoginAttempts, loginWindowMinutes);
@@ -81,10 +81,7 @@ public class AuthRateLimitingFilter implements Filter {
         }
         
         // Check register endpoint
-        if (requestUri.endsWith("/auth/register") || 
-            requestUri.endsWith("/api/auth/register") || 
-            requestUri.endsWith("/auth/signup") ||
-            requestUri.endsWith("/api/auth/signup")) {
+        if (isRegisterEndpoint(requestUri)) {
             if (!checkRateLimit(clientIp, registerBuckets, maxRegisterAttempts, registerWindowMinutes)) {
                 logger.warn("⚠️ Auth rate limit exceeded for IP: {} on register", clientIp);
                 sendRateLimitError(httpResponse, "register", maxRegisterAttempts, registerWindowMinutes);
@@ -93,6 +90,30 @@ public class AuthRateLimitingFilter implements Filter {
         }
         
         chain.doFilter(request, response);
+    }
+    
+    /**
+     * Check if the request is for a login endpoint
+     * 
+     * @param requestUri Request URI
+     * @return true if login endpoint, false otherwise
+     */
+    private boolean isLoginEndpoint(String requestUri) {
+        return requestUri.endsWith("/auth/login") || 
+               requestUri.endsWith("/api/auth/login");
+    }
+    
+    /**
+     * Check if the request is for a register endpoint
+     * 
+     * @param requestUri Request URI
+     * @return true if register endpoint, false otherwise
+     */
+    private boolean isRegisterEndpoint(String requestUri) {
+        return requestUri.endsWith("/auth/register") || 
+               requestUri.endsWith("/api/auth/register") || 
+               requestUri.endsWith("/auth/signup") ||
+               requestUri.endsWith("/api/auth/signup");
     }
     
     /**
