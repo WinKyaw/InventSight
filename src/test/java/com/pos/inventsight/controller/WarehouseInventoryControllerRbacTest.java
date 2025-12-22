@@ -105,7 +105,8 @@ public class WarehouseInventoryControllerRbacTest {
      */
     @Test
     public void testGetWarehouseInventory_HasCorrectPreAuthorizeAnnotation() throws NoSuchMethodException {
-        Method method = WarehouseInventoryController.class.getMethod("getWarehouseInventory", UUID.class);
+        Method method = WarehouseInventoryController.class.getMethod("getWarehouseInventory", 
+            UUID.class, int.class, int.class);
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "GET /warehouse-inventory/warehouse/{id} should have @PreAuthorize annotation");
@@ -124,7 +125,7 @@ public class WarehouseInventoryControllerRbacTest {
     @Test
     public void testListAdditions_HasCorrectPreAuthorizeAnnotation() throws NoSuchMethodException {
         Method method = WarehouseInventoryController.class.getMethod("listAdditions",
-                UUID.class, LocalDate.class, LocalDate.class, String.class);
+                UUID.class, LocalDate.class, LocalDate.class, String.class, int.class, int.class, Authentication.class);
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "GET /warehouse-inventory/warehouse/{id}/additions should have @PreAuthorize annotation");
@@ -143,7 +144,7 @@ public class WarehouseInventoryControllerRbacTest {
     @Test
     public void testListWithdrawals_HasCorrectPreAuthorizeAnnotation() throws NoSuchMethodException {
         Method method = WarehouseInventoryController.class.getMethod("listWithdrawals",
-                UUID.class, LocalDate.class, LocalDate.class, String.class);
+                UUID.class, LocalDate.class, LocalDate.class, String.class, int.class, int.class, Authentication.class);
         PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
         
         assertNotNull(preAuthorize, "GET /warehouse-inventory/warehouse/{id}/withdrawals should have @PreAuthorize annotation");
