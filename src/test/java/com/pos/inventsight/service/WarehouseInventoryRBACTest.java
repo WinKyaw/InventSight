@@ -96,6 +96,29 @@ public class WarehouseInventoryRBACTest {
     }
 
     @Test
+    public void testGetUserCompanyRole_ReturnsCEO() {
+        // Setup company membership with CEO role
+        CompanyStoreUser membership = new CompanyStoreUser();
+        membership.setRole(CompanyRole.CEO);
+        membership.setIsActive(true);
+        
+        List<CompanyStoreUser> memberships = new ArrayList<>();
+        memberships.add(membership);
+        
+        when(companyStoreUserRepository.findByUserAndIsActiveTrue(gmUser))
+            .thenReturn(memberships);
+        
+        // Test
+        CompanyRole role = warehouseInventoryService.getUserCompanyRole(gmUser);
+        
+        // Verify
+        assertEquals(CompanyRole.CEO, role);
+        verify(companyStoreUserRepository, times(1)).findByUserAndIsActiveTrue(gmUser);
+        
+        System.out.println("✅ Test passed: getUserCompanyRole returns CEO correctly");
+    }
+
+    @Test
     public void testGetUserCompanyRole_ReturnsGeneralManager() {
         // Setup company membership with GENERAL_MANAGER role
         CompanyStoreUser membership = new CompanyStoreUser();

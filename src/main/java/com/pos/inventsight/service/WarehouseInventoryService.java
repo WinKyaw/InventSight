@@ -727,6 +727,8 @@ public class WarehouseInventoryService {
     
     /**
      * Get user's company role from their memberships
+     * Returns the highest role across all active memberships
+     * Role hierarchy: FOUNDER > CEO > GENERAL_MANAGER > STORE_MANAGER > EMPLOYEE
      */
     public CompanyRole getUserCompanyRole(User user) {
         // Get user's active company memberships
@@ -735,17 +737,25 @@ public class WarehouseInventoryService {
             return CompanyRole.EMPLOYEE; // Default to lowest privilege
         }
         
-        // Return the highest role
+        // Return the highest role based on hierarchy
         CompanyRole highestRole = CompanyRole.EMPLOYEE;
         for (CompanyStoreUser membership : memberships) {
             CompanyRole role = membership.getRole();
+            
+            // Check in order of hierarchy (highest to lowest)
             if (role == CompanyRole.FOUNDER) {
-                return CompanyRole.FOUNDER; // Highest, return immediately
+                return CompanyRole.FOUNDER; // Highest possible, return immediately
             }
-            if (role == CompanyRole.GENERAL_MANAGER && highestRole == CompanyRole.EMPLOYEE) {
+            if (role == CompanyRole.CEO && highestRole != CompanyRole.FOUNDER) {
+                highestRole = CompanyRole.CEO;
+            }
+            if (role == CompanyRole.GENERAL_MANAGER && 
+                highestRole != CompanyRole.FOUNDER && 
+                highestRole != CompanyRole.CEO) {
                 highestRole = CompanyRole.GENERAL_MANAGER;
             }
-            if (role == CompanyRole.STORE_MANAGER && highestRole == CompanyRole.EMPLOYEE) {
+            if (role == CompanyRole.STORE_MANAGER && 
+                highestRole == CompanyRole.EMPLOYEE) {
                 highestRole = CompanyRole.STORE_MANAGER;
             }
         }
