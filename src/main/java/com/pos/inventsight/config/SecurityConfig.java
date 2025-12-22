@@ -1,5 +1,6 @@
 package com.pos.inventsight.config;
 
+import com.pos.inventsight.filter.AuthRateLimitingFilter;
 import com.pos.inventsight.filter.IdempotencyKeyFilter;
 import com.pos.inventsight.filter.RateLimitingFilter;
 import com.pos.inventsight.repository.sql.CompanyRepository;
@@ -65,6 +66,9 @@ public class SecurityConfig {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private AuthRateLimitingFilter authRateLimitingFilter;
     
     @Autowired
     private RateLimitingFilter rateLimitingFilter;
@@ -220,18 +224,23 @@ public class SecurityConfig {
         http.authenticationProvider(authenticationProvider());
         
         // Add filters in correct order:
-        // 1. RateLimitingFilter (earliest - rate limiting check before any processing)
-        // 2. AuthTokenFilter (JWT authentication - MUST run before CompanyTenantFilter)
-        // 3. CompanyTenantFilter (tenant context - requires authenticated user from step 2)
-        // 4. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
+        // 1. AuthRateLimitingFilter (earliest - auth-specific rate limiting)
+        // 2. RateLimitingFilter (general rate limiting check before any processing)
+        // 3. AuthTokenFilter (JWT authentication - MUST run before CompanyTenantFilter)
+        // 4. CompanyTenantFilter (tenant context - requires authenticated user from step 3)
+        // 5. IdempotencyKeyFilter (idempotency check - after auth/tenant, so cache keys include tenant)
         
         logger.info("=== Configuring Security Filter Chain ===");
         logger.info("Filter Order:");
-        logger.info("  1. RateLimitingFilter (before SecurityContextHolderFilter)");
-        logger.info("  2. Spring Security Internal Filters");
-        logger.info("  3. AuthTokenFilter (before AnonymousAuthenticationFilter)");
-        logger.info("  4. CompanyTenantFilter (after AuthTokenFilter)");
-        logger.info("  5. IdempotencyKeyFilter (after CompanyTenantFilter)");
+        logger.info("  1. AuthRateLimitingFilter (before SecurityContextHolderFilter)");
+        logger.info("  2. RateLimitingFilter (before SecurityContextHolderFilter)");
+        logger.info("  3. Spring Security Internal Filters");
+        logger.info("  4. AuthTokenFilter (before AnonymousAuthenticationFilter)");
+        logger.info("  5. CompanyTenantFilter (after AuthTokenFilter)");
+        logger.info("  6. IdempotencyKeyFilter (after CompanyTenantFilter)");
+        
+        logger.info("Adding AuthRateLimitingFilter before SecurityContextHolderFilter");
+        http.addFilterBefore(authRateLimitingFilter, SecurityContextHolderFilter.class);
         
         logger.info("Adding RateLimitingFilter before SecurityContextHolderFilter");
         http.addFilterBefore(rateLimitingFilter, SecurityContextHolderFilter.class);

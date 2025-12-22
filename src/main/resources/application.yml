@@ -154,7 +154,18 @@ inventsight:
     per-ip:
       requests-per-minute: ${RATE_LIMIT_IP_RPM:100}
     auth-endpoints:
-      requests-per-minute: ${RATE_LIMIT_AUTH_RPM:25}
+      # Note: Auth endpoints are now excluded from global rate limiting
+      # This setting is kept for backward compatibility
+      requests-per-minute: ${RATE_LIMIT_AUTH_RPM:100}
+    # Auth-specific rate limiting (prevents brute force attacks)
+    auth:
+      enabled: ${RATE_LIMITING_AUTH_ENABLED:true}
+      login:
+        max-attempts: ${RATE_LIMIT_LOGIN_MAX:10}
+        window-minutes: ${RATE_LIMIT_LOGIN_WINDOW:5}
+      register:
+        max-attempts: ${RATE_LIMIT_REGISTER_MAX:5}
+        window-minutes: ${RATE_LIMIT_REGISTER_WINDOW:10}
       
   # GDPR Configuration
   gdpr:

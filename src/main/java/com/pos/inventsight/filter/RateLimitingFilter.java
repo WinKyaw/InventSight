@@ -20,7 +20,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Rate limiting filter using Bucket4j (token bucket algorithm).
- * Applies per-IP and per-tenant rate limits, with stricter limits on auth endpoints.
+ * Applies per-IP and per-tenant rate limits.
+ * 
+ * Configuration:
+ * - Global limit: 100 requests per minute per IP
+ * - Excludes: /api/auth/**, /actuator/health, /api/public/**
+ * - Tracks by IP address and tenant
  * 
  * Order: Highest precedence to apply rate limiting before any other processing.
  */
@@ -41,7 +46,7 @@ public class RateLimitingFilter implements Filter {
     @Value("${inventsight.rate-limiting.per-ip.requests-per-minute:100}")
     private int ipRpm;
     
-    @Value("${inventsight.rate-limiting.auth-endpoints.requests-per-minute:25}")
+    @Value("${inventsight.rate-limiting.auth-endpoints.requests-per-minute:100}")
     private int authRpm;
     
     @Override
@@ -57,30 +62,34 @@ public class RateLimitingFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         
         String requestUri = httpRequest.getRequestURI();
+        
+        // ✅ FIXED: Exclude auth and health endpoints from rate limiting
+        if (shouldSkipRateLimiting(requestUri)) {
+            logger.debug("⚡ Skipping rate limit for: {}", requestUri);
+            chain.doFilter(request, response);
+            return;
+        }
+        
         String clientIp = getClientIp(httpRequest);
         String tenantId = httpRequest.getHeader("X-Tenant-ID");
         
-        // Determine limit based on endpoint
-        boolean isAuthEndpoint = isAuthEndpoint(requestUri);
-        int perIpLimit = isAuthEndpoint ? authRpm : ipRpm;
-        
-        // Check per-IP limit
+        // Check per-IP limit (using regular IP limit for non-auth endpoints)
         String ipKey = "ip:" + clientIp;
-        Bucket ipBucket = resolveBucket(ipKey, perIpLimit);
+        Bucket ipBucket = resolveBucket(ipKey, ipRpm);
         
         if (!ipBucket.tryConsume(1)) {
-            logger.warn("Rate limit exceeded for IP: {} on endpoint: {}", clientIp, requestUri);
-            sendRateLimitError(httpResponse, perIpLimit, "IP");
+            logger.warn("⚠️ Rate limit exceeded for IP: {} on endpoint: {}", clientIp, requestUri);
+            sendRateLimitError(httpResponse, ipRpm, "IP");
             return;
         }
         
         // Check per-tenant limit (if tenant ID is present)
-        if (tenantId != null && !tenantId.trim().isEmpty() && !isAuthEndpoint) {
+        if (tenantId != null && !tenantId.trim().isEmpty()) {
             String tenantKey = "tenant:" + tenantId;
             Bucket tenantBucket = resolveBucket(tenantKey, tenantRpm);
             
             if (!tenantBucket.tryConsume(1)) {
-                logger.warn("Rate limit exceeded for tenant: {} on endpoint: {}", tenantId, requestUri);
+                logger.warn("⚠️ Rate limit exceeded for tenant: {} on endpoint: {}", tenantId, requestUri);
                 sendRateLimitError(httpResponse, tenantRpm, "tenant");
                 return;
             }
@@ -88,6 +97,31 @@ public class RateLimitingFilter implements Filter {
         
         // All rate limit checks passed
         chain.doFilter(request, response);
+    }
+    
+    /**
+     * ✅ NEW: Determine if rate limiting should be skipped for this endpoint
+     * 
+     * @param requestUri Request URI to check
+     * @return true if rate limiting should be skipped, false otherwise
+     */
+    private boolean shouldSkipRateLimiting(String requestUri) {
+        // Exclude authentication endpoints
+        if (requestUri.startsWith("/api/auth/")) {
+            return true;
+        }
+        
+        // Exclude health check endpoints
+        if (requestUri.startsWith("/actuator/health")) {
+            return true;
+        }
+        
+        // Exclude public endpoints
+        if (requestUri.startsWith("/api/public/")) {
+            return true;
+        }
+        
+        return false;
     }
     
     /**
@@ -126,18 +160,7 @@ public class RateLimitingFilter implements Filter {
         ));
     }
     
-    /**
-     * Check if the endpoint is an auth endpoint
-     * @param requestUri Request URI
-     * @return true if auth endpoint, false otherwise
-     */
-    private boolean isAuthEndpoint(String requestUri) {
-        return requestUri.startsWith("/auth/") ||
-               requestUri.startsWith("/api/auth/") ||
-               requestUri.contains("/signin") ||
-               requestUri.contains("/login") ||
-               requestUri.contains("/register");
-    }
+
     
     /**
      * Extract client IP address, considering proxy headers
@@ -161,8 +184,9 @@ public class RateLimitingFilter implements Filter {
     
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        logger.info("RateLimitingFilter initialized - enabled: {}, IP limit: {}/min, tenant limit: {}/min, auth limit: {}/min",
-                   rateLimitingEnabled, ipRpm, tenantRpm, authRpm);
+        logger.info("RateLimitingFilter initialized - enabled: {}, IP limit: {}/min, tenant limit: {}/min",
+                   rateLimitingEnabled, ipRpm, tenantRpm);
+        logger.info("Auth endpoints (/api/auth/**) excluded from rate limiting");
     }
     
     @Override
