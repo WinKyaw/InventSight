@@ -4,6 +4,8 @@ import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventory;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -53,6 +55,11 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
      * Find all inventory for a warehouse by ID
      */
     List<WarehouseInventory> findByWarehouseId(UUID warehouseId);
+
+    /**
+     * Find all inventory for a warehouse by ID with pagination
+     */
+    Page<WarehouseInventory> findByWarehouseId(UUID warehouseId, Pageable pageable);
 
     /**
      * Find all locations where a product is stored
