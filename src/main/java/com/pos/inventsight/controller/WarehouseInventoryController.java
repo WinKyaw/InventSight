@@ -11,8 +11,10 @@ import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventoryAddition;
 import com.pos.inventsight.model.sql.WarehouseInventoryWithdrawal;
+import com.pos.inventsight.model.sql.WarehousePermission;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
+import com.pos.inventsight.repository.sql.WarehousePermissionRepository;
 import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseInventoryService;
@@ -31,9 +33,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -58,6 +62,9 @@ public class WarehouseInventoryController {
     
     @Autowired
     private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private WarehousePermissionRepository warehousePermissionRepository;
 
     /**
      * Create or update warehouse inventory
@@ -506,10 +513,29 @@ public class WarehouseInventoryController {
             Warehouse warehouse = warehouseRepository.findById(warehouseId)
                 .orElseThrow(() -> new RuntimeException("Warehouse not found"));
             
-            // Check permissions
-            boolean canRead = hasWarehousePermission(currentUser, warehouse, "READ");
-            boolean canWrite = hasWarehousePermission(currentUser, warehouse, "WRITE");
             boolean isGMPlus = isGMPlusRole(currentUser);
+            boolean canRead = false;
+            boolean canWrite = false;
+            
+            // GM+ always has full access
+            if (isGMPlus) {
+                canRead = true;
+                canWrite = true;
+                logger.info("✅ User is GM+ - full access granted");
+            } else {
+                // Check explicit warehouse permission
+                Optional<WarehousePermission> permission = warehousePermissionRepository
+                    .findByWarehouseIdAndUserIdAndIsActive(warehouseId, currentUser.getId(), true);
+                
+                if (permission.isPresent()) {
+                    WarehousePermission perm = permission.get();
+                    canRead = true;
+                    canWrite = perm.getPermissionType() == WarehousePermission.PermissionType.READ_WRITE;
+                    logger.info("✅ Found explicit permission: {}", perm.getPermissionType());
+                } else {
+                    logger.warn("⚠️ No explicit permission found for user");
+                }
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -525,8 +551,7 @@ public class WarehouseInventoryController {
                 "isGMPlus", isGMPlus
             ));
             
-            logger.info("✅ Permissions: canRead={}, canWrite={}, isGMPlus={}", 
-                canRead, canWrite, isGMPlus);
+            logger.info("✅ Permissions: canRead={}, canWrite={}", canRead, canWrite);
             
             return ResponseEntity.ok(response);
             
@@ -540,48 +565,223 @@ public class WarehouseInventoryController {
     }
 
     /**
-     * Check if user has specific permission on warehouse
+     * Get list of users with access to warehouse (GM+ only)
      */
-    private boolean hasWarehousePermission(User user, Warehouse warehouse, String permissionType) {
-        // OWNER always has all permissions
-        if ("OWNER".equals(user.getRole().name())) {
-            logger.info("✅ User is OWNER - has all permissions");
-            return true;
-        }
-        
-        // Check if user's company matches warehouse company
-        List<CompanyStoreUser> userCompanies = companyStoreUserRepository
-            .findByUserAndIsActiveTrue(user);
-        
-        for (CompanyStoreUser csu : userCompanies) {
-            if (csu.getCompany().getId().equals(warehouse.getCompany().getId())) {
-                // User is part of the same company
-                CompanyRole companyRole = csu.getRole();
-                
-                // FOUNDER, CEO, GENERAL_MANAGER have all permissions
-                if (companyRole == CompanyRole.FOUNDER || 
-                    companyRole == CompanyRole.CEO || 
-                    companyRole == CompanyRole.GENERAL_MANAGER) {
-                    logger.info("✅ User is {} in same company - has all permissions", companyRole);
-                    return true;
-                }
-                
-                // STORE_MANAGER has WRITE permission
-                if (companyRole == CompanyRole.STORE_MANAGER && "WRITE".equals(permissionType)) {
-                    logger.info("✅ User is STORE_MANAGER in same company - has WRITE permission");
-                    return true;
-                }
-                
-                // All roles have READ permission
-                if ("READ".equals(permissionType)) {
-                    logger.info("✅ User is in same company - has READ permission");
-                    return true;
-                }
+    @GetMapping("/warehouse/{warehouseId}/users")
+    public ResponseEntity<?> getWarehouseUsers(
+        @PathVariable UUID warehouseId,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Only GM+ can view warehouse users
+            if (!isGMPlusRole(currentUser)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "Insufficient permissions. Only GM+ can view warehouse users."
+                ));
             }
+            
+            logger.info("👥 Fetching users with access to warehouse: {}", warehouseId);
+            
+            // Get warehouse
+            Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+            
+            // Get all active permissions for this warehouse
+            List<WarehousePermission> permissions = warehousePermissionRepository
+                .findByWarehouseIdAndIsActive(warehouseId, true);
+            
+            List<Map<String, Object>> usersList = permissions.stream()
+                .map(permission -> {
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("userId", permission.getUser().getId());
+                    userInfo.put("username", permission.getUser().getUsername());
+                    userInfo.put("email", permission.getUser().getEmail());
+                    userInfo.put("permission", permission.getPermissionType().name());
+                    userInfo.put("grantedBy", permission.getGrantedBy());
+                    userInfo.put("grantedAt", permission.getGrantedAt());
+                    return userInfo;
+                })
+                .toList();
+            
+            logger.info("✅ Found {} users with access", usersList.size());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("warehouseId", warehouseId);
+            response.put("warehouseName", warehouse.getName());
+            response.put("users", usersList);
+            response.put("count", usersList.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error fetching warehouse users: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
         }
-        
-        logger.warn("⚠️ User does not have {} permission on warehouse", permissionType);
-        return false;
+    }
+
+    /**
+     * Grant warehouse permission to user (GM+ only)
+     */
+    @PostMapping("/warehouse/{warehouseId}/permissions")
+    public ResponseEntity<?> grantWarehousePermission(
+        @PathVariable UUID warehouseId,
+        @RequestBody Map<String, Object> request,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Only GM+ can grant permissions
+            if (!isGMPlusRole(currentUser)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "Insufficient permissions. Only GM+ can grant warehouse permissions."
+                ));
+            }
+            
+            String userId = (String) request.get("userId");
+            String permissionTypeStr = (String) request.get("permissionType");
+            
+            if (userId == null || permissionTypeStr == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "userId and permissionType are required"
+                ));
+            }
+            
+            logger.info("🔐 Granting {} permission to user {} on warehouse {}", 
+                permissionTypeStr, userId, warehouseId);
+            
+            // Get warehouse
+            Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+            
+            // Get target user
+            User targetUser = userService.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Parse permission type
+            WarehousePermission.PermissionType permissionType;
+            try {
+                permissionType = WarehousePermission.PermissionType.valueOf(permissionTypeStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "Invalid permission type. Must be READ or READ_WRITE"
+                ));
+            }
+            
+            // Check if permission already exists
+            Optional<WarehousePermission> existingPermission = warehousePermissionRepository
+                .findByWarehouseIdAndUserIdAndIsActive(warehouseId, UUID.fromString(userId), true);
+            
+            WarehousePermission permission;
+            
+            if (existingPermission.isPresent()) {
+                // Update existing permission
+                permission = existingPermission.get();
+                permission.setPermissionType(permissionType);
+                permission.setGrantedBy(currentUser.getUsername());
+                permission.setGrantedAt(LocalDateTime.now());
+                logger.info("📝 Updating existing permission");
+            } else {
+                // Create new permission
+                permission = WarehousePermission.builder()
+                    .warehouse(warehouse)
+                    .user(targetUser)
+                    .permissionType(permissionType)
+                    .grantedBy(currentUser.getUsername())
+                    .grantedAt(LocalDateTime.now())
+                    .isActive(true)
+                    .build();
+                logger.info("➕ Creating new permission");
+            }
+            
+            permission = warehousePermissionRepository.save(permission);
+            
+            logger.info("✅ Permission granted successfully");
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("permissionId", permission.getId());
+            response.put("warehouseId", warehouseId);
+            response.put("userId", userId);
+            response.put("permissionType", permissionType.name());
+            response.put("message", "Permission granted successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error granting permission: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Revoke warehouse permission (GM+ only)
+     */
+    @DeleteMapping("/warehouse/{warehouseId}/permissions/{userId}")
+    public ResponseEntity<?> revokeWarehousePermission(
+        @PathVariable UUID warehouseId,
+        @PathVariable UUID userId,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Only GM+ can revoke permissions
+            if (!isGMPlusRole(currentUser)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "Insufficient permissions. Only GM+ can revoke warehouse permissions."
+                ));
+            }
+            
+            logger.info("🔐 Revoking permission for user {} on warehouse {}", userId, warehouseId);
+            
+            // Find active permission
+            Optional<WarehousePermission> permission = warehousePermissionRepository
+                .findByWarehouseIdAndUserIdAndIsActive(warehouseId, userId, true);
+            
+            if (permission.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of(
+                    "success", false,
+                    "error", "No active permission found for this user"
+                ));
+            }
+            
+            // Revoke permission (soft delete)
+            WarehousePermission perm = permission.get();
+            perm.setIsActive(false);
+            perm.setRevokedBy(currentUser.getUsername());
+            perm.setRevokedAt(LocalDateTime.now());
+            warehousePermissionRepository.save(perm);
+            
+            logger.info("✅ Permission revoked successfully");
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Permission revoked successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error revoking permission: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
+        }
     }
 
     /**
