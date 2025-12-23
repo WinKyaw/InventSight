@@ -10,11 +10,13 @@ CREATE TABLE warehouse_permissions (
     revoked_at TIMESTAMP,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Unique constraint: one active permission per user per warehouse
-    UNIQUE (warehouse_id, user_id, is_active)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create partial unique constraint: only one active permission per user per warehouse
+CREATE UNIQUE INDEX idx_warehouse_permissions_active_unique 
+    ON warehouse_permissions(warehouse_id, user_id) 
+    WHERE is_active = true;
 
 -- Create indexes
 CREATE INDEX idx_warehouse_permissions_warehouse ON warehouse_permissions(warehouse_id);
