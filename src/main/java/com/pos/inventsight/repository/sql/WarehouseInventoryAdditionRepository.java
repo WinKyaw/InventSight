@@ -3,6 +3,8 @@ package com.pos.inventsight.repository.sql;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventoryAddition;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +30,20 @@ public interface WarehouseInventoryAdditionRepository extends JpaRepository<Ware
      * Find additions by warehouse ID
      */
     List<WarehouseInventoryAddition> findByWarehouseId(UUID warehouseId);
+
+    /**
+     * Find additions by warehouse ID with pagination
+     */
+    Page<WarehouseInventoryAddition> findByWarehouseId(UUID warehouseId, Pageable pageable);
+
+    /**
+     * Find additions by warehouse ID and creator with pagination
+     */
+    Page<WarehouseInventoryAddition> findByWarehouseIdAndCreatedBy(
+        UUID warehouseId, 
+        String createdBy, 
+        Pageable pageable
+    );
 
     /**
      * Find additions by product

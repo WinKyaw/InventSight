@@ -454,6 +454,13 @@ public class UserService implements UserDetailsService {
     }
     
     /**
+     * Find user by UUID, returns Optional for flexible handling
+     */
+    public Optional<User> findById(UUID uuid) {
+        return userRepository.findById(uuid);
+    }
+    
+    /**
      * Set tenant context for authenticated user
      * This helps ensure that tenant context is properly initialized
      */

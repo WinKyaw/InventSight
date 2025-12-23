@@ -5,10 +5,20 @@ import com.pos.inventsight.dto.WarehouseInventoryAdditionRequest;
 import com.pos.inventsight.dto.WarehouseInventoryRequest;
 import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
+import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.WarehouseInventoryAddition;
+import com.pos.inventsight.model.sql.WarehouseInventoryWithdrawal;
 import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.WarehouseInventoryService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,12 +33,14 @@ import java.util.UUID;
 
 /**
  * REST Controller for warehouse inventory management with RBAC
- * ✅ UPDATED: Now uses RoleConstants for consistent authorization
+ * ✅ UPDATED: Now uses RoleConstants for consistent authorization and supports pagination
  */
 @RestController
 @RequestMapping("/warehouse-inventory")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class WarehouseInventoryController {
+
+    private static final Logger logger = LoggerFactory.getLogger(WarehouseInventoryController.class);
 
     @Autowired
     private WarehouseInventoryService warehouseInventoryService;
@@ -160,26 +172,42 @@ public class WarehouseInventoryController {
 
     /**
      * Get inventory for a warehouse
-     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER) and supports pagination
      */
     @GetMapping("/warehouse/{warehouseId}")
     @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
-    public ResponseEntity<?> getWarehouseInventory(@PathVariable UUID warehouseId) {
+    public ResponseEntity<?> getWarehouseInventory(
+        @PathVariable UUID warehouseId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
         try {
-            List<WarehouseInventoryResponse> inventory = warehouseInventoryService.getWarehouseInventory(warehouseId);
+            logger.info("📦 Fetching inventory for warehouse: {} (Page: {}, Size: {})", 
+                warehouseId, page, size);
+            
+            Page<WarehouseInventoryResponse> inventory = warehouseInventoryService.getWarehouseInventory(
+                warehouseId, 
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "productName"))
+            );
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("inventory", inventory);
-            response.put("count", inventory.size());
             response.put("warehouseId", warehouseId);
+            response.put("inventory", inventory.getContent());
+            response.put("currentPage", inventory.getNumber());
+            response.put("totalPages", inventory.getTotalPages());
+            response.put("totalItems", inventory.getTotalElements());
+            response.put("hasMore", inventory.hasNext());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            System.err.println("❌ Error fetching warehouse inventory: " + e.getMessage());
+            logger.error("❌ Error fetching inventory: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Error fetching inventory: " + e.getMessage()));
+                .body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()
+                ));
         }
     }
 
@@ -337,57 +365,123 @@ public class WarehouseInventoryController {
 
     /**
      * List inventory additions with filters
-     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY, supports pagination and role-based filtering
      */
     @GetMapping("/warehouse/{warehouseId}/additions")
     @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
-    public ResponseEntity<?> listAdditions(@PathVariable UUID warehouseId,
-                                          @RequestParam(required = false) LocalDate startDate,
-                                          @RequestParam(required = false) LocalDate endDate,
-                                          @RequestParam(required = false) String transactionType) {
+    public ResponseEntity<?> listAdditions(
+        @PathVariable UUID warehouseId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam(required = false) String transactionType,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size,
+        Authentication authentication
+    ) {
         try {
-            List<?> additions = warehouseInventoryService.listAdditions(warehouseId, startDate, endDate, transactionType);
+            // Get authenticated user from principal
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Check user role - determine if GM+ (FOUNDER, CEO, GENERAL_MANAGER)
+            boolean isGMPlus = isGMPlusRole(currentUser);
+            
+            // Filter by user if not GM+
+            String filterByUsername = isGMPlus ? null : currentUser.getUsername();
+            
+            logger.info("📥 Fetching additions for warehouse: {} (User: {}, Filter: {})", 
+                warehouseId, currentUser.getUsername(), 
+                filterByUsername != null ? "Own only" : "All");
+            
+            Page<WarehouseInventoryAddition> additions = warehouseInventoryService.listAdditions(
+                warehouseId, startDate, endDate, transactionType, filterByUsername, 
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+            );
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("additions", additions);
-            response.put("count", additions.size());
             response.put("warehouseId", warehouseId);
+            response.put("additions", additions.getContent());
+            response.put("currentPage", additions.getNumber());
+            response.put("totalPages", additions.getTotalPages());
+            response.put("totalItems", additions.getTotalElements());
+            response.put("hasMore", additions.hasNext());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            System.err.println("❌ Error listing additions: " + e.getMessage());
+            logger.error("❌ Error fetching additions: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Error listing additions: " + e.getMessage()));
+                .body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()
+                ));
         }
     }
 
     /**
      * List inventory withdrawals with filters
-     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY (includes OWNER)
+     * ✅ UPDATED: Uses RoleConstants.CAN_VIEW_INVENTORY, supports pagination and role-based filtering
      */
     @GetMapping("/warehouse/{warehouseId}/withdrawals")
     @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
-    public ResponseEntity<?> listWithdrawals(@PathVariable UUID warehouseId,
-                                            @RequestParam(required = false) LocalDate startDate,
-                                            @RequestParam(required = false) LocalDate endDate,
-                                            @RequestParam(required = false) String transactionType) {
+    public ResponseEntity<?> listWithdrawals(
+        @PathVariable UUID warehouseId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam(required = false) String transactionType,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size,
+        Authentication authentication
+    ) {
         try {
-            List<?> withdrawals = warehouseInventoryService.listWithdrawals(warehouseId, startDate, endDate, transactionType);
+            // Get authenticated user from principal
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Check user role - determine if GM+ (FOUNDER, CEO, GENERAL_MANAGER)
+            boolean isGMPlus = isGMPlusRole(currentUser);
+            
+            // Filter by user if not GM+
+            String filterByUsername = isGMPlus ? null : currentUser.getUsername();
+            
+            logger.info("💰 Fetching withdrawals for warehouse: {} (User: {}, Filter: {})", 
+                warehouseId, currentUser.getUsername(), 
+                filterByUsername != null ? "Own only" : "All");
+            
+            Page<WarehouseInventoryWithdrawal> withdrawals = warehouseInventoryService.listWithdrawals(
+                warehouseId, startDate, endDate, transactionType, filterByUsername, 
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+            );
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("withdrawals", withdrawals);
-            response.put("count", withdrawals.size());
             response.put("warehouseId", warehouseId);
+            response.put("withdrawals", withdrawals.getContent());
+            response.put("currentPage", withdrawals.getNumber());
+            response.put("totalPages", withdrawals.getTotalPages());
+            response.put("totalItems", withdrawals.getTotalElements());
+            response.put("hasMore", withdrawals.hasNext());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            System.err.println("❌ Error listing withdrawals: " + e.getMessage());
+            logger.error("❌ Error fetching withdrawals: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Error listing withdrawals: " + e.getMessage()));
+                .body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()
+                ));
         }
+    }
+
+    /**
+     * Helper method to check if user has GM+ role (FOUNDER, CEO, GENERAL_MANAGER)
+     * These roles can view all transactions from all users
+     */
+    private boolean isGMPlusRole(User user) {
+        // Get user's highest company role
+        CompanyRole role = warehouseInventoryService.getUserCompanyRole(user);
+        return role == CompanyRole.FOUNDER || 
+               role == CompanyRole.CEO || 
+               role == CompanyRole.GENERAL_MANAGER;
     }
 }

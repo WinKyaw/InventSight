@@ -21,6 +21,8 @@ import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryWithdrawalRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -331,6 +333,14 @@ public class WarehouseInventoryService {
     }
 
     /**
+     * Get inventory for a warehouse with pagination
+     */
+    public Page<WarehouseInventoryResponse> getWarehouseInventory(UUID warehouseId, Pageable pageable) {
+        return warehouseInventoryRepository.findByWarehouseId(warehouseId, pageable)
+            .map(this::convertToResponse);
+    }
+
+    /**
      * Get inventory for a product across all warehouses
      */
     public List<WarehouseInventoryResponse> getProductInventory(UUID productId) {
@@ -597,6 +607,26 @@ public class WarehouseInventoryService {
     }
 
     /**
+     * List inventory additions with filters and pagination, optionally filtered by creator
+     */
+    public Page<WarehouseInventoryAddition> listAdditions(
+        UUID warehouseId, 
+        LocalDate startDate, 
+        LocalDate endDate, 
+        String transactionType,
+        String createdByUsername,
+        Pageable pageable
+    ) {
+        if (createdByUsername != null) {
+            // Filter by specific user (for non-GM+ users)
+            return additionRepository.findByWarehouseIdAndCreatedBy(warehouseId, createdByUsername, pageable);
+        } else {
+            // Return all (for GM+ users)
+            return additionRepository.findByWarehouseId(warehouseId, pageable);
+        }
+    }
+
+    /**
      * List inventory withdrawals with filters
      */
     public List<WarehouseInventoryWithdrawal> listWithdrawals(UUID warehouseId, LocalDate startDate, LocalDate endDate, String transactionType) {
@@ -625,6 +655,26 @@ public class WarehouseInventoryService {
             }
         } else {
             return withdrawalRepository.findByWarehouseIdOrderByWithdrawalDateDesc(warehouseId);
+        }
+    }
+
+    /**
+     * List inventory withdrawals with filters and pagination, optionally filtered by creator
+     */
+    public Page<WarehouseInventoryWithdrawal> listWithdrawals(
+        UUID warehouseId, 
+        LocalDate startDate, 
+        LocalDate endDate, 
+        String transactionType,
+        String createdByUsername,
+        Pageable pageable
+    ) {
+        if (createdByUsername != null) {
+            // Filter by specific user (for non-GM+ users)
+            return withdrawalRepository.findByWarehouseIdAndCreatedBy(warehouseId, createdByUsername, pageable);
+        } else {
+            // Return all (for GM+ users)
+            return withdrawalRepository.findByWarehouseId(warehouseId, pageable);
         }
     }
 
@@ -677,25 +727,35 @@ public class WarehouseInventoryService {
     
     /**
      * Get user's company role from their memberships
+     * Returns the highest role across all active memberships
+     * Role hierarchy: FOUNDER > CEO > GENERAL_MANAGER > STORE_MANAGER > EMPLOYEE
      */
-    private CompanyRole getUserCompanyRole(User user) {
+    public CompanyRole getUserCompanyRole(User user) {
         // Get user's active company memberships
         List<CompanyStoreUser> memberships = companyStoreUserRepository.findByUserAndIsActiveTrue(user);
         if (memberships.isEmpty()) {
             return CompanyRole.EMPLOYEE; // Default to lowest privilege
         }
         
-        // Return the highest role
+        // Return the highest role based on hierarchy
         CompanyRole highestRole = CompanyRole.EMPLOYEE;
         for (CompanyStoreUser membership : memberships) {
             CompanyRole role = membership.getRole();
+            
+            // Check in order of hierarchy (highest to lowest)
             if (role == CompanyRole.FOUNDER) {
-                return CompanyRole.FOUNDER; // Highest, return immediately
+                return CompanyRole.FOUNDER; // Highest possible, return immediately
             }
-            if (role == CompanyRole.GENERAL_MANAGER && highestRole == CompanyRole.EMPLOYEE) {
+            if (role == CompanyRole.CEO && highestRole != CompanyRole.FOUNDER) {
+                highestRole = CompanyRole.CEO;
+            }
+            if (role == CompanyRole.GENERAL_MANAGER && 
+                highestRole != CompanyRole.FOUNDER && 
+                highestRole != CompanyRole.CEO) {
                 highestRole = CompanyRole.GENERAL_MANAGER;
             }
-            if (role == CompanyRole.STORE_MANAGER && highestRole == CompanyRole.EMPLOYEE) {
+            if (role == CompanyRole.STORE_MANAGER && 
+                highestRole == CompanyRole.EMPLOYEE) {
                 highestRole = CompanyRole.STORE_MANAGER;
             }
         }

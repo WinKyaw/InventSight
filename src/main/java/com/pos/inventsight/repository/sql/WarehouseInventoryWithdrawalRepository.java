@@ -3,6 +3,8 @@ package com.pos.inventsight.repository.sql;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventoryWithdrawal;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +30,20 @@ public interface WarehouseInventoryWithdrawalRepository extends JpaRepository<Wa
      * Find withdrawals by warehouse ID
      */
     List<WarehouseInventoryWithdrawal> findByWarehouseId(UUID warehouseId);
+
+    /**
+     * Find withdrawals by warehouse ID with pagination
+     */
+    Page<WarehouseInventoryWithdrawal> findByWarehouseId(UUID warehouseId, Pageable pageable);
+
+    /**
+     * Find withdrawals by warehouse ID and creator with pagination
+     */
+    Page<WarehouseInventoryWithdrawal> findByWarehouseIdAndCreatedBy(
+        UUID warehouseId, 
+        String createdBy, 
+        Pageable pageable
+    );
 
     /**
      * Find withdrawals by product
