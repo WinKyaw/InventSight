@@ -6,10 +6,15 @@ import com.pos.inventsight.dto.WarehouseInventoryRequest;
 import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
 import com.pos.inventsight.model.sql.CompanyRole;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventoryAddition;
 import com.pos.inventsight.model.sql.WarehouseInventoryWithdrawal;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.security.RoleConstants;
+import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseInventoryService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -44,6 +49,15 @@ public class WarehouseInventoryController {
 
     @Autowired
     private WarehouseInventoryService warehouseInventoryService;
+    
+    @Autowired
+    private UserService userService;
+    
+    @Autowired
+    private WarehouseRepository warehouseRepository;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
 
     /**
      * Create or update warehouse inventory
@@ -471,6 +485,103 @@ public class WarehouseInventoryController {
                     "error", e.getMessage()
                 ));
         }
+    }
+
+    /**
+     * Check if current user has write permission on warehouse
+     * GET /api/warehouse-inventory/warehouse/{warehouseId}/permissions
+     */
+    @GetMapping("/warehouse/{warehouseId}/permissions")
+    public ResponseEntity<?> checkWarehousePermissions(
+        @PathVariable UUID warehouseId,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            
+            logger.info("🔐 Checking permissions for user {} on warehouse {}", 
+                currentUser.getUsername(), warehouseId);
+            
+            // Check if warehouse exists
+            Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+            
+            // Check permissions
+            boolean canRead = hasWarehousePermission(currentUser, warehouse, "READ");
+            boolean canWrite = hasWarehousePermission(currentUser, warehouse, "WRITE");
+            boolean isGMPlus = isGMPlusRole(currentUser);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("warehouseId", warehouseId);
+            response.put("userId", currentUser.getId());
+            response.put("username", currentUser.getUsername());
+            response.put("role", currentUser.getRole());
+            response.put("permissions", Map.of(
+                "canRead", canRead,
+                "canWrite", canWrite,
+                "canAddInventory", canWrite,
+                "canWithdrawInventory", canWrite,
+                "isGMPlus", isGMPlus
+            ));
+            
+            logger.info("✅ Permissions: canRead={}, canWrite={}, isGMPlus={}", 
+                canRead, canWrite, isGMPlus);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error checking permissions: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Check if user has specific permission on warehouse
+     */
+    private boolean hasWarehousePermission(User user, Warehouse warehouse, String permissionType) {
+        // OWNER always has all permissions
+        if ("OWNER".equals(user.getRole().name())) {
+            logger.info("✅ User is OWNER - has all permissions");
+            return true;
+        }
+        
+        // Check if user's company matches warehouse company
+        List<CompanyStoreUser> userCompanies = companyStoreUserRepository
+            .findByUserAndIsActiveTrue(user);
+        
+        for (CompanyStoreUser csu : userCompanies) {
+            if (csu.getCompany().getId().equals(warehouse.getCompany().getId())) {
+                // User is part of the same company
+                CompanyRole companyRole = csu.getRole();
+                
+                // FOUNDER, CEO, GENERAL_MANAGER have all permissions
+                if (companyRole == CompanyRole.FOUNDER || 
+                    companyRole == CompanyRole.CEO || 
+                    companyRole == CompanyRole.GENERAL_MANAGER) {
+                    logger.info("✅ User is {} in same company - has all permissions", companyRole);
+                    return true;
+                }
+                
+                // STORE_MANAGER has WRITE permission
+                if (companyRole == CompanyRole.STORE_MANAGER && "WRITE".equals(permissionType)) {
+                    logger.info("✅ User is STORE_MANAGER in same company - has WRITE permission");
+                    return true;
+                }
+                
+                // All roles have READ permission
+                if ("READ".equals(permissionType)) {
+                    logger.info("✅ User is in same company - has READ permission");
+                    return true;
+                }
+            }
+        }
+        
+        logger.warn("⚠️ User does not have {} permission on warehouse", permissionType);
+        return false;
     }
 
     /**
