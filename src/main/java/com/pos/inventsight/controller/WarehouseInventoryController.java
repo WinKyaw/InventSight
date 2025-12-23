@@ -693,14 +693,10 @@ public class WarehouseInventoryController {
                 logger.info("📝 Updating existing permission");
             } else {
                 // Create new permission
-                permission = WarehousePermission.builder()
-                    .warehouse(warehouse)
-                    .user(targetUser)
-                    .permissionType(permissionType)
-                    .grantedBy(currentUser.getUsername())
-                    .grantedAt(LocalDateTime.now())
-                    .isActive(true)
-                    .build();
+                permission = new WarehousePermission(warehouse, targetUser, permissionType);
+                permission.setGrantedBy(currentUser.getUsername());
+                permission.setGrantedAt(LocalDateTime.now());
+                permission.setIsActive(true);
                 logger.info("➕ Creating new permission");
             }
             

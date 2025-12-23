@@ -5,6 +5,7 @@ import com.pos.inventsight.repository.sql.CompanyRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
+import com.pos.inventsight.repository.sql.WarehousePermissionRepository;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseInventoryService;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +38,9 @@ public class WarehousePermissionsEndpointTest {
 
     @Mock
     private CompanyStoreUserRepository companyStoreUserRepository;
+
+    @Mock
+    private WarehousePermissionRepository warehousePermissionRepository;
 
     @Mock
     private Authentication authentication;
@@ -137,7 +141,7 @@ public class WarehousePermissionsEndpointTest {
 
     @Test
     void testCheckWarehousePermissions_StoreManager_HasWritePermissions() {
-        // Given: User with STORE_MANAGER role in same company
+        // Given: User with STORE_MANAGER role in same company - NOW requires explicit permission
         CompanyStoreUser csu = new CompanyStoreUser();
         csu.setUser(testUser);
         csu.setCompany(testCompany);
@@ -147,6 +151,10 @@ public class WarehousePermissionsEndpointTest {
         when(companyStoreUserRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(Collections.singletonList(csu));
         when(warehouseInventoryService.getUserCompanyRole(testUser)).thenReturn(CompanyRole.STORE_MANAGER);
+        
+        // Store Manager needs explicit permission now
+        when(warehousePermissionRepository.findByWarehouseIdAndUserIdAndIsActive(warehouseId, testUser.getId(), true))
+            .thenReturn(Optional.empty());
 
         // When
         ResponseEntity<?> response = controller.checkWarehousePermissions(warehouseId, authentication);
@@ -158,15 +166,16 @@ public class WarehousePermissionsEndpointTest {
         assertTrue((Boolean) body.get("success"));
         
         Map<String, Object> permissions = (Map<String, Object>) body.get("permissions");
-        assertTrue((Boolean) permissions.get("canRead"));
-        assertTrue((Boolean) permissions.get("canWrite"));
-        assertTrue((Boolean) permissions.get("canAddInventory"));
-        assertTrue((Boolean) permissions.get("canWithdrawInventory"));
+        // Without explicit permission, no access
+        assertFalse((Boolean) permissions.get("canRead"));
+        assertFalse((Boolean) permissions.get("canWrite"));
+        assertFalse((Boolean) permissions.get("canAddInventory"));
+        assertFalse((Boolean) permissions.get("canWithdrawInventory"));
     }
 
     @Test
     void testCheckWarehousePermissions_Employee_HasReadOnlyPermissions() {
-        // Given: User with EMPLOYEE role in same company
+        // Given: User with EMPLOYEE role in same company - NOW requires explicit permission
         CompanyStoreUser csu = new CompanyStoreUser();
         csu.setUser(testUser);
         csu.setCompany(testCompany);
@@ -176,6 +185,10 @@ public class WarehousePermissionsEndpointTest {
         when(companyStoreUserRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(Collections.singletonList(csu));
         when(warehouseInventoryService.getUserCompanyRole(testUser)).thenReturn(CompanyRole.EMPLOYEE);
+        
+        // Employee needs explicit permission now
+        when(warehousePermissionRepository.findByWarehouseIdAndUserIdAndIsActive(warehouseId, testUser.getId(), true))
+            .thenReturn(Optional.empty());
 
         // When
         ResponseEntity<?> response = controller.checkWarehousePermissions(warehouseId, authentication);
@@ -187,7 +200,8 @@ public class WarehousePermissionsEndpointTest {
         assertTrue((Boolean) body.get("success"));
         
         Map<String, Object> permissions = (Map<String, Object>) body.get("permissions");
-        assertTrue((Boolean) permissions.get("canRead"));
+        // Without explicit permission, no access
+        assertFalse((Boolean) permissions.get("canRead"));
         assertFalse((Boolean) permissions.get("canWrite"));
         assertFalse((Boolean) permissions.get("canAddInventory"));
         assertFalse((Boolean) permissions.get("canWithdrawInventory"));
@@ -195,7 +209,7 @@ public class WarehousePermissionsEndpointTest {
 
     @Test
     void testCheckWarehousePermissions_DifferentCompany_NoPermissions() {
-        // Given: User in different company
+        // Given: User in different company - needs explicit permission
         Company differentCompany = new Company();
         differentCompany.setId(UUID.randomUUID());
         differentCompany.setName("Different Company");
@@ -209,6 +223,10 @@ public class WarehousePermissionsEndpointTest {
         when(companyStoreUserRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(Collections.singletonList(csu));
         when(warehouseInventoryService.getUserCompanyRole(testUser)).thenReturn(CompanyRole.EMPLOYEE);
+        
+        // No explicit permission
+        when(warehousePermissionRepository.findByWarehouseIdAndUserIdAndIsActive(warehouseId, testUser.getId(), true))
+            .thenReturn(Optional.empty());
 
         // When
         ResponseEntity<?> response = controller.checkWarehousePermissions(warehouseId, authentication);
