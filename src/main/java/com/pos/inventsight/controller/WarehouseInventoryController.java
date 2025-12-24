@@ -836,35 +836,8 @@ public class WarehouseInventoryController {
             List<WarehousePermission> permissions = warehousePermissionRepository
                 .findByUserIdAndIsActive(userId, true);
             
-            // Map to response format
-            List<Map<String, Object>> assignments = permissions.stream()
-                .map(permission -> {
-                    Map<String, Object> assignment = new HashMap<>();
-                    assignment.put("id", permission.getId());
-                    assignment.put("warehouseId", permission.getWarehouse().getId());
-                    assignment.put("warehouseName", permission.getWarehouse().getName());
-                    assignment.put("warehouseLocation", permission.getWarehouse().getLocation());
-                    assignment.put("permissionType", permission.getPermissionType().name());
-                    assignment.put("grantedBy", permission.getGrantedBy());
-                    assignment.put("grantedAt", permission.getGrantedAt());
-                    assignment.put("isActive", permission.getIsActive());
-                    
-                    // Add warehouse details
-                    Warehouse warehouse = permission.getWarehouse();
-                    Map<String, Object> warehouseInfo = new HashMap<>();
-                    warehouseInfo.put("id", warehouse.getId());
-                    warehouseInfo.put("name", warehouse.getName());
-                    warehouseInfo.put("location", warehouse.getLocation());
-                    warehouseInfo.put("address", warehouse.getAddress());
-                    warehouseInfo.put("city", warehouse.getCity());
-                    warehouseInfo.put("state", warehouse.getState());
-                    warehouseInfo.put("country", warehouse.getCountry());
-                    
-                    assignment.put("warehouse", warehouseInfo);
-                    
-                    return assignment;
-                })
-                .toList();
+            // Map to response format using helper method
+            List<Map<String, Object>> assignments = mapWarehousePermissionsToAssignments(permissions);
             
             logger.info("✅ Found {} warehouse assignments for user {}", assignments.size(), targetUser.getUsername());
             
@@ -903,9 +876,10 @@ public class WarehouseInventoryController {
             logger.info("🏢 Fetching warehouse assignments for employee: {}", employeeId);
             
             // ✅ STEP 1: Get employee record
-            Employee employee = employeeService.getEmployeeById(employeeId);
-            
-            if (employee == null) {
+            Employee employee;
+            try {
+                employee = employeeService.getEmployeeById(employeeId);
+            } catch (Exception e) {
                 logger.warn("⚠️ Employee not found: {}", employeeId);
                 return ResponseEntity.status(404).body(Map.of(
                     "success", false,
@@ -953,35 +927,8 @@ public class WarehouseInventoryController {
             List<WarehousePermission> permissions = warehousePermissionRepository
                 .findByUserIdAndIsActive(userId, true);
             
-            // Map to response format
-            List<Map<String, Object>> assignments = permissions.stream()
-                .map(permission -> {
-                    Map<String, Object> assignment = new HashMap<>();
-                    assignment.put("id", permission.getId());
-                    assignment.put("warehouseId", permission.getWarehouse().getId());
-                    assignment.put("warehouseName", permission.getWarehouse().getName());
-                    assignment.put("warehouseLocation", permission.getWarehouse().getLocation());
-                    assignment.put("permissionType", permission.getPermissionType().name());
-                    assignment.put("grantedBy", permission.getGrantedBy());
-                    assignment.put("grantedAt", permission.getGrantedAt());
-                    assignment.put("isActive", permission.getIsActive());
-                    
-                    // Add warehouse details
-                    Warehouse warehouse = permission.getWarehouse();
-                    Map<String, Object> warehouseInfo = new HashMap<>();
-                    warehouseInfo.put("id", warehouse.getId());
-                    warehouseInfo.put("name", warehouse.getName());
-                    warehouseInfo.put("location", warehouse.getLocation());
-                    warehouseInfo.put("address", warehouse.getAddress());
-                    warehouseInfo.put("city", warehouse.getCity());
-                    warehouseInfo.put("state", warehouse.getState());
-                    warehouseInfo.put("country", warehouse.getCountry());
-                    
-                    assignment.put("warehouse", warehouseInfo);
-                    
-                    return assignment;
-                })
-                .toList();
+            // Map to response format using helper method
+            List<Map<String, Object>> assignments = mapWarehousePermissionsToAssignments(permissions);
             
             logger.info("✅ Found {} warehouse assignments for employee {} (user: {})", 
                 assignments.size(), employee.getFirstName() + " " + employee.getLastName(), targetUser.getUsername());
@@ -1016,5 +963,40 @@ public class WarehouseInventoryController {
         return role == CompanyRole.FOUNDER || 
                role == CompanyRole.CEO || 
                role == CompanyRole.GENERAL_MANAGER;
+    }
+
+    /**
+     * Helper method to map warehouse permissions to assignment response format
+     * Reduces code duplication between getUserWarehouseAssignments and getEmployeeWarehouseAssignments
+     */
+    private List<Map<String, Object>> mapWarehousePermissionsToAssignments(List<WarehousePermission> permissions) {
+        return permissions.stream()
+            .map(permission -> {
+                Map<String, Object> assignment = new HashMap<>();
+                assignment.put("id", permission.getId());
+                assignment.put("warehouseId", permission.getWarehouse().getId());
+                assignment.put("warehouseName", permission.getWarehouse().getName());
+                assignment.put("warehouseLocation", permission.getWarehouse().getLocation());
+                assignment.put("permissionType", permission.getPermissionType().name());
+                assignment.put("grantedBy", permission.getGrantedBy());
+                assignment.put("grantedAt", permission.getGrantedAt());
+                assignment.put("isActive", permission.getIsActive());
+                
+                // Add warehouse details
+                Warehouse warehouse = permission.getWarehouse();
+                Map<String, Object> warehouseInfo = new HashMap<>();
+                warehouseInfo.put("id", warehouse.getId());
+                warehouseInfo.put("name", warehouse.getName());
+                warehouseInfo.put("location", warehouse.getLocation());
+                warehouseInfo.put("address", warehouse.getAddress());
+                warehouseInfo.put("city", warehouse.getCity());
+                warehouseInfo.put("state", warehouse.getState());
+                warehouseInfo.put("country", warehouse.getCountry());
+                
+                assignment.put("warehouse", warehouseInfo);
+                
+                return assignment;
+            })
+            .toList();
     }
 }

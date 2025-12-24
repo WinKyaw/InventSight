@@ -1,5 +1,6 @@
 package com.pos.inventsight.controller;
 
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.Employee;
 import com.pos.inventsight.model.sql.User;
@@ -151,9 +152,10 @@ public class WarehouseInventoryControllerEmployeeEndpointTest {
      */
     @Test
     public void testGetEmployeeWarehouseAssignments_EmployeeNotFound() {
-        // Setup: Employee doesn't exist
+        // Setup: Employee doesn't exist - throw ResourceNotFoundException
         when(authentication.getPrincipal()).thenReturn(currentUser);
-        when(employeeService.getEmployeeById(employeeId)).thenReturn(null);
+        when(employeeService.getEmployeeById(employeeId))
+            .thenThrow(new ResourceNotFoundException("Employee not found with ID: " + employeeId));
         
         // Execute
         ResponseEntity<?> response = controller.getEmployeeWarehouseAssignments(employeeId, authentication);
