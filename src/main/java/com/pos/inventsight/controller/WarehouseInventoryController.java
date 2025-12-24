@@ -5,6 +5,7 @@ import com.pos.inventsight.dto.WarehouseInventoryAdditionRequest;
 import com.pos.inventsight.dto.WarehouseInventoryRequest;
 import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.Employee;
@@ -879,11 +880,11 @@ public class WarehouseInventoryController {
             Employee employee;
             try {
                 employee = employeeService.getEmployeeById(employeeId);
-            } catch (Exception e) {
-                logger.warn("⚠️ Employee not found: {}", employeeId);
+            } catch (ResourceNotFoundException e) {
+                logger.warn("⚠️ Employee not found: {} - {}", employeeId, e.getMessage());
                 return ResponseEntity.status(404).body(Map.of(
                     "success", false,
-                    "error", "Employee not found"
+                    "error", "Employee not found with ID: " + employeeId
                 ));
             }
             
