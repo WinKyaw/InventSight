@@ -781,6 +781,88 @@ public class WarehouseInventoryController {
     }
 
     /**
+     * Get user's warehouse assignments (permissions)
+     * GET /api/warehouse-inventory/user/{userId}/warehouses
+     * 
+     * Returns list of warehouses the user has access to with their permission types
+     */
+    @GetMapping("/user/{userId}/warehouses")
+    public ResponseEntity<?> getUserWarehouseAssignments(
+        @PathVariable UUID userId,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            
+            logger.info("🏢 Fetching warehouse assignments for user: {}", userId);
+            
+            // Check authorization: user can only view their own assignments unless they're GM+
+            if (!currentUser.getId().equals(userId) && !isGMPlusRole(currentUser)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "You can only view your own warehouse assignments"
+                ));
+            }
+            
+            // Get user
+            User targetUser = userService.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Get all active warehouse permissions for this user
+            List<WarehousePermission> permissions = warehousePermissionRepository
+                .findByUserIdAndIsActive(userId, true);
+            
+            // Map to response format
+            List<Map<String, Object>> assignments = permissions.stream()
+                .map(permission -> {
+                    Map<String, Object> assignment = new HashMap<>();
+                    assignment.put("id", permission.getId());
+                    assignment.put("warehouseId", permission.getWarehouse().getId());
+                    assignment.put("warehouseName", permission.getWarehouse().getName());
+                    assignment.put("warehouseLocation", permission.getWarehouse().getLocation());
+                    assignment.put("permissionType", permission.getPermissionType().name());
+                    assignment.put("grantedBy", permission.getGrantedBy());
+                    assignment.put("grantedAt", permission.getGrantedAt());
+                    assignment.put("isActive", permission.getIsActive());
+                    
+                    // Add warehouse details
+                    Warehouse warehouse = permission.getWarehouse();
+                    Map<String, Object> warehouseInfo = new HashMap<>();
+                    warehouseInfo.put("id", warehouse.getId());
+                    warehouseInfo.put("name", warehouse.getName());
+                    warehouseInfo.put("location", warehouse.getLocation());
+                    warehouseInfo.put("address", warehouse.getAddress());
+                    warehouseInfo.put("city", warehouse.getCity());
+                    warehouseInfo.put("state", warehouse.getState());
+                    warehouseInfo.put("country", warehouse.getCountry());
+                    
+                    assignment.put("warehouse", warehouseInfo);
+                    
+                    return assignment;
+                })
+                .toList();
+            
+            logger.info("✅ Found {} warehouse assignments for user {}", assignments.size(), targetUser.getUsername());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("userId", userId);
+            response.put("username", targetUser.getUsername());
+            response.put("warehouses", assignments);
+            response.put("count", assignments.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error fetching user warehouse assignments: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
+        }
+    }
+
+    /**
      * Helper method to check if user has GM+ role (FOUNDER, CEO, GENERAL_MANAGER)
      * These roles can view all transactions from all users
      */
