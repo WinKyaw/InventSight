@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * REST controller for managing user preferences including language, theme, and favorite tabs.
+ * REST controller for managing user preferences including language, theme, and favorite tabs. 
  */
 @RestController
 @RequestMapping("/user")
