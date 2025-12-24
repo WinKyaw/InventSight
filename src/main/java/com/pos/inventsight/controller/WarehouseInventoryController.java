@@ -7,6 +7,7 @@ import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
+import com.pos.inventsight.model.sql.Employee;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.model.sql.WarehouseInventoryAddition;
@@ -16,6 +17,7 @@ import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.WarehousePermissionRepository;
 import com.pos.inventsight.security.RoleConstants;
+import com.pos.inventsight.service.EmployeeService;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseInventoryService;
 import jakarta.validation.Valid;
@@ -57,6 +59,9 @@ public class WarehouseInventoryController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private EmployeeService employeeService;
     
     @Autowired
     private WarehouseRepository warehouseRepository;
@@ -874,6 +879,126 @@ public class WarehouseInventoryController {
             
         } catch (Exception e) {
             logger.error("❌ Error fetching user warehouse assignments: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get employee's warehouse assignments (permissions)
+     * ✅ FIXED: Now accepts employeeId and looks up user_id from employee record
+     * 
+     * GET /api/warehouse-inventory/employee/{employeeId}/warehouses
+     */
+    @GetMapping("/employee/{employeeId}/warehouses")
+    public ResponseEntity<?> getEmployeeWarehouseAssignments(
+        @PathVariable UUID employeeId,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            
+            logger.info("🏢 Fetching warehouse assignments for employee: {}", employeeId);
+            
+            // ✅ STEP 1: Get employee record
+            Employee employee = employeeService.getEmployeeById(employeeId);
+            
+            if (employee == null) {
+                logger.warn("⚠️ Employee not found: {}", employeeId);
+                return ResponseEntity.status(404).body(Map.of(
+                    "success", false,
+                    "error", "Employee not found"
+                ));
+            }
+            
+            // ✅ STEP 2: Get user_id from employee
+            User targetUser = employee.getUser();
+            
+            if (targetUser == null) {
+                logger.warn("⚠️ Employee {} has no associated user account, returning empty warehouse list", 
+                    employee.getFirstName() + " " + employee.getLastName());
+                
+                // Return empty list - employee exists but has no user account yet
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("employeeId", employeeId);
+                response.put("employeeName", employee.getFirstName() + " " + employee.getLastName());
+                response.put("userId", null);
+                response.put("username", null);
+                response.put("warehouses", Collections.emptyList());
+                response.put("count", 0);
+                response.put("message", "Employee has no user account - no warehouses assigned");
+                
+                return ResponseEntity.ok(response);
+            }
+            
+            UUID userId = targetUser.getId();
+            
+            logger.info("✅ Employee {} has user account: {} ({})", 
+                employee.getFirstName() + " " + employee.getLastName(), targetUser.getUsername(), userId);
+            
+            // Check authorization: user can only view their own assignments unless they're GM+
+            if (!currentUser.getId().equals(userId) && !isGMPlusRole(currentUser)) {
+                logger.warn("⚠️ Unauthorized: User {} tried to view assignments for employee {}", 
+                    currentUser.getId(), employeeId);
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "You can only view your own warehouse assignments"
+                ));
+            }
+            
+            // ✅ STEP 3: Get all active warehouse permissions for this user
+            List<WarehousePermission> permissions = warehousePermissionRepository
+                .findByUserIdAndIsActive(userId, true);
+            
+            // Map to response format
+            List<Map<String, Object>> assignments = permissions.stream()
+                .map(permission -> {
+                    Map<String, Object> assignment = new HashMap<>();
+                    assignment.put("id", permission.getId());
+                    assignment.put("warehouseId", permission.getWarehouse().getId());
+                    assignment.put("warehouseName", permission.getWarehouse().getName());
+                    assignment.put("warehouseLocation", permission.getWarehouse().getLocation());
+                    assignment.put("permissionType", permission.getPermissionType().name());
+                    assignment.put("grantedBy", permission.getGrantedBy());
+                    assignment.put("grantedAt", permission.getGrantedAt());
+                    assignment.put("isActive", permission.getIsActive());
+                    
+                    // Add warehouse details
+                    Warehouse warehouse = permission.getWarehouse();
+                    Map<String, Object> warehouseInfo = new HashMap<>();
+                    warehouseInfo.put("id", warehouse.getId());
+                    warehouseInfo.put("name", warehouse.getName());
+                    warehouseInfo.put("location", warehouse.getLocation());
+                    warehouseInfo.put("address", warehouse.getAddress());
+                    warehouseInfo.put("city", warehouse.getCity());
+                    warehouseInfo.put("state", warehouse.getState());
+                    warehouseInfo.put("country", warehouse.getCountry());
+                    
+                    assignment.put("warehouse", warehouseInfo);
+                    
+                    return assignment;
+                })
+                .toList();
+            
+            logger.info("✅ Found {} warehouse assignments for employee {} (user: {})", 
+                assignments.size(), employee.getFirstName() + " " + employee.getLastName(), targetUser.getUsername());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("employeeId", employeeId);
+            response.put("employeeName", employee.getFirstName() + " " + employee.getLastName());
+            response.put("userId", userId);
+            response.put("username", targetUser.getUsername());
+            response.put("warehouses", assignments);
+            response.put("count", assignments.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error fetching employee warehouse assignments: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of(
                 "success", false,
                 "error", e.getMessage()
