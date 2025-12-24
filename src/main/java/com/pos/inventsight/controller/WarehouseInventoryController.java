@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -798,15 +799,33 @@ public class WarehouseInventoryController {
             
             // Check authorization: user can only view their own assignments unless they're GM+
             if (!currentUser.getId().equals(userId) && !isGMPlusRole(currentUser)) {
+                logger.warn("⚠️ Unauthorized: User {} tried to view assignments for user {}", 
+                    currentUser.getId(), userId);
                 return ResponseEntity.status(403).body(Map.of(
                     "success", false,
                     "error", "You can only view your own warehouse assignments"
                 ));
             }
             
-            // Get user
-            User targetUser = userService.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // ✅ FIXED: Handle missing user gracefully instead of throwing error
+            Optional<User> targetUserOpt = userService.findById(userId);
+            
+            if (targetUserOpt.isEmpty()) {
+                logger.warn("⚠️ User not found: {}, returning empty warehouse list", userId);
+                
+                // Return empty list instead of error - employee may not have user account yet
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("userId", userId);
+                response.put("username", null);
+                response.put("warehouses", Collections.emptyList());
+                response.put("count", 0);
+                response.put("message", "User account not found - no warehouses assigned");
+                
+                return ResponseEntity.ok(response);
+            }
+            
+            User targetUser = targetUserOpt.get();
             
             // Get all active warehouse permissions for this user
             List<WarehousePermission> permissions = warehousePermissionRepository
