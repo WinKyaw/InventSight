@@ -183,7 +183,7 @@ public class CSVService {
         for (String required : requiredHeaders) {
             if (!headerSet.contains(required)) {
                 throw new IllegalArgumentException(
-                    "Missing required header: " + required + ". " +
+                    "Missing required header: '" + required + "' (case-insensitive). " +
                     "Required headers: name, unitType. " +
                     "Optional headers: sku, category, description, defaultPrice");
             }
