@@ -102,6 +102,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDetails);
     }
     
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<?> handleUnauthorizedException(UnauthorizedException ex, WebRequest request) {
+        System.out.println("🚫 InventSight - Unauthorized: " + ex.getMessage());
+        System.out.println("📅 Error time: 2025-08-26 09:04:35");
+        System.out.println("👤 Current User's Login: WinKyaw");
+        
+        ErrorDetails errorDetails = new ErrorDetails(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false),
+            "UNAUTHORIZED",
+            "InventSight System"
+        );
+        
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorDetails);
+    }
+    
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<?> handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
         System.out.println("🚫 InventSight - Access denied: " + ex.getMessage());
