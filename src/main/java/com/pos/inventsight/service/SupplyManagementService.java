@@ -47,14 +47,16 @@ public class SupplyManagementService {
         }
         
         // Check CompanyRole for company-specific roles
-        Optional<CompanyStoreUser> companyUser = companyStoreUserRepository
+        List<CompanyStoreUser> companyUsers = companyStoreUserRepository
             .findByUserAndCompanyAndIsActiveTrue(user, company);
         
-        if (companyUser.isPresent()) {
-            CompanyRole companyRole = companyUser.get().getRole();
-            return companyRole == CompanyRole.FOUNDER || 
-                   companyRole == CompanyRole.CEO || 
-                   companyRole == CompanyRole.GENERAL_MANAGER;
+        for (CompanyStoreUser companyUser : companyUsers) {
+            CompanyRole companyRole = companyUser.getRole();
+            if (companyRole == CompanyRole.FOUNDER || 
+                companyRole == CompanyRole.CEO || 
+                companyRole == CompanyRole.GENERAL_MANAGER) {
+                return true;
+            }
         }
         
         return false;
