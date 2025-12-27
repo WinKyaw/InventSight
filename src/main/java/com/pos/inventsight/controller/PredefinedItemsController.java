@@ -57,17 +57,17 @@ public class PredefinedItemsController {
         logger.info("✅ PredefinedItemsController initialized and registered");
         logger.info("📍 Base URL: /api/predefined-items");
         logger.info("📍 Endpoints registered:");
-        logger.info("   - GET    /api/predefined-items                   (listItems)");
-        logger.info("   - POST   /api/predefined-items                   (createItem)");
-        logger.info("   - PUT    /api/predefined-items/{{id}}            (updateItem)");
-        logger.info("   - DELETE /api/predefined-items/{{id}}            (deleteItem)");
-        logger.info("   - POST   /api/predefined-items/bulk-create       (bulkCreateItems) ← CRITICAL");
-        logger.info("   - POST   /api/predefined-items/import-csv        (importCSV)");
-        logger.info("   - GET    /api/predefined-items/export-csv        (exportCSV)");
-        logger.info("   - GET    /api/predefined-items/{{id}}/stores     (getAssociatedStores)");
-        logger.info("   - POST   /api/predefined-items/{{id}}/stores     (associateStores)");
-        logger.info("   - GET    /api/predefined-items/{{id}}/warehouses (getAssociatedWarehouses)");
-        logger.info("   - POST   /api/predefined-items/{{id}}/warehouses (associateWarehouses)");
+        logger.info("   - GET    /api/predefined-items                 (listItems)");
+        logger.info("   - POST   /api/predefined-items                 (createItem)");
+        logger.info("   - PUT    /api/predefined-items/{id}            (updateItem)");
+        logger.info("   - DELETE /api/predefined-items/{id}            (deleteItem)");
+        logger.info("   - POST   /api/predefined-items/bulk-create     (bulkCreateItems) ← CRITICAL");
+        logger.info("   - POST   /api/predefined-items/import-csv      (importCSV)");
+        logger.info("   - GET    /api/predefined-items/export-csv      (exportCSV)");
+        logger.info("   - GET    /api/predefined-items/{id}/stores     (getAssociatedStores)");
+        logger.info("   - POST   /api/predefined-items/{id}/stores     (associateStores)");
+        logger.info("   - GET    /api/predefined-items/{id}/warehouses (getAssociatedWarehouses)");
+        logger.info("   - POST   /api/predefined-items/{id}/warehouses (associateWarehouses)");
         logger.info("=".repeat(80));
     }
     
