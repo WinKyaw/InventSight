@@ -38,6 +38,8 @@ public class RequestMappingDiagnostics implements ApplicationListener<Applicatio
         
         AtomicBoolean foundNavigationPreferences = new AtomicBoolean(false);
         AtomicInteger userPreferencesCount = new AtomicInteger(0);
+        AtomicBoolean foundPredefinedItemsBulkCreate = new AtomicBoolean(false);
+        AtomicInteger predefinedItemsCount = new AtomicInteger(0);
         
         handlerMethods.forEach((mapping, method) -> {
             String patterns = extractPatterns(mapping);
@@ -55,17 +57,36 @@ public class RequestMappingDiagnostics implements ApplicationListener<Applicatio
             if (method.getBeanType().getSimpleName().equals("UserPreferencesController")) {
                 userPreferencesCount.incrementAndGet();
             }
+            
+            // Check for predefined-items endpoints
+            if (patterns.contains("/predefined-items")) {
+                predefinedItemsCount.incrementAndGet();
+                
+                // Check specifically for bulk-create endpoint
+                if (patterns.contains("/predefined-items/bulk-create")) {
+                    foundPredefinedItemsBulkCreate.set(true);
+                }
+            }
         });
         
         logger.info("================================================================================");
         logger.info("✅ UserPreferencesController endpoints: {}", userPreferencesCount.get());
         logger.info("✅ Navigation preferences endpoint found: {}", foundNavigationPreferences.get());
+        logger.info("✅ PredefinedItemsController endpoints: {}", predefinedItemsCount.get());
+        logger.info("✅ Predefined items bulk-create endpoint found: {}", foundPredefinedItemsBulkCreate.get());
         logger.info("================================================================================");
         
         if (!foundNavigationPreferences.get()) {
             logger.error("❌ CRITICAL: Navigation preferences endpoint NOT registered!");
             logger.error("   Expected: GET /api/user/navigation-preferences");
             logger.error("   Check UserPreferencesController is being scanned");
+        }
+        
+        if (!foundPredefinedItemsBulkCreate.get()) {
+            logger.error("❌ CRITICAL: Predefined items bulk-create endpoint NOT registered!");
+            logger.error("   Expected: POST /api/predefined-items/bulk-create");
+            logger.error("   Check PredefinedItemsController is being scanned");
+            logger.error("   This may cause 'No static resource predefined-items/bulk-create' error");
         }
     }
     
