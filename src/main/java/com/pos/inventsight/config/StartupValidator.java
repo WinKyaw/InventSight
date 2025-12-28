@@ -62,28 +62,13 @@ public class StartupValidator {
     }
     
     private void checkCriticalEndpoint(Set<String> apiPaths, String endpoint) {
-        // Check for exact match first
-        if (apiPaths.contains(endpoint)) {
-            logger.info("   ✅ CRITICAL: {} is registered", endpoint);
-            return;
-        }
+        // Direct match check - works for both parameterized and non-parameterized endpoints
+        // Spring MVC stores paths with literal braces like /api/items/{id}
+        boolean found = apiPaths.contains(endpoint);
         
-        // Check if endpoint has path variables (contains {)
-        if (endpoint.contains("{")) {
-            // Convert endpoint pattern to regex for matching
-            // e.g., /api/items/{id} -> /api/items/\{[^}]+\}
-            String regexPattern = endpoint.replaceAll("\\{[^}]+\\}", "\\\\{[^}]+\\\\}");
-            boolean found = apiPaths.stream()
-                .anyMatch(path -> path.matches(regexPattern));
-            
-            if (found) {
-                logger.info("   ✅ CRITICAL: {} is registered", endpoint);
-            } else {
-                logger.error("   ❌ CRITICAL MISSING: {} NOT registered!", endpoint);
-                logger.error("      This endpoint will return 404!");
-            }
+        if (found) {
+            logger.info("   ✅ CRITICAL: {} is registered", endpoint);
         } else {
-            // No match found for non-parameterized endpoint
             logger.error("   ❌ CRITICAL MISSING: {} NOT registered!", endpoint);
             logger.error("      This endpoint will return 404!");
         }

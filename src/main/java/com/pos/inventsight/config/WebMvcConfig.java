@@ -68,7 +68,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         
         // Serve static resources ONLY from /static/** path
         registry.addResourceHandler("/static/**")
-                .addResourceLocations("classpath:/static/", "classpath:/public/")
+                .addResourceLocations("classpath:/static/")
+                .addResourceLocations("classpath:/public/")
                 .setCachePeriod(3600)
                 .resourceChain(true);
         
