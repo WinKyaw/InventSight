@@ -2,7 +2,6 @@ package com.pos.inventsight.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -20,8 +19,11 @@ public class StartupValidator {
     
     private static final Logger logger = LoggerFactory.getLogger(StartupValidator.class);
     
-    @Autowired
-    private RequestMappingHandlerMapping requestMappingHandlerMapping;
+    private final RequestMappingHandlerMapping requestMappingHandlerMapping;
+    
+    public StartupValidator(RequestMappingHandlerMapping requestMappingHandlerMapping) {
+        this.requestMappingHandlerMapping = requestMappingHandlerMapping;
+    }
     
     @EventListener(ApplicationReadyEvent.class)
     public void validateApiEndpoints() {

@@ -40,6 +40,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         logger.info("🛤️  Configuring path matching...");
         
         // Allow both /api/items and /api/items/ to match the same endpoint
+        // This is useful for REST APIs to accept both forms without redirects
         configurer.setUseTrailingSlashMatch(true);
         
         // Disable suffix pattern matching (e.g., /users.json, /users.xml)
