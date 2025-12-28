@@ -69,4 +69,9 @@ public interface PredefinedItemRepository extends JpaRepository<PredefinedItem, 
      */
     @Query("SELECT DISTINCT p.unitType FROM PredefinedItem p WHERE p.company = :company AND p.isActive = true ORDER BY p.unitType")
     List<String> findDistinctUnitTypesByCompany(@Param("company") Company company);
+    
+    /**
+     * Check if a SKU already exists
+     */
+    boolean existsBySku(String sku);
 }
