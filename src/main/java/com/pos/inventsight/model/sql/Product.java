@@ -36,6 +36,11 @@ public class Product {
     @Column(unique = true)
     private String sku;
     
+    // Reference to predefined item SKU
+    @Size(max = 11)
+    @Column(name = "predefined_item_sku")
+    private String predefinedItemSku;
+    
     // Multi-tenancy support
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
@@ -136,6 +141,9 @@ public class Product {
     
     public String getSku() { return sku; }
     public void setSku(String sku) { this.sku = sku; }
+    
+    public String getPredefinedItemSku() { return predefinedItemSku; }
+    public void setPredefinedItemSku(String predefinedItemSku) { this.predefinedItemSku = predefinedItemSku; }
     
     public Store getStore() { return store; }
     public void setStore(Store store) { this.store = store; }
