@@ -4,6 +4,7 @@ import com.pos.inventsight.exception.DuplicateResourceException;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.*;
+import com.pos.inventsight.util.SkuGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ public class PredefinedItemsService {
     
     @Autowired
     private CSVService csvService;
+    
+    @Autowired
+    private SkuGenerator skuGenerator;
     
     /**
      * Get all predefined items for a company (paginated)
@@ -104,14 +108,18 @@ public class PredefinedItemsService {
                 String.format("Item '%s' with unit type '%s' already exists", name, unitType));
         }
         
+        // Auto-generate unique SKU (ignore user-provided SKU)
+        String generatedSku = skuGenerator.generateUniqueSku(predefinedItemRepository::existsBySku);
+        logger.info("Auto-generated SKU: {} for item: {}", generatedSku, name);
+        
         PredefinedItem item = new PredefinedItem(name, unitType, company, createdBy);
-        item.setSku(sku);
+        item.setSku(generatedSku); // Use auto-generated SKU
         item.setCategory(category);
         item.setDescription(description);
         item.setDefaultPrice(defaultPrice);
         
         PredefinedItem saved = predefinedItemRepository.save(item);
-        logger.info("Created predefined item '{}' in company {}", name, company.getId());
+        logger.info("Created predefined item '{}' with SKU {} in company {}", name, generatedSku, company.getId());
         
         return saved;
     }
