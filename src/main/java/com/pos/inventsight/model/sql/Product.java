@@ -37,7 +37,7 @@ public class Product {
     private String sku;
     
     // Reference to predefined item SKU
-    @Size(max = 100)
+    @Size(max = 11)
     @Column(name = "predefined_item_sku")
     private String predefinedItemSku;
     

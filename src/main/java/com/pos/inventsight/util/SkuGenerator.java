@@ -2,17 +2,16 @@ package com.pos.inventsight.util;
 
 import org.springframework.stereotype.Component;
 
-import java.security.SecureRandom;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 
 /**
  * Utility class for generating unique 11-digit SKUs.
- * Uses SecureRandom for better randomness and collision avoidance.
+ * Uses ThreadLocalRandom for better randomness and thread-safety.
  */
 @Component
 public class SkuGenerator {
     
-    private static final SecureRandom RANDOM = new SecureRandom();
     private static final long MIN_SKU = 10000000000L; // 11 digits minimum
     private static final long MAX_SKU = 99999999999L; // 11 digits maximum
     private static final int MAX_ATTEMPTS = 100;
@@ -41,7 +40,7 @@ public class SkuGenerator {
      */
     public String generate11DigitSku() {
         // Generate a random long between MIN_SKU and MAX_SKU (inclusive)
-        long randomLong = MIN_SKU + ((long) (RANDOM.nextDouble() * (MAX_SKU - MIN_SKU + 1)));
+        long randomLong = ThreadLocalRandom.current().nextLong(MIN_SKU, MAX_SKU + 1);
         return String.valueOf(randomLong);
     }
 }

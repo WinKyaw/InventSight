@@ -23,6 +23,10 @@ public class Customer {
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
     private UUID id;
     
+    @Version
+    @Column(name = "version")
+    private Long version;
+    
     @NotBlank(message = "Name is required")
     @Size(max = 200, message = "Name must not exceed 200 characters")
     @Column(name = "name", nullable = false)
@@ -99,6 +103,9 @@ public class Customer {
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+    
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

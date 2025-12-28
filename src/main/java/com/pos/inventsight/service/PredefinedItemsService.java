@@ -91,6 +91,7 @@ public class PredefinedItemsService {
     
     /**
      * Create a new predefined item
+     * NOTE: The sku parameter is ignored; SKU is auto-generated
      */
     public PredefinedItem createItem(
             String name,
@@ -108,7 +109,7 @@ public class PredefinedItemsService {
                 String.format("Item '%s' with unit type '%s' already exists", name, unitType));
         }
         
-        // Auto-generate unique SKU (ignore user-provided SKU)
+        // Auto-generate unique SKU (user-provided SKU is ignored)
         String generatedSku = skuGenerator.generateUniqueSku(predefinedItemRepository::existsBySku);
         logger.info("Auto-generated SKU: {} for item: {}", generatedSku, name);
         

@@ -132,7 +132,21 @@ public class CustomerController {
             BigDecimal discountPercentage = null;
             if (request.containsKey("discountPercentage")) {
                 Object discount = request.get("discountPercentage");
-                discountPercentage = discount != null ? new BigDecimal(discount.toString()) : BigDecimal.ZERO;
+                if (discount != null) {
+                    if (discount instanceof Number) {
+                        discountPercentage = new BigDecimal(discount.toString());
+                    } else if (discount instanceof String) {
+                        try {
+                            discountPercentage = new BigDecimal((String) discount);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("Invalid discount percentage format");
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Discount percentage must be a number");
+                    }
+                } else {
+                    discountPercentage = BigDecimal.ZERO;
+                }
             }
             
             Customer customer = customerService.createCustomer(
@@ -197,7 +211,21 @@ public class CustomerController {
             BigDecimal discountPercentage = null;
             if (request.containsKey("discountPercentage")) {
                 Object discount = request.get("discountPercentage");
-                discountPercentage = discount != null ? new BigDecimal(discount.toString()) : BigDecimal.ZERO;
+                if (discount != null) {
+                    if (discount instanceof Number) {
+                        discountPercentage = new BigDecimal(discount.toString());
+                    } else if (discount instanceof String) {
+                        try {
+                            discountPercentage = new BigDecimal((String) discount);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("Invalid discount percentage format");
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Discount percentage must be a number");
+                    }
+                } else {
+                    discountPercentage = BigDecimal.ZERO;
+                }
             }
             
             Customer customer = customerService.updateCustomer(

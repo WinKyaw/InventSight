@@ -31,8 +31,8 @@ public class PredefinedItem {
     @Column(name = "name", nullable = false)
     private String name;
     
-    @Size(max = 100, message = "SKU must not exceed 100 characters")
-    @Column(name = "sku")
+    @Size(max = 11, message = "SKU must be 11 digits")
+    @Column(name = "sku", length = 11)
     private String sku;
     
     @Size(max = 100, message = "Category must not exceed 100 characters")

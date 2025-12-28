@@ -1,6 +1,7 @@
 -- Create customers table
 CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     
     -- Customer Details
     name VARCHAR(200) NOT NULL,
@@ -34,7 +35,7 @@ CREATE INDEX idx_customers_type ON customers(customer_type);
 CREATE INDEX idx_customers_name ON customers(name);
 
 -- Add predefined_item_sku column to products table
-ALTER TABLE products ADD COLUMN IF NOT EXISTS predefined_item_sku VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS predefined_item_sku VARCHAR(11);
 
 -- Add index for predefined_item_sku
 CREATE INDEX IF NOT EXISTS idx_products_predefined_item_sku ON products(predefined_item_sku);
