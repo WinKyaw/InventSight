@@ -39,7 +39,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void configurePathMatch(PathMatchConfigurer configurer) {
         logger.info("🛤️  Configuring path matching...");
         
-        // Trailing slash doesn't matter
+        // Allow both /api/items and /api/items/ to match the same endpoint
         configurer.setUseTrailingSlashMatch(true);
         
         // Disable suffix pattern matching (e.g., /users.json, /users.xml)
@@ -49,7 +49,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         configurer.setUseRegisteredSuffixPatternMatch(false);
         
         logger.info("✅ Path matching configured:");
-        logger.info("   - Trailing slash: flexible");
+        logger.info("   - Trailing slash: flexible (both /api/items and /api/items/ work)");
         logger.info("   - Suffix pattern: disabled");
         logger.info("   - API endpoints will match exactly");
     }

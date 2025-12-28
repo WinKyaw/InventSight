@@ -62,12 +62,28 @@ public class StartupValidator {
     }
     
     private void checkCriticalEndpoint(Set<String> apiPaths, String endpoint) {
-        boolean found = apiPaths.stream()
-            .anyMatch(path -> path.equals(endpoint) || path.matches(endpoint.replace("{id}", "\\{[^}]+\\}")));
-        
-        if (found) {
+        // Check for exact match first
+        if (apiPaths.contains(endpoint)) {
             logger.info("   ✅ CRITICAL: {} is registered", endpoint);
+            return;
+        }
+        
+        // Check if endpoint has path variables (contains {)
+        if (endpoint.contains("{")) {
+            // Convert endpoint pattern to regex for matching
+            // e.g., /api/items/{id} -> /api/items/\{[^}]+\}
+            String regexPattern = endpoint.replaceAll("\\{[^}]+\\}", "\\\\{[^}]+\\\\}");
+            boolean found = apiPaths.stream()
+                .anyMatch(path -> path.matches(regexPattern));
+            
+            if (found) {
+                logger.info("   ✅ CRITICAL: {} is registered", endpoint);
+            } else {
+                logger.error("   ❌ CRITICAL MISSING: {} NOT registered!", endpoint);
+                logger.error("      This endpoint will return 404!");
+            }
         } else {
+            // No match found for non-parameterized endpoint
             logger.error("   ❌ CRITICAL MISSING: {} NOT registered!", endpoint);
             logger.error("      This endpoint will return 404!");
         }
