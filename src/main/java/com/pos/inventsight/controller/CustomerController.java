@@ -76,12 +76,12 @@ public class CustomerController {
             response.put("totalItems", customersPage.getTotalElements());
             response.put("totalPages", customersPage.getTotalPages());
             
-            return ResponseEntity.ok(GenericApiResponse.success(response, "Customers retrieved successfully"));
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customers retrieved successfully", response));
             
         } catch (Exception e) {
             logger.error("Error listing customers: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(GenericApiResponse.error("Failed to retrieve customers: " + e.getMessage()));
+                .body(new GenericApiResponse<>(false, "Failed to retrieve customers: " + e.getMessage(), null));
         }
     }
     
@@ -99,12 +99,12 @@ public class CustomerController {
             Company company = companyService.getCompany(companyId, authentication);
             Customer customer = customerService.getCustomerById(id, company);
             
-            return ResponseEntity.ok(GenericApiResponse.success(customer, "Customer retrieved successfully"));
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customer retrieved successfully", customer));
             
         } catch (Exception e) {
             logger.error("Error getting customer {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(GenericApiResponse.error("Customer not found: " + e.getMessage()));
+                .body(new GenericApiResponse<>(false, "Customer not found: " + e.getMessage(), null));
         }
     }
     
@@ -139,12 +139,12 @@ public class CustomerController {
                 name, phoneNumber, email, customerType, notes, discountPercentage, company, user);
             
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GenericApiResponse.success(customer, "Customer created successfully"));
+                .body(new GenericApiResponse<>(true, "Customer created successfully", customer));
             
         } catch (Exception e) {
             logger.error("Error creating customer: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(GenericApiResponse.error("Failed to create customer: " + e.getMessage()));
+                .body(new GenericApiResponse<>(false, "Failed to create customer: " + e.getMessage(), null));
         }
     }
     
@@ -164,12 +164,12 @@ public class CustomerController {
             Customer customer = customerService.createGuestCustomer(company, user);
             
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GenericApiResponse.success(customer, "Guest customer created successfully"));
+                .body(new GenericApiResponse<>(true, "Guest customer created successfully", customer));
             
         } catch (Exception e) {
             logger.error("Error creating guest customer: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(GenericApiResponse.error("Failed to create guest customer: " + e.getMessage()));
+                .body(new GenericApiResponse<>(false, "Failed to create guest customer: " + e.getMessage(), null));
         }
     }
     
@@ -203,12 +203,12 @@ public class CustomerController {
             Customer customer = customerService.updateCustomer(
                 id, name, phoneNumber, email, customerType, notes, discountPercentage, company);
             
-            return ResponseEntity.ok(GenericApiResponse.success(customer, "Customer updated successfully"));
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customer updated successfully", customer));
             
         } catch (Exception e) {
             logger.error("Error updating customer {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(GenericApiResponse.error("Failed to update customer: " + e.getMessage()));
+                .body(new GenericApiResponse<>(false, "Failed to update customer: " + e.getMessage(), null));
         }
     }
     
@@ -228,12 +228,12 @@ public class CustomerController {
             
             customerService.deleteCustomer(id, company, user);
             
-            return ResponseEntity.ok(GenericApiResponse.success(null, "Customer deleted successfully"));
+            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customer deleted successfully", null));
             
         } catch (Exception e) {
             logger.error("Error deleting customer {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(GenericApiResponse.error("Failed to delete customer: " + e.getMessage()));
+                .body(new GenericApiResponse<>(false, "Failed to delete customer: " + e.getMessage(), null));
         }
     }
 }
