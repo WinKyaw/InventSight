@@ -25,6 +25,9 @@ public class CSVService {
     public List<Map<String, String>> parseImportCSV(MultipartFile file) throws IOException {
         List<Map<String, String>> items = new ArrayList<>();
         
+        logger.info("📄 Starting CSV import from file: {}", file.getOriginalFilename());
+        logger.info("📏 File size: {} bytes", file.getSize());
+        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
             
@@ -33,7 +36,11 @@ public class CSVService {
                 throw new IllegalArgumentException("CSV file is empty");
             }
             
+            logger.debug("CSV header line: {}", headerLine);
+            
             String[] headers = parseCSVLine(headerLine);
+            logger.info("CSV headers parsed: {}", Arrays.toString(headers));
+            
             validateImportHeaders(headers);
             
             String line;
@@ -41,6 +48,7 @@ public class CSVService {
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
                 if (line.trim().isEmpty()) {
+                    logger.debug("Skipping empty line {}", lineNumber);
                     continue; // Skip empty lines
                 }
                 
@@ -52,15 +60,16 @@ public class CSVService {
                         item.put(headers[i].trim().toLowerCase(), values[i].trim());
                     }
                     
+                    logger.debug("Line {} parsed: {}", lineNumber, item);
                     items.add(item);
                 } catch (Exception e) {
-                    logger.warn("Error parsing line {}: {}", lineNumber, e.getMessage());
+                    logger.warn("❌ Error parsing line {}: {}", lineNumber, e.getMessage());
                     // Continue processing other lines
                 }
             }
         }
         
-        logger.info("Parsed {} items from CSV", items.size());
+        logger.info("✅ Parsed {} items from CSV", items.size());
         return items;
     }
     
@@ -175,24 +184,32 @@ public class CSVService {
     }
     
     /**
-     * Validate import CSV headers
+     * Validate import CSV headers (case-insensitive)
      */
     private void validateImportHeaders(String[] headers) {
         Set<String> requiredHeaders = new HashSet<>(Arrays.asList("name", "unittype"));
         Set<String> headerSet = new HashSet<>();
         
+        // Normalize headers to lowercase for case-insensitive comparison
         for (String header : headers) {
-            headerSet.add(header.trim().toLowerCase());
+            String normalized = header.trim().toLowerCase();
+            headerSet.add(normalized);
+            logger.debug("CSV header found: '{}' (normalized: '{}')", header, normalized);
         }
+        
+        logger.info("CSV headers: {}", headerSet);
         
         for (String required : requiredHeaders) {
             if (!headerSet.contains(required)) {
                 throw new IllegalArgumentException(
                     "Missing required header: '" + required + "' (case-insensitive). " +
-                    "Required headers: name, unitType. " +
+                    "Found headers: " + Arrays.toString(headers) + ". " +
+                    "Required headers: name, unitType (accepts both unitType and unittype). " +
                     "Optional headers: sku, category, description, defaultPrice");
             }
         }
+        
+        logger.info("✅ CSV headers validated successfully");
     }
     
     /**
