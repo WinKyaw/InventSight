@@ -49,9 +49,17 @@
     <div class="container">
         <h1>InventSight</h1>
         <p>Welcome to InventSight static resources</p>
-        <a href="/static/pages/new-item-setup.html" class="btn">
-            Go to New Item Setup
-        </a>
+        <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+            <a href="/static/pages/setup-auth.html" class="btn" style="background: #f59e0b;">
+                🔐 Setup Authentication
+            </a>
+            <a href="/static/pages/new-item-setup.html" class="btn">
+                📦 New Item Setup
+            </a>
+        </div>
+        <p style="margin-top: 30px; font-size: 14px; color: #666;">
+            First time? Start with "Setup Authentication" to configure your credentials.
+        </p>
     </div>
 </body>
 </html>
