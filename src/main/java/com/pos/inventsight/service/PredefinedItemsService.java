@@ -197,9 +197,9 @@ public class PredefinedItemsService {
                 
                 logger.debug("Processing item with fields: {}", normalizedData.keySet());
                 
-                // Validate
+                // Validate using normalized data
                 List<String> itemErrors = new ArrayList<>();
-                if (!csvService.validateItem(itemData, itemErrors)) {
+                if (!csvService.validateItem(normalizedData, itemErrors)) {
                     errors.add("Row " + (i + 1) + ": " + String.join(", ", itemErrors));
                     failed++;
                     continue;
