@@ -35,31 +35,28 @@ public class StartupValidator {
         
         requestMappingHandlerMapping.getHandlerMethods().forEach((info, method) -> {
             info.getPatternValues().forEach(pattern -> {
-                if (pattern.startsWith("/api/")) {
-                    apiPaths.add(pattern);
-                }
+                apiPaths.add(pattern);
             });
         });
         
-        logger.info("✅ Total API endpoints registered: {}", apiPaths.size());
+        logger.info("✅ Total endpoints registered: {}", apiPaths.size());
         
-        // Check for critical endpoints
-        checkCriticalEndpoint(apiPaths, "/api/predefined-items/bulk-create");
-        checkCriticalEndpoint(apiPaths, "/api/predefined-items/import-csv");
-        checkCriticalEndpoint(apiPaths, "/api/predefined-items/export-csv");
-        checkCriticalEndpoint(apiPaths, "/api/predefined-items");
-        checkCriticalEndpoint(apiPaths, "/api/predefined-items/{id}");
-        checkCriticalEndpoint(apiPaths, "/api/customers");
-        checkCriticalEndpoint(apiPaths, "/api/customers/guest");
-        checkCriticalEndpoint(apiPaths, "/api/auth/login");
-        checkCriticalEndpoint(apiPaths, "/api/auth/signup");
+        // Check for critical endpoints WITHOUT /api/ prefix (context-path adds it at runtime)
+        checkCriticalEndpoint(apiPaths, "/predefined-items/bulk-create");
+        checkCriticalEndpoint(apiPaths, "/predefined-items/import-csv");
+        checkCriticalEndpoint(apiPaths, "/predefined-items/export-csv");
+        checkCriticalEndpoint(apiPaths, "/predefined-items");
+        checkCriticalEndpoint(apiPaths, "/predefined-items/{id}");
+        checkCriticalEndpoint(apiPaths, "/customers");
+        checkCriticalEndpoint(apiPaths, "/customers/guest");
+        checkCriticalEndpoint(apiPaths, "/customers/{id}");
         
-        // List all API endpoints
-        logger.info("📋 All registered API endpoints:");
+        // List all endpoints
+        logger.info("📋 All registered endpoints:");
         apiPaths.forEach(path -> logger.info("   ✓ {}", path));
         
         logger.info("=".repeat(80));
-        logger.info("✅ API ENDPOINT VALIDATION COMPLETE");
+        logger.info("✅ ENDPOINT VALIDATION COMPLETE");
         logger.info("=".repeat(80));
     }
     

@@ -195,12 +195,17 @@ public class PredefinedItemsService {
                 Map<String, String> normalizedData = new HashMap<>();
                 itemData.forEach((key, value) -> normalizedData.put(key.toLowerCase(), value));
                 
+                logger.debug("Row {}: Original data = {}", i + 1, itemData);
+                logger.debug("Row {}: Normalized data = {}", i + 1, normalizedData);
+                
                 logger.debug("Processing item with fields: {}", normalizedData.keySet());
                 
                 // Validate using normalized data
                 List<String> itemErrors = new ArrayList<>();
                 if (!csvService.validateItem(normalizedData, itemErrors)) {
-                    errors.add("Row " + (i + 1) + ": " + String.join(", ", itemErrors));
+                    String errorMsg = "Row " + (i + 1) + ": " + String.join(", ", itemErrors);
+                    logger.warn("❌ Validation failed: {}", errorMsg);
+                    errors.add(errorMsg);
                     failed++;
                     continue;
                 }
