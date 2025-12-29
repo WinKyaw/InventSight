@@ -205,9 +205,9 @@ public class PredefinedItemsService {
                     continue;
                 }
                 
-                // Use normalized data for retrieval
+                // Use normalized data for retrieval (all keys are now lowercase)
                 String name = normalizedData.get("name");
-                String unitType = normalizedData.get("unittype");  // Now works for both "unitType" and "unittype"
+                String unitType = normalizedData.get("unittype");
                 
                 // Skip duplicates
                 if (predefinedItemRepository.existsByCompanyAndNameAndUnitType(company, name, unitType)) {
