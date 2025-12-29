@@ -91,26 +91,31 @@ public class CSVService {
     
     /**
      * Validate required fields in a parsed item
+     * Case-insensitive validation - accepts both "unitType" and "unittype"
      */
     public boolean validateItem(Map<String, String> item, List<String> errors) {
         boolean valid = true;
         
-        if (!item.containsKey("name") || item.get("name").isEmpty()) {
+        // Normalize keys to lowercase for case-insensitive comparison
+        Map<String, String> normalizedItem = new HashMap<>();
+        item.forEach((key, value) -> normalizedItem.put(key.toLowerCase(), value));
+        
+        if (!normalizedItem.containsKey("name") || normalizedItem.get("name").isEmpty()) {
             errors.add("Name is required");
             valid = false;
         }
         
-        if (!item.containsKey("unittype") || item.get("unittype").isEmpty()) {
+        if (!normalizedItem.containsKey("unittype") || normalizedItem.get("unittype").isEmpty()) {
             errors.add("Unit type is required");
             valid = false;
         }
         
         // Validate price if present
-        if (item.containsKey("defaultprice") && !item.get("defaultprice").isEmpty()) {
+        if (normalizedItem.containsKey("defaultprice") && !normalizedItem.get("defaultprice").isEmpty()) {
             try {
-                new BigDecimal(item.get("defaultprice"));
+                new BigDecimal(normalizedItem.get("defaultprice"));
             } catch (NumberFormatException e) {
-                errors.add("Invalid price format: " + item.get("defaultprice"));
+                errors.add("Invalid price format: " + normalizedItem.get("defaultprice"));
                 valid = false;
             }
         }
