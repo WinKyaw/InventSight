@@ -122,6 +122,8 @@ Bananas,Fruits,lb,Fresh Bananas,1.49
 Required columns: `name`, `unitType`  
 Optional columns: `category`, `description`, `defaultPrice`, `sku`
 
+**Note**: The CSV preview uses a simple parser. If your CSV contains commas within quoted fields (e.g., `"Product Name, Inc."`), it's recommended to import directly without relying on the preview. The backend handles complex CSV formats correctly.
+
 ### 7. CSV Export
 - Click "Export CSV" button
 - Downloads file: `predefined-items-YYYY-MM-DD.csv`

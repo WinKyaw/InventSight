@@ -238,7 +238,7 @@ function displayItems(items) {
     elements.paginationContainer.style.display = 'flex';
     
     elements.itemsTableBody.innerHTML = items.map(item => `
-        <tr>
+        <tr data-item-id="${escapeHtml(item.id)}">
             <td>${escapeHtml(item.name)}</td>
             <td>${escapeHtml(item.category || '-')}</td>
             <td>${escapeHtml(item.unitType)}</td>
@@ -246,16 +246,32 @@ function displayItems(items) {
             <td>${item.defaultPrice ? '$' + item.defaultPrice.toFixed(2) : '-'}</td>
             <td>
                 <div class="item-actions">
-                    <button class="icon-btn edit" onclick="openEditModal('${item.id}')" title="Edit">
+                    <button class="icon-btn edit" data-action="edit" data-item-id="${escapeHtml(item.id)}" title="Edit">
                         <i class="fas fa-pencil-alt"></i>
                     </button>
-                    <button class="icon-btn delete" onclick="openDeleteModal('${item.id}', '${escapeHtml(item.name)}')" title="Delete">
+                    <button class="icon-btn delete" data-action="delete" data-item-id="${escapeHtml(item.id)}" data-item-name="${escapeHtml(item.name)}" title="Delete">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
             </td>
         </tr>
     `).join('');
+    
+    // Add event listeners for action buttons
+    document.querySelectorAll('.icon-btn[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const itemId = e.currentTarget.getAttribute('data-item-id');
+            openEditModal(itemId);
+        });
+    });
+    
+    document.querySelectorAll('.icon-btn[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const itemId = e.currentTarget.getAttribute('data-item-id');
+            const itemName = e.currentTarget.getAttribute('data-item-name');
+            openDeleteModal(itemId, itemName);
+        });
+    });
 }
 
 /**
@@ -649,9 +665,8 @@ function escapeHtml(text) {
         '"': '&quot;',
         "'": '&#039;'
     };
-    return String(text).replace(/[&<>"']/g, m => map[m]);
+    return String(text || '').replace(/[&<>"']/g, m => map[m]);
 }
 
-// Make functions globally accessible for onclick handlers
-window.openEditModal = openEditModal;
-window.openDeleteModal = openDeleteModal;
+// Note: openEditModal and openDeleteModal are no longer needed globally
+// as they are now attached via event listeners instead of onclick handlers

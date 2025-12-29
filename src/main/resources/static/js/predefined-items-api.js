@@ -87,7 +87,7 @@ async function apiCall(url, options = {}) {
 async function fetchItems({ page = 0, size = 20, search = '', category = '' } = {}) {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem(\'companyId\', \'your-uuid\') or ensure your JWT token contains tenant_id claim.');
     }
     
     const params = new URLSearchParams({
@@ -109,7 +109,7 @@ async function fetchItems({ page = 0, size = 20, search = '', category = '' } = 
 async function createItem(itemData) {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem('companyId', 'your-uuid') or ensure your JWT token contains tenant_id claim.');
     }
     
     const url = `${API_BASE_URL}?companyId=${companyId}`;
@@ -125,7 +125,7 @@ async function createItem(itemData) {
 async function updateItem(itemId, itemData) {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem('companyId', 'your-uuid') or ensure your JWT token contains tenant_id claim.');
     }
     
     const url = `${API_BASE_URL}/${itemId}?companyId=${companyId}`;
@@ -141,7 +141,7 @@ async function updateItem(itemId, itemData) {
 async function deleteItem(itemId) {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem('companyId', 'your-uuid') or ensure your JWT token contains tenant_id claim.');
     }
     
     const url = `${API_BASE_URL}/${itemId}?companyId=${companyId}`;
@@ -154,7 +154,7 @@ async function deleteItem(itemId) {
 async function bulkCreateItems(items) {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem('companyId', 'your-uuid') or ensure your JWT token contains tenant_id claim.');
     }
     
     const url = `${API_BASE_URL}/bulk-create?companyId=${companyId}`;
@@ -170,7 +170,7 @@ async function bulkCreateItems(items) {
 async function importCSV(file) {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem('companyId', 'your-uuid') or ensure your JWT token contains tenant_id claim.');
     }
     
     const token = getAuthToken();
@@ -210,7 +210,7 @@ async function importCSV(file) {
 async function exportCSV() {
     const companyId = getCompanyId();
     if (!companyId) {
-        throw new Error('Company ID not found. Please login or set company ID.');
+        throw new Error('No company ID found. Set it with localStorage.setItem('companyId', 'your-uuid') or ensure your JWT token contains tenant_id claim.');
     }
     
     const url = `${API_BASE_URL}/export-csv?companyId=${companyId}`;
