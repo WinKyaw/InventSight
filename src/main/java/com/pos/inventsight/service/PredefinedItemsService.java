@@ -191,6 +191,12 @@ public class PredefinedItemsService {
             Map<String, String> itemData = itemsData.get(i);
             
             try {
+                // Normalize keys to lowercase for case-insensitive processing
+                Map<String, String> normalizedData = new HashMap<>();
+                itemData.forEach((key, value) -> normalizedData.put(key.toLowerCase(), value));
+                
+                logger.debug("Processing item with fields: {}", normalizedData.keySet());
+                
                 // Validate
                 List<String> itemErrors = new ArrayList<>();
                 if (!csvService.validateItem(itemData, itemErrors)) {
@@ -199,8 +205,9 @@ public class PredefinedItemsService {
                     continue;
                 }
                 
-                String name = itemData.get("name");
-                String unitType = itemData.get("unittype");
+                // Use normalized data for retrieval
+                String name = normalizedData.get("name");
+                String unitType = normalizedData.get("unittype");  // Now works for both "unitType" and "unittype"
                 
                 // Skip duplicates
                 if (predefinedItemRepository.existsByCompanyAndNameAndUnitType(company, name, unitType)) {
@@ -210,15 +217,15 @@ public class PredefinedItemsService {
                     continue;
                 }
                 
-                // Create item
-                String sku = itemData.getOrDefault("sku", null);
-                String category = itemData.getOrDefault("category", null);
-                String description = itemData.getOrDefault("description", null);
+                // Create item using normalized data
+                String sku = normalizedData.getOrDefault("sku", null);
+                String category = normalizedData.getOrDefault("category", null);
+                String description = normalizedData.getOrDefault("description", null);
                 BigDecimal defaultPrice = null;
                 
-                if (itemData.containsKey("defaultprice") && !itemData.get("defaultprice").isEmpty()) {
+                if (normalizedData.containsKey("defaultprice") && !normalizedData.get("defaultprice").isEmpty()) {
                     try {
-                        defaultPrice = new BigDecimal(itemData.get("defaultprice"));
+                        defaultPrice = new BigDecimal(normalizedData.get("defaultprice"));
                     } catch (NumberFormatException e) {
                         errors.add("Row " + (i + 1) + ": Invalid price format");
                         failed++;
