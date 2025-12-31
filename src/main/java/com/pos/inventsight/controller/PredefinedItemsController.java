@@ -147,7 +147,9 @@ public class PredefinedItemsController {
                 request.getDescription(),
                 request.getDefaultPrice(),
                 company,
-                user
+                user,
+                request.getStoreIds(),
+                request.getWarehouseIds()
             );
             
             PredefinedItemResponse response = new PredefinedItemResponse(item);
@@ -235,6 +237,8 @@ public class PredefinedItemsController {
     @Operation(summary = "Bulk create items", description = "Create multiple predefined items at once")
     public ResponseEntity<GenericApiResponse<Map<String, Object>>> bulkCreateItems(
             @Parameter(description = "Company ID") @RequestParam UUID companyId,
+            @Parameter(description = "Store IDs to associate with all items") @RequestParam(required = false) List<UUID> storeIds,
+            @Parameter(description = "Warehouse IDs to associate with all items") @RequestParam(required = false) List<UUID> warehouseIds,
             @RequestBody List<Map<String, String>> itemsData,
             Authentication authentication) {
         
@@ -245,7 +249,7 @@ public class PredefinedItemsController {
             // Verify permission
             supplyManagementService.verifyCanManagePredefinedItems(user, company);
             
-            Map<String, Object> result = predefinedItemsService.bulkCreateItems(itemsData, company, user);
+            Map<String, Object> result = predefinedItemsService.bulkCreateItems(itemsData, company, user, storeIds, warehouseIds);
             
             return ResponseEntity.ok(new GenericApiResponse<>(true, "Bulk create completed", result));
             
@@ -263,6 +267,8 @@ public class PredefinedItemsController {
     @Operation(summary = "Import from CSV", description = "Import predefined items from CSV file")
     public ResponseEntity<GenericApiResponse<Map<String, Object>>> importCSV(
             @Parameter(description = "Company ID") @RequestParam UUID companyId,
+            @Parameter(description = "Store IDs to associate with all imported items") @RequestParam(required = false) List<UUID> storeIds,
+            @Parameter(description = "Warehouse IDs to associate with all imported items") @RequestParam(required = false) List<UUID> warehouseIds,
             @Parameter(description = "CSV file") @RequestParam("file") MultipartFile file,
             Authentication authentication) {
         
@@ -278,7 +284,7 @@ public class PredefinedItemsController {
                     .body(new GenericApiResponse<>(false, "CSV file is required", null));
             }
             
-            Map<String, Object> result = predefinedItemsService.importFromCSV(file, company, user);
+            Map<String, Object> result = predefinedItemsService.importFromCSV(file, company, user, storeIds, warehouseIds);
             
             return ResponseEntity.ok(new GenericApiResponse<>(true, "CSV import completed", result));
             
