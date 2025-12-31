@@ -341,11 +341,13 @@ public class PredefinedItemsController {
     @Operation(summary = "Get associated stores", description = "Get stores associated with a predefined item")
     public ResponseEntity<GenericApiResponse<List<StoreResponse>>> getAssociatedStores(
             @Parameter(description = "Item ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
             Authentication authentication) {
         
         try {
-            User user = supplyManagementService.getUserAndVerifyCompanyAccess(authentication, companyId);
+            // Extract companyId from authenticated user's token
+            User user = (User) authentication.getPrincipal();
+            UUID companyId = user.getDefaultTenantId();
+            
             Company company = companyService.getCompany(companyId, authentication);
             
             // Verify permission
@@ -374,12 +376,14 @@ public class PredefinedItemsController {
     @Operation(summary = "Associate stores", description = "Associate stores with a predefined item")
     public ResponseEntity<GenericApiResponse<Void>> associateStores(
             @Parameter(description = "Item ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
             @Valid @RequestBody AssociateLocationsRequest request,
             Authentication authentication) {
         
         try {
-            User user = supplyManagementService.getUserAndVerifyCompanyAccess(authentication, companyId);
+            // Extract companyId from authenticated user's token
+            User user = (User) authentication.getPrincipal();
+            UUID companyId = user.getDefaultTenantId();
+            
             Company company = companyService.getCompany(companyId, authentication);
             
             // Verify permission
@@ -404,11 +408,13 @@ public class PredefinedItemsController {
     @Operation(summary = "Get associated warehouses", description = "Get warehouses associated with a predefined item")
     public ResponseEntity<GenericApiResponse<List<WarehouseResponse>>> getAssociatedWarehouses(
             @Parameter(description = "Item ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
             Authentication authentication) {
         
         try {
-            User user = supplyManagementService.getUserAndVerifyCompanyAccess(authentication, companyId);
+            // Extract companyId from authenticated user's token
+            User user = (User) authentication.getPrincipal();
+            UUID companyId = user.getDefaultTenantId();
+            
             Company company = companyService.getCompany(companyId, authentication);
             
             // Verify permission
@@ -437,12 +443,14 @@ public class PredefinedItemsController {
     @Operation(summary = "Associate warehouses", description = "Associate warehouses with a predefined item")
     public ResponseEntity<GenericApiResponse<Void>> associateWarehouses(
             @Parameter(description = "Item ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
             @Valid @RequestBody AssociateLocationsRequest request,
             Authentication authentication) {
         
         try {
-            User user = supplyManagementService.getUserAndVerifyCompanyAccess(authentication, companyId);
+            // Extract companyId from authenticated user's token
+            User user = (User) authentication.getPrincipal();
+            UUID companyId = user.getDefaultTenantId();
+            
             Company company = companyService.getCompany(companyId, authentication);
             
             // Verify permission
