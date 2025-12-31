@@ -190,6 +190,13 @@ public class SecurityConfig {
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/docs/**").permitAll()
                     .requestMatchers("/favicon.ico").permitAll()
+                    
+                    // Static resources for frontend
+                    .requestMatchers("/static/**").permitAll()
+                    .requestMatchers("/css/**").permitAll()
+                    .requestMatchers("/js/**").permitAll()
+                    .requestMatchers("/pages/**").permitAll()
+                    
                     .anyRequest().authenticated();
             });
         

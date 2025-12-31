@@ -2,6 +2,23 @@
 
 InventSight is a modern, intelligent inventory management and point-of-sale (POS) system built with Spring Boot, PostgreSQL, and multi-tenant architecture.
 
+## 🌐 Frontend Web Interface
+
+InventSight now includes a web-based frontend for predefined items management, accessible via browser:
+
+- **Landing Page**: `http://localhost:8080/static/index.html`
+- **New Item Setup**: `http://localhost:8080/static/pages/new-item-setup.html`
+- **Auth Setup**: `http://localhost:8080/static/pages/setup-auth.html`
+
+### Features
+- ✅ Complete CRUD operations for predefined items
+- 🔍 Search and filter by name/category
+- 📄 CSV import/export with Myanmar Unicode support
+- 📱 Responsive design for desktop and mobile
+- 🌏 Full Myanmar language support
+
+**Documentation**: See [FRONTEND_NEW_ITEM_SETUP.md](FRONTEND_NEW_ITEM_SETUP.md) for detailed setup and usage instructions.
+
 ## Authentication and Authorization
 
 ### OAuth2-Only Authentication (Default)

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Authentication - InventSight</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+        }
+        .info-box {
+            background-color: #f0f2ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-box {
+            background-color: #fff4e5;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #6b7280;
+            margin-left: 10px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .status.success {
+            background-color: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .status.error {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        code {
+            background-color: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .current-values {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .current-values dt {
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .current-values dd {
+            margin-left: 0;
+            font-family: monospace;
+            color: #667eea;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Setup Authentication for New Item Setup</h1>
+        
+        <div class="info-box">
+            <strong>ℹ️ Information:</strong> The New Item Setup page requires authentication credentials to access the backend API. Use this page to configure your authentication settings.
+        </div>
+
+        <h2>Current Settings</h2>
+        <div class="current-values">
+            <dl>
+                <dt>Auth Token:</dt>
+                <dd id="currentToken">Not set</dd>
+                <dt>Company ID:</dt>
+                <dd id="currentCompanyId">Not set</dd>
+            </dl>
+        </div>
+
+        <h2>Option 1: Set Auth Token & Company ID</h2>
+        <p>If you have a JWT token from a successful login:</p>
+        
+        <div class="form-group">
+            <label for="authToken">JWT Token:</label>
+            <textarea id="authToken" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="companyId">Company ID (UUID):</label>
+            <input type="text" id="companyId" placeholder="550e8400-e29b-41d4-a716-446655440000">
+            <small style="color: #6b7280;">Optional if your JWT token contains tenant_id claim</small>
+        </div>
+
+        <button class="btn" onclick="saveCredentials()">💾 Save Credentials</button>
+        <button class="btn btn-secondary" onclick="clearCredentials()">🗑️ Clear All</button>
+
+        <div id="status" class="status"></div>
+
+        <h2>Option 2: Testing Without Authentication</h2>
+        <div class="warning-box">
+            <strong>⚠️ For Development Only:</strong> Enable offline mode or local login in your backend configuration.
+        </div>
+
+        <p>Add to <code>application.yml</code>:</p>
+        <pre>inventsight:
+  security:
+    offline-mode:
+      enabled: true</pre>
+
+        <h2>Option 3: Get a Token via API</h2>
+        <p>If local login is enabled, you can get a token by calling the login endpoint:</p>
+        
+        <div class="form-group">
+            <label for="username">Username/Email:</label>
+            <input type="text" id="username" placeholder="user@example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" placeholder="********">
+        </div>
+
+        <button class="btn" onclick="login()">🔑 Login & Get Token</button>
+
+        <div id="loginStatus" class="status"></div>
+
+        <h2>Next Steps</h2>
+        <ol>
+            <li>Save your credentials using the form above</li>
+            <li>Click the button below to open the New Item Setup page</li>
+            <li>The page will automatically use the saved credentials</li>
+        </ol>
+
+        <button class="btn" onclick="openItemSetup()" style="margin-top: 20px;">
+            📦 Open New Item Setup Page
+        </button>
+
+        <h2>Troubleshooting</h2>
+        <ul>
+            <li>If you get "Company ID not found", set the Company ID field above</li>
+            <li>If you get "403 Forbidden", check your user role (must be GM+ or have Supply Management permission)</li>
+            <li>If you get "401 Unauthorized", your token may be expired - login again</li>
+            <li>Check browser console (F12) for detailed error messages</li>
+        </ul>
+    </div>
+
+    <script>
+        // Update current values display
+        function updateCurrentValues() {
+            const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+            const companyId = localStorage.getItem('companyId');
+            
+            document.getElementById('currentToken').textContent = token 
+                ? token.substring(0, 50) + '...' 
+                : 'Not set';
+            document.getElementById('currentCompanyId').textContent = companyId || 'Not set';
+        }
+
+        // Save credentials to localStorage
+        function saveCredentials() {
+            const token = document.getElementById('authToken').value.trim();
+            const companyId = document.getElementById('companyId').value.trim();
+            
+            if (!token) {
+                showStatus('error', 'Please enter a JWT token');
+                return;
+            }
+
+            try {
+                // Validate JWT format (basic check)
+                const parts = token.split('.');
+                if (parts.length !== 3) {
+                    showStatus('error', 'Invalid JWT token format');
+                    return;
+                }
+
+                // Try to extract companyId from token if not provided
+                let finalCompanyId = companyId;
+                if (!finalCompanyId) {
+                    try {
+                        const payload = JSON.parse(atob(parts[1]));
+                        finalCompanyId = payload.tenant_id || payload.companyId || payload.company_id;
+                    } catch (e) {
+                        console.error('Failed to parse JWT:', e);
+                    }
+                }
+
+                // Save to localStorage
+                localStorage.setItem('authToken', token);
+                if (finalCompanyId) {
+                    localStorage.setItem('companyId', finalCompanyId);
+                }
+
+                showStatus('success', `✅ Credentials saved successfully!${finalCompanyId ? '\nCompany ID: ' + finalCompanyId : ''}`);
+                updateCurrentValues();
+            } catch (error) {
+                showStatus('error', 'Error saving credentials: ' + error.message);
+            }
+        }
+
+        // Clear all credentials
+        function clearCredentials() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('companyId');
+            sessionStorage.removeItem('authToken');
+            
+            document.getElementById('authToken').value = '';
+            document.getElementById('companyId').value = '';
+            
+            showStatus('success', '✅ All credentials cleared');
+            updateCurrentValues();
+        }
+
+        // Login and get token
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showLoginStatus('error', 'Please enter username and password');
+                return;
+            }
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    // Save token
+                    localStorage.setItem('authToken', data.token);
+                    
+                    // Extract and save companyId if available
+                    try {
+                        const payload = JSON.parse(atob(data.token.split('.')[1]));
+                        const companyId = payload.tenant_id || payload.companyId || payload.company_id;
+                        if (companyId) {
+                            localStorage.setItem('companyId', companyId);
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse JWT:', e);
+                    }
+
+                    showLoginStatus('success', '✅ Login successful! Token saved.');
+                    updateCurrentValues();
+                    
+                    // Auto-fill token field
+                    document.getElementById('authToken').value = data.token;
+                } else {
+                    showLoginStatus('error', '❌ Login failed: ' + (data.message || 'Invalid credentials'));
+                }
+            } catch (error) {
+                showLoginStatus('error', '❌ Login error: ' + error.message + '\n\nNote: Local login may not be enabled. Check backend configuration.');
+            }
+        }
+
+        // Open New Item Setup page
+        function openItemSetup() {
+            window.open('/static/pages/new-item-setup.html', '_blank');
+        }
+
+        // Show status message
+        function showStatus(type, message) {
+            const status = document.getElementById('status');
+            status.className = 'status ' + type;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show login status message
+        function showLoginStatus(type, message) {
+            const status = document.getElementById('loginStatus');
+            status.className = 'status ' + type;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        // Initialize on page load
+        updateCurrentValues();
+    </script>
+</body>
+</html>
