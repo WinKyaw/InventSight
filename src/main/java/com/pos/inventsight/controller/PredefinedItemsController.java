@@ -388,7 +388,7 @@ public class PredefinedItemsController {
             // Verify authentication and extract companyId from authenticated user's token
             if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new GenericApiResponse<>(false, "Authentication required"));
+                    .body(new GenericApiResponse<>(false, "Authentication required", null));
             }
             
             User user = (User) authentication.getPrincipal();
@@ -465,7 +465,7 @@ public class PredefinedItemsController {
             // Verify authentication and extract companyId from authenticated user's token
             if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new GenericApiResponse<>(false, "Authentication required"));
+                    .body(new GenericApiResponse<>(false, "Authentication required", null));
             }
             
             User user = (User) authentication.getPrincipal();
