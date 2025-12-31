@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Request DTO for creating or updating predefined items
@@ -27,6 +29,11 @@ public class PredefinedItemRequest {
     private String description;
     
     private BigDecimal defaultPrice;
+    
+    // Optional store/warehouse associations
+    private List<UUID> storeIds;
+    
+    private List<UUID> warehouseIds;
     
     // Constructors
     public PredefinedItemRequest() {}
@@ -54,4 +61,10 @@ public class PredefinedItemRequest {
     
     public BigDecimal getDefaultPrice() { return defaultPrice; }
     public void setDefaultPrice(BigDecimal defaultPrice) { this.defaultPrice = defaultPrice; }
+    
+    public List<UUID> getStoreIds() { return storeIds; }
+    public void setStoreIds(List<UUID> storeIds) { this.storeIds = storeIds; }
+    
+    public List<UUID> getWarehouseIds() { return warehouseIds; }
+    public void setWarehouseIds(List<UUID> warehouseIds) { this.warehouseIds = warehouseIds; }
 }

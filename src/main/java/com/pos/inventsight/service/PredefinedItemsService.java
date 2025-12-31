@@ -101,7 +101,9 @@ public class PredefinedItemsService {
             String description,
             BigDecimal defaultPrice,
             Company company,
-            User createdBy) {
+            User createdBy,
+            List<UUID> storeIds,
+            List<UUID> warehouseIds) {
         
         // Check for duplicates
         if (predefinedItemRepository.existsByCompanyAndNameAndUnitType(company, name, unitType)) {
@@ -121,6 +123,18 @@ public class PredefinedItemsService {
         
         PredefinedItem saved = predefinedItemRepository.save(item);
         logger.info("Created predefined item '{}' with SKU {} in company {}", name, generatedSku, company.getId());
+        
+        // Auto-associate with stores if provided
+        if (storeIds != null && !storeIds.isEmpty()) {
+            associateStores(saved, storeIds, createdBy);
+            logger.info("Auto-associated {} stores with predefined item {}", storeIds.size(), saved.getId());
+        }
+        
+        // Auto-associate with warehouses if provided
+        if (warehouseIds != null && !warehouseIds.isEmpty()) {
+            associateWarehouses(saved, warehouseIds, createdBy);
+            logger.info("Auto-associated {} warehouses with predefined item {}", warehouseIds.size(), saved.getId());
+        }
         
         return saved;
     }
@@ -180,7 +194,9 @@ public class PredefinedItemsService {
     public Map<String, Object> bulkCreateItems(
             List<Map<String, String>> itemsData,
             Company company,
-            User createdBy) {
+            User createdBy,
+            List<UUID> storeIds,
+            List<UUID> warehouseIds) {
         
         int successful = 0;
         int failed = 0;
@@ -238,7 +254,7 @@ public class PredefinedItemsService {
                     }
                 }
                 
-                PredefinedItem item = createItem(name, sku, category, unitType, description, defaultPrice, company, createdBy);
+                PredefinedItem item = createItem(name, sku, category, unitType, description, defaultPrice, company, createdBy, storeIds, warehouseIds);
                 createdItems.add(item);
                 successful++;
                 
@@ -265,11 +281,11 @@ public class PredefinedItemsService {
     /**
      * Import items from CSV file
      */
-    public Map<String, Object> importFromCSV(MultipartFile file, Company company, User createdBy) throws IOException {
+    public Map<String, Object> importFromCSV(MultipartFile file, Company company, User createdBy, List<UUID> storeIds, List<UUID> warehouseIds) throws IOException {
         logger.info("Starting CSV import for company {}", company.getId());
         
         List<Map<String, String>> itemsData = csvService.parseImportCSV(file);
-        return bulkCreateItems(itemsData, company, createdBy);
+        return bulkCreateItems(itemsData, company, createdBy, storeIds, warehouseIds);
     }
     
     /**
