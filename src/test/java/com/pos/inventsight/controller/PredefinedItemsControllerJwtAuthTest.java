@@ -186,4 +186,24 @@ class PredefinedItemsControllerJwtAuthTest {
         verify(predefinedItemsService).getItemById(eq(itemId), eq(company));
         verify(predefinedItemsService).associateWarehouses(eq(predefinedItem), eq(request.getLocationIds()), eq(user));
     }
+    
+    @Test
+    void testGetAssociatedStores_UnauthenticatedRequest_ReturnsUnauthorized() {
+        // Setup authentication to return null
+        when(authentication.getPrincipal()).thenReturn(null);
+        
+        // Execute
+        ResponseEntity<GenericApiResponse<List<StoreResponse>>> response = 
+            controller.getAssociatedStores(itemId, authentication);
+        
+        // Verify
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertFalse(response.getBody().getSuccess());
+        assertEquals("Authentication required", response.getBody().getMessage());
+        
+        // Verify that no service calls were made
+        verify(companyService, never()).getCompany(any(), any());
+        verify(predefinedItemsService, never()).getItemById(any(), any());
+    }
 }

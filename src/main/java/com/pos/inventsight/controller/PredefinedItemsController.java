@@ -344,7 +344,12 @@ public class PredefinedItemsController {
             Authentication authentication) {
         
         try {
-            // Extract companyId from authenticated user's token
+            // Verify authentication and extract companyId from authenticated user's token
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new GenericApiResponse<>(false, "Authentication required", null));
+            }
+            
             User user = (User) authentication.getPrincipal();
             UUID companyId = user.getDefaultTenantId();
             
@@ -380,7 +385,12 @@ public class PredefinedItemsController {
             Authentication authentication) {
         
         try {
-            // Extract companyId from authenticated user's token
+            // Verify authentication and extract companyId from authenticated user's token
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new GenericApiResponse<>(false, "Authentication required"));
+            }
+            
             User user = (User) authentication.getPrincipal();
             UUID companyId = user.getDefaultTenantId();
             
@@ -411,7 +421,12 @@ public class PredefinedItemsController {
             Authentication authentication) {
         
         try {
-            // Extract companyId from authenticated user's token
+            // Verify authentication and extract companyId from authenticated user's token
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new GenericApiResponse<>(false, "Authentication required", null));
+            }
+            
             User user = (User) authentication.getPrincipal();
             UUID companyId = user.getDefaultTenantId();
             
@@ -447,7 +462,12 @@ public class PredefinedItemsController {
             Authentication authentication) {
         
         try {
-            // Extract companyId from authenticated user's token
+            // Verify authentication and extract companyId from authenticated user's token
+            if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new GenericApiResponse<>(false, "Authentication required"));
+            }
+            
             User user = (User) authentication.getPrincipal();
             UUID companyId = user.getDefaultTenantId();
             
