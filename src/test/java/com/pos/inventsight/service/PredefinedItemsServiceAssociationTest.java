@@ -406,22 +406,25 @@ class PredefinedItemsServiceAssociationTest {
     
     @Test
     void testBulkCreateItems_WithAssociations_Success() {
-        // Given
+        // Given - now requires all 4 fields: name, category, unitType, defaultprice
         List<Map<String, String>> itemsData = new ArrayList<>();
         Map<String, String> item1 = new HashMap<>();
         item1.put("name", "Item 1");
+        item1.put("category", "Category 1");
         item1.put("unitType", "PCS");
+        item1.put("defaultprice", "10.00");
         itemsData.add(item1);
         
         Map<String, String> item2 = new HashMap<>();
         item2.put("name", "Item 2");
+        item2.put("category", "Category 2");
         item2.put("unitType", "KG");
+        item2.put("defaultprice", "20.00");
         itemsData.add(item2);
         
         List<UUID> storeIds = Arrays.asList(store1.getId());
         List<UUID> warehouseIds = Arrays.asList(warehouse1.getId());
         
-        when(csvService.validateItem(any(), any())).thenReturn(true);
         when(predefinedItemRepository.existsByCompanyAndNameAndUnitType(any(), any(), any()))
             .thenReturn(false);
         when(skuGenerator.generateUniqueSku(any())).thenReturn("SKU-12345", "SKU-67890");
