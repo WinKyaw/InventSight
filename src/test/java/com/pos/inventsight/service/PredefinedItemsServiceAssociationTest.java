@@ -138,8 +138,8 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(storeRepository.findById(store1.getId())).thenReturn(Optional.of(store1));
-        when(storeRepository.findById(store2.getId())).thenReturn(Optional.of(store2));
+        when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
+        when(storeRepository.findByIdWithCompany(store2.getId())).thenReturn(Optional.of(store2));
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
@@ -173,8 +173,8 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(warehouseRepository.findById(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
-        when(warehouseRepository.findById(warehouse2.getId())).thenReturn(Optional.of(warehouse2));
+        when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(warehouseRepository.findByIdWithCompany(warehouse2.getId())).thenReturn(Optional.of(warehouse2));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
@@ -209,8 +209,8 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(storeRepository.findById(store1.getId())).thenReturn(Optional.of(store1));
-        when(warehouseRepository.findById(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
+        when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
@@ -248,7 +248,7 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(storeRepository.findById(invalidStoreId)).thenReturn(Optional.empty());
+        when(storeRepository.findByIdWithCompany(invalidStoreId)).thenReturn(Optional.empty());
         
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> {
@@ -277,7 +277,7 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(warehouseRepository.findById(invalidWarehouseId)).thenReturn(Optional.empty());
+        when(warehouseRepository.findByIdWithCompany(invalidWarehouseId)).thenReturn(Optional.empty());
         
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> {
@@ -315,7 +315,7 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(storeRepository.findById(differentStore.getId())).thenReturn(Optional.of(differentStore));
+        when(storeRepository.findByIdWithCompany(differentStore.getId())).thenReturn(Optional.of(differentStore));
         
         // When/Then
         assertThrows(IllegalArgumentException.class, () -> {
@@ -353,7 +353,7 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(warehouseRepository.findById(differentWarehouse.getId()))
+        when(warehouseRepository.findByIdWithCompany(differentWarehouse.getId()))
             .thenReturn(Optional.of(differentWarehouse));
         
         // When/Then
@@ -418,8 +418,8 @@ class PredefinedItemsServiceAssociationTest {
                 item.setId(UUID.randomUUID());
                 return item;
             });
-        when(storeRepository.findById(store1.getId())).thenReturn(Optional.of(store1));
-        when(warehouseRepository.findById(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
+        when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))

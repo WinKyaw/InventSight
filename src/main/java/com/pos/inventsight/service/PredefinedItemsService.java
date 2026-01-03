@@ -307,7 +307,7 @@ public class PredefinedItemsService {
         
         // Create new associations
         for (UUID storeId : storeIds) {
-            Store store = storeRepository.findById(storeId)
+            Store store = storeRepository.findByIdWithCompany(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
             
             // Verify store belongs to same company
@@ -331,7 +331,7 @@ public class PredefinedItemsService {
         
         // Create new associations
         for (UUID warehouseId : warehouseIds) {
-            Warehouse warehouse = warehouseRepository.findById(warehouseId)
+            Warehouse warehouse = warehouseRepository.findByIdWithCompany(warehouseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found with ID: " + warehouseId));
             
             // Verify warehouse belongs to same company

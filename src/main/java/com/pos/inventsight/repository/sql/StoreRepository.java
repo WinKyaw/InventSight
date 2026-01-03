@@ -42,4 +42,10 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     boolean existsByEmail(String email);
     
     List<Store> findByCompany(Company company);
+
+    /**
+     * Find store by ID with company eagerly fetched to avoid lazy loading issues
+     */
+    @Query("SELECT s FROM Store s JOIN FETCH s.company WHERE s.id = :id")
+    Optional<Store> findByIdWithCompany(@Param("id") UUID id);
 }
