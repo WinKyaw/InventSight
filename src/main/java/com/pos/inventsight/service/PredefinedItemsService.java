@@ -404,7 +404,10 @@ public class PredefinedItemsService {
         }
         
         if (existingProduct != null) {
-            logger.info("Product already exists for predefined item {} in location", item.getId());
+            logger.info("Product already exists for predefined item {} in {} {}", 
+                item.getId(), 
+                store != null ? "store" : "warehouse", 
+                store != null ? store.getId() : warehouse.getId());
             return; // Don't create duplicate
         }
         
@@ -433,6 +436,9 @@ public class PredefinedItemsService {
         
         productRepository.save(product);
         
-        logger.info("Created product from predefined item {} for location", item.getId());
+        logger.info("Created product from predefined item {} for {} {}", 
+            item.getId(), 
+            store != null ? "store" : "warehouse", 
+            store != null ? store.getId() : warehouse.getId());
     }
 }

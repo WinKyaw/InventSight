@@ -36,10 +36,12 @@ CREATE INDEX idx_products_predefined_item_id ON products(predefined_item_id);
 ALTER TABLE products ALTER COLUMN store_id DROP NOT NULL;
 
 -- Backfill company_id for existing products based on their store's company
+-- Only update products that have a valid store_id
 UPDATE products 
 SET company_id = stores.company_id
 FROM stores
 WHERE products.store_id = stores.id
+AND products.store_id IS NOT NULL
 AND products.company_id IS NULL;
 
 -- Now make company_id NOT NULL

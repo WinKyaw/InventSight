@@ -242,11 +242,11 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<?> createProduct(@Valid @RequestBody ProductRequest productRequest, 
                                          Authentication authentication) {
-        throw new UnsupportedOperationException(
-            "Direct product creation is no longer supported. " +
-            "Products must be created by assigning predefined items to stores/warehouses. " +
-            "Only GM+ users can perform this operation via the Predefined Items API."
-        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ApiResponse(false, 
+                "Direct product creation is no longer supported. " +
+                "Products must be created by assigning predefined items to stores/warehouses. " +
+                "Only GM+ users can perform this operation via the Predefined Items API."));
     }
     
     // PUT /products/{id} - Update product
