@@ -11,6 +11,7 @@ import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.service.ProductService;
 import com.pos.inventsight.service.OneTimePermissionService;
+import com.pos.inventsight.service.SupplyManagementService;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
@@ -60,6 +61,9 @@ public class ProductController {
     
     @Autowired
     private UserStoreRoleRepository userStoreRoleRepository;
+    
+    @Autowired
+    private SupplyManagementService supplyManagementService;
     
     // GET /products - Get all products with pagination
     @GetMapping
@@ -234,51 +238,15 @@ public class ProductController {
     }
     
     // POST /products - Create new product
+    // DISABLED: Products must be created by assigning predefined items to stores/warehouses
     @PostMapping
     public ResponseEntity<?> createProduct(@Valid @RequestBody ProductRequest productRequest, 
                                          Authentication authentication) {
-        try {
-            String username = authentication.getName();
-            System.out.println("➕ InventSight - Creating product for user: " + username);
-            System.out.println("📦 Product name: " + productRequest.getName());
-            
-            // Check permissions
-            User user = userService.getUserByUsername(username);
-            
-            if (!permissionService.canPerformAction(user, PermissionType.ADD_ITEM)) {
-                System.out.println("❌ User lacks permission to add products");
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new ApiResponse(false, "Insufficient permissions to add products. Contact your manager for temporary permission."));
-            }
-            
-            Product product = convertFromRequest(productRequest);
-            Product createdProduct = productService.createProduct(product, username);
-            
-            // Consume one-time permission if used
-            try {
-                permissionService.consumePermission(user.getId(), PermissionType.ADD_ITEM);
-                System.out.println("✅ One-time ADD_ITEM permission consumed");
-            } catch (Exception e) {
-                // User had manager role, not a one-time permission
-                System.out.println("ℹ️ No one-time permission to consume (user has role-based access)");
-            }
-            
-            ProductResponse productResponse = convertToResponse(createdProduct);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("product", productResponse);
-            response.put("message", "Product created successfully");
-            response.put("timestamp", LocalDateTime.now());
-            response.put("system", "InventSight");
-            
-            System.out.println("✅ InventSight - Product created successfully: " + createdProduct.getName());
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-            
-        } catch (Exception e) {
-            System.out.println("❌ InventSight - Error creating product: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ApiResponse(false, "Failed to create product: " + e.getMessage()));
-        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ApiResponse(false, 
+                "Direct product creation is no longer supported. " +
+                "Products must be created by assigning predefined items to stores/warehouses. " +
+                "Only GM+ users can perform this operation via the Predefined Items API."));
     }
     
     // PUT /products/{id} - Update product
@@ -469,6 +437,58 @@ public class ProductController {
             System.out.println("❌ InventSight - Error fetching products by category: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to fetch products by category: " + e.getMessage()));
+        }
+    }
+    
+    // PUT /products/{id}/low-stock-threshold - Update product low stock threshold (GM+ only)
+    @PutMapping("/{id}/low-stock-threshold")
+    public ResponseEntity<?> updateLowStockThreshold(
+            @PathVariable UUID id,
+            @RequestParam Integer threshold,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("🔧 InventSight - Updating low stock threshold for product ID: " + id + " for user: " + username);
+            
+            // Get current user
+            User user = userService.getUserByUsername(username);
+            
+            // Get product and verify access
+            Product product = productService.getProductById(id);
+            
+            // Verify GM+ permission
+            // Check if user has GM+ role in the product's company
+            if (!supplyManagementService.isGMPlusUser(user, product.getCompany())) {
+                System.out.println("❌ User lacks GM+ permission to update low stock threshold");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Only GM+ users can update low stock thresholds"));
+            }
+            
+            // Validate threshold
+            if (threshold < 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Low stock threshold must be non-negative"));
+            }
+            
+            // Update threshold
+            product.setLowStockThreshold(threshold);
+            Product updatedProduct = productService.updateProduct(id, product, username);
+            
+            ProductResponse productResponse = convertToResponse(updatedProduct);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("product", productResponse);
+            response.put("message", "Low stock threshold updated successfully");
+            response.put("timestamp", LocalDateTime.now());
+            response.put("system", "InventSight");
+            
+            System.out.println("✅ InventSight - Low stock threshold updated successfully");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error updating low stock threshold: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, "Failed to update low stock threshold: " + e.getMessage()));
         }
     }
     

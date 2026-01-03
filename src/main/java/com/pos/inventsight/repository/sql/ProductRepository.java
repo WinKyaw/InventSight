@@ -1,7 +1,10 @@
 package com.pos.inventsight.repository.sql;
 
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.PredefinedItem;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.Warehouse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -104,4 +107,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     
     @Query("SELECT p.category, COUNT(p) FROM Product p WHERE p.isActive = true AND p.category IS NOT NULL GROUP BY p.category ORDER BY COUNT(p) DESC")
     List<Object[]> getTopCategoriesByProductCount();
+    
+    // Find product by predefined item and store
+    Optional<Product> findByPredefinedItemAndStore(PredefinedItem predefinedItem, Store store);
+    
+    // Find product by predefined item and warehouse
+    Optional<Product> findByPredefinedItemAndWarehouse(PredefinedItem predefinedItem, Warehouse warehouse);
+    
+    // Find low stock products by company (quantity <= threshold)
+    @Query("SELECT p FROM Product p WHERE p.quantity <= p.lowStockThreshold AND p.company = :company")
+    List<Product> findLowStockProductsByCompany(@Param("company") Company company);
 }
