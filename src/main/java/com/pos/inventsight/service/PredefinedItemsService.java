@@ -43,6 +43,9 @@ public class PredefinedItemsService {
     private WarehouseRepository warehouseRepository;
     
     @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
     private SupplyManagementService supplyManagementService;
     
     @Autowired
@@ -315,8 +318,12 @@ public class PredefinedItemsService {
                 throw new IllegalArgumentException("Store does not belong to the same company");
             }
             
+            // 1. Create association record
             PredefinedItemStore association = new PredefinedItemStore(item, store, user);
             predefinedItemStoreRepository.save(association);
+            
+            // 2. Create Product record in products table for inventory tracking
+            createProductFromPredefinedItem(item, store, null, user);
         }
         
         logger.info("Associated {} stores with predefined item {}", storeIds.size(), item.getId());
@@ -339,8 +346,12 @@ public class PredefinedItemsService {
                 throw new IllegalArgumentException("Warehouse does not belong to the same company");
             }
             
+            // 1. Create association record
             PredefinedItemWarehouse association = new PredefinedItemWarehouse(item, warehouse, user);
             predefinedItemWarehouseRepository.save(association);
+            
+            // 2. Create Product record in products table for inventory tracking
+            createProductFromPredefinedItem(item, null, warehouse, user);
         }
         
         logger.info("Associated {} warehouses with predefined item {}", warehouseIds.size(), item.getId());
@@ -372,5 +383,56 @@ public class PredefinedItemsService {
      */
     public List<String> getUnitTypes(Company company) {
         return predefinedItemRepository.findDistinctUnitTypesByCompany(company);
+    }
+    
+    /**
+     * Create a Product record from a PredefinedItem for inventory tracking
+     * This is called when a predefined item is assigned to a store or warehouse
+     */
+    private void createProductFromPredefinedItem(
+            PredefinedItem item, 
+            Store store, 
+            Warehouse warehouse, 
+            User createdBy) {
+        
+        // Check if product already exists for this location
+        Product existingProduct = null;
+        if (store != null) {
+            existingProduct = productRepository.findByPredefinedItemAndStore(item, store).orElse(null);
+        } else if (warehouse != null) {
+            existingProduct = productRepository.findByPredefinedItemAndWarehouse(item, warehouse).orElse(null);
+        }
+        
+        if (existingProduct != null) {
+            logger.info("Product already exists for predefined item {} in location", item.getId());
+            return; // Don't create duplicate
+        }
+        
+        Product product = new Product();
+        product.setName(item.getName());
+        product.setSku(item.getSku());
+        product.setCategory(item.getCategory());
+        product.setUnit(item.getUnitType());
+        product.setDescription(item.getDescription());
+        
+        // Copy price from default_price to all price fields for backward compatibility
+        BigDecimal defaultPrice = item.getDefaultPrice();
+        product.setPrice(defaultPrice); // Legacy price field
+        product.setOriginalPrice(defaultPrice);
+        product.setOwnerSetSellPrice(defaultPrice);
+        product.setRetailPrice(defaultPrice);
+        
+        product.setCompany(item.getCompany());
+        product.setStore(store);
+        product.setWarehouse(warehouse);
+        product.setQuantity(0); // Initial stock is 0
+        product.setLowStockThreshold(5); // Default low stock threshold
+        product.setPredefinedItem(item); // Link back to master catalog
+        product.setCreatedBy(createdBy.getUsername());
+        product.setIsActive(true);
+        
+        productRepository.save(product);
+        
+        logger.info("Created product from predefined item {} for location", item.getId());
     }
 }

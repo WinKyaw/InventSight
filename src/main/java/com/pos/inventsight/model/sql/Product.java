@@ -41,12 +41,30 @@ public class Product {
     @Column(name = "predefined_item_sku")
     private String predefinedItemSku;
     
-    // Multi-tenancy support
+    // Multi-tenancy support - Company is now required
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id", nullable = false)
+    @JoinColumn(name = "company_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Company company;
+    
+    // Store is now nullable (products can be in warehouse instead)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Store store;
+    
+    // Warehouse is nullable (products can be in store instead)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Warehouse warehouse;
+    
+    // Link back to predefined item (master catalog)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "predefined_item_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private PredefinedItem predefinedItem;
     
     // Tiered pricing structure
     @NotNull
@@ -93,7 +111,9 @@ public class Product {
     @Size(max = 50)
     private String barcode;
     
-    private Integer lowStockThreshold;
+    @NotNull
+    @Column(name = "low_stock_threshold", nullable = false)
+    private Integer lowStockThreshold = 5; // Default low stock threshold
     
     private Integer reorderLevel;
     
@@ -145,8 +165,17 @@ public class Product {
     public String getPredefinedItemSku() { return predefinedItemSku; }
     public void setPredefinedItemSku(String predefinedItemSku) { this.predefinedItemSku = predefinedItemSku; }
     
+    public Company getCompany() { return company; }
+    public void setCompany(Company company) { this.company = company; }
+    
     public Store getStore() { return store; }
     public void setStore(Store store) { this.store = store; }
+    
+    public Warehouse getWarehouse() { return warehouse; }
+    public void setWarehouse(Warehouse warehouse) { this.warehouse = warehouse; }
+    
+    public PredefinedItem getPredefinedItem() { return predefinedItem; }
+    public void setPredefinedItem(PredefinedItem predefinedItem) { this.predefinedItem = predefinedItem; }
     
     public BigDecimal getOriginalPrice() { return originalPrice; }
     public void setOriginalPrice(BigDecimal originalPrice) { 
