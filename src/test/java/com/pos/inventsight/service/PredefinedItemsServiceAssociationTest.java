@@ -51,6 +51,9 @@ class PredefinedItemsServiceAssociationTest {
     @Mock
     private SkuGenerator skuGenerator;
     
+    @Mock
+    private ProductRepository productRepository;
+    
     @InjectMocks
     private PredefinedItemsService predefinedItemsService;
     
@@ -142,6 +145,9 @@ class PredefinedItemsServiceAssociationTest {
         when(storeRepository.findByIdWithCompany(store2.getId())).thenReturn(Optional.of(store2));
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
+        when(productRepository.findByPredefinedItemAndStore(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
         PredefinedItem result = predefinedItemsService.createItem(
@@ -176,6 +182,9 @@ class PredefinedItemsServiceAssociationTest {
         when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
         when(warehouseRepository.findByIdWithCompany(warehouse2.getId())).thenReturn(Optional.of(warehouse2));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(productRepository.findByPredefinedItemAndWarehouse(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
@@ -214,6 +223,10 @@ class PredefinedItemsServiceAssociationTest {
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(productRepository.findByPredefinedItemAndStore(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.findByPredefinedItemAndWarehouse(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
@@ -423,6 +436,10 @@ class PredefinedItemsServiceAssociationTest {
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(productRepository.findByPredefinedItemAndStore(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.findByPredefinedItemAndWarehouse(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
