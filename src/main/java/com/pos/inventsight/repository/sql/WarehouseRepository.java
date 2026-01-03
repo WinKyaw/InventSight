@@ -73,4 +73,10 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, UUID> {
      * Find warehouses created by user
      */
     List<Warehouse> findByCreatedByAndIsActiveTrue(String createdBy);
+
+    /**
+     * Find warehouse by ID with company eagerly fetched to avoid lazy loading issues
+     */
+    @Query("SELECT w FROM Warehouse w JOIN FETCH w.company WHERE w.id = :id")
+    Optional<Warehouse> findByIdWithCompany(@Param("id") UUID id);
 }
