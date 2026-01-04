@@ -101,6 +101,7 @@ public class CSVService {
     /**
      * Validate required fields in a parsed item
      * Case-insensitive validation - accepts both "unitType" and "unittype"
+     * Required fields: name, category, unitType, defaultprice
      */
     public boolean validateItem(Map<String, String> item, List<String> errors) {
         boolean valid = true;
@@ -114,15 +115,27 @@ public class CSVService {
             valid = false;
         }
         
+        if (!normalizedItem.containsKey("category") || normalizedItem.get("category").isEmpty()) {
+            errors.add("Category is required");
+            valid = false;
+        }
+        
         if (!normalizedItem.containsKey("unittype") || normalizedItem.get("unittype").isEmpty()) {
             errors.add("Unit type is required");
             valid = false;
         }
         
-        // Validate price if present
-        if (normalizedItem.containsKey("defaultprice") && !normalizedItem.get("defaultprice").isEmpty()) {
+        // Validate defaultprice - now MANDATORY
+        if (!normalizedItem.containsKey("defaultprice") || normalizedItem.get("defaultprice").isEmpty()) {
+            errors.add("Default price is required");
+            valid = false;
+        } else {
             try {
-                new BigDecimal(normalizedItem.get("defaultprice"));
+                BigDecimal price = new BigDecimal(normalizedItem.get("defaultprice"));
+                if (price.compareTo(BigDecimal.ZERO) <= 0) {
+                    errors.add("Price must be greater than zero");
+                    valid = false;
+                }
             } catch (NumberFormatException e) {
                 errors.add("Invalid price format: " + normalizedItem.get("defaultprice"));
                 valid = false;

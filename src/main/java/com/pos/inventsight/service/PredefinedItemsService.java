@@ -193,6 +193,8 @@ public class PredefinedItemsService {
     
     /**
      * Bulk create predefined items
+     * Accepts 4 required fields: name, category, unitType, defaultprice
+     * SKU is always auto-generated and ignored if provided
      */
     public Map<String, Object> bulkCreateItems(
             List<Map<String, String>> itemsData,
@@ -214,26 +216,55 @@ public class PredefinedItemsService {
                 Map<String, String> normalizedData = new HashMap<>();
                 itemData.forEach((key, value) -> normalizedData.put(key.toLowerCase(), value));
                 
-                logger.debug("Row {}: Original data = {}", i + 1, itemData);
                 logger.debug("Row {}: Normalized data = {}", i + 1, normalizedData);
                 
-                logger.debug("Processing item with fields: {}", normalizedData.keySet());
+                // Extract required fields
+                String name = normalizedData.get("name");
+                String category = normalizedData.get("category");
+                String unitType = normalizedData.get("unittype");
+                String defaultPriceStr = normalizedData.get("defaultprice");
                 
-                // Validate using normalized data
-                List<String> itemErrors = new ArrayList<>();
-                if (!csvService.validateItem(normalizedData, itemErrors)) {
-                    String errorMsg = "Row " + (i + 1) + ": " + String.join(", ", itemErrors);
-                    logger.warn("❌ Validation failed: {}", errorMsg);
-                    errors.add(errorMsg);
+                // Validate required fields
+                if (name == null || name.trim().isEmpty()) {
+                    errors.add("Row " + (i + 1) + ": 'name' is required");
                     failed++;
                     continue;
                 }
                 
-                // Use normalized data for retrieval (all keys are now lowercase)
-                String name = normalizedData.get("name");
-                String unitType = normalizedData.get("unittype");
+                if (category == null || category.trim().isEmpty()) {
+                    errors.add("Row " + (i + 1) + ": 'category' is required");
+                    failed++;
+                    continue;
+                }
                 
-                // Skip duplicates
+                if (unitType == null || unitType.trim().isEmpty()) {
+                    errors.add("Row " + (i + 1) + ": 'unitType' is required");
+                    failed++;
+                    continue;
+                }
+                
+                if (defaultPriceStr == null || defaultPriceStr.trim().isEmpty()) {
+                    errors.add("Row " + (i + 1) + ": 'defaultprice' is required");
+                    failed++;
+                    continue;
+                }
+                
+                // Parse price
+                BigDecimal defaultPrice;
+                try {
+                    defaultPrice = new BigDecimal(defaultPriceStr);
+                    if (defaultPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                        errors.add("Row " + (i + 1) + ": Price must be greater than zero");
+                        failed++;
+                        continue;
+                    }
+                } catch (NumberFormatException e) {
+                    errors.add("Row " + (i + 1) + ": Invalid price format: " + defaultPriceStr);
+                    failed++;
+                    continue;
+                }
+                
+                // Check for duplicates
                 if (predefinedItemRepository.existsByCompanyAndNameAndUnitType(company, name, unitType)) {
                     logger.debug("Skipping duplicate: {} ({})", name, unitType);
                     failed++;
@@ -241,23 +272,22 @@ public class PredefinedItemsService {
                     continue;
                 }
                 
-                // Create item using normalized data
-                String sku = normalizedData.getOrDefault("sku", null);
-                String category = normalizedData.getOrDefault("category", null);
+                // Create item (SKU is auto-generated, description is optional)
                 String description = normalizedData.getOrDefault("description", null);
-                BigDecimal defaultPrice = null;
                 
-                if (normalizedData.containsKey("defaultprice") && !normalizedData.get("defaultprice").isEmpty()) {
-                    try {
-                        defaultPrice = new BigDecimal(normalizedData.get("defaultprice"));
-                    } catch (NumberFormatException e) {
-                        errors.add("Row " + (i + 1) + ": Invalid price format");
-                        failed++;
-                        continue;
-                    }
-                }
+                PredefinedItem item = createItem(
+                    name,
+                    null,  // sku - will be auto-generated
+                    category,
+                    unitType,
+                    description,
+                    defaultPrice,
+                    company,
+                    createdBy,
+                    storeIds,
+                    warehouseIds
+                );
                 
-                PredefinedItem item = createItem(name, sku, category, unitType, description, defaultPrice, company, createdBy, storeIds, warehouseIds);
                 createdItems.add(item);
                 successful++;
                 
