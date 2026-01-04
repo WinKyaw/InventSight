@@ -405,6 +405,76 @@ class PredefinedItemsServiceAssociationTest {
     }
     
     @Test
+    void testCreateItem_WithStoreHavingNullCompany_ThrowsException() {
+        // Given
+        String name = "Test Item";
+        String unitType = "PCS";
+        String generatedSku = "SKU-12345";
+        
+        Store storeWithNoCompany = new Store();
+        storeWithNoCompany.setId(UUID.randomUUID());
+        storeWithNoCompany.setStoreName("Store Without Company");
+        storeWithNoCompany.setCompany(null); // Null company
+        
+        List<UUID> storeIds = Arrays.asList(storeWithNoCompany.getId());
+        
+        when(predefinedItemRepository.existsByCompanyAndNameAndUnitType(company, name, unitType))
+            .thenReturn(false);
+        when(skuGenerator.generateUniqueSku(any())).thenReturn(generatedSku);
+        when(predefinedItemRepository.save(any(PredefinedItem.class)))
+            .thenAnswer(invocation -> {
+                PredefinedItem item = invocation.getArgument(0);
+                item.setId(UUID.randomUUID());
+                return item;
+            });
+        when(storeRepository.findByIdWithCompany(storeWithNoCompany.getId()))
+            .thenReturn(Optional.of(storeWithNoCompany));
+        
+        // When/Then
+        assertThrows(IllegalStateException.class, () -> {
+            predefinedItemsService.createItem(
+                name, null, "Category", unitType, "Description", 
+                new BigDecimal("10.00"), company, user, storeIds, null
+            );
+        });
+    }
+    
+    @Test
+    void testCreateItem_WithWarehouseHavingNullCompany_ThrowsException() {
+        // Given
+        String name = "Test Item";
+        String unitType = "PCS";
+        String generatedSku = "SKU-12345";
+        
+        Warehouse warehouseWithNoCompany = new Warehouse();
+        warehouseWithNoCompany.setId(UUID.randomUUID());
+        warehouseWithNoCompany.setName("Warehouse Without Company");
+        warehouseWithNoCompany.setCompany(null); // Null company
+        
+        List<UUID> warehouseIds = Arrays.asList(warehouseWithNoCompany.getId());
+        
+        when(predefinedItemRepository.existsByCompanyAndNameAndUnitType(company, name, unitType))
+            .thenReturn(false);
+        when(skuGenerator.generateUniqueSku(any())).thenReturn(generatedSku);
+        when(predefinedItemRepository.save(any(PredefinedItem.class)))
+            .thenAnswer(invocation -> {
+                PredefinedItem item = invocation.getArgument(0);
+                item.setId(UUID.randomUUID());
+                return item;
+            });
+        when(warehouseRepository.findByIdWithCompany(warehouseWithNoCompany.getId()))
+            .thenReturn(Optional.of(warehouseWithNoCompany));
+        
+        // When/Then
+        assertThrows(IllegalStateException.class, () -> {
+            predefinedItemsService.createItem(
+                name, null, "Category", unitType, "Description", 
+                new BigDecimal("10.00"), company, user, null, warehouseIds
+            );
+        });
+    }
+    
+    @Test
     void testBulkCreateItems_WithAssociations_Success() {
         // Given - now requires all 4 fields: name, category, unitType, defaultprice
         List<Map<String, String>> itemsData = new ArrayList<>();

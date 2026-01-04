@@ -335,56 +335,106 @@ public class PredefinedItemsService {
      * Associate stores with a predefined item
      */
     public void associateStores(PredefinedItem item, List<UUID> storeIds, User user) {
+        logger.info("Associating {} stores with predefined item {}", storeIds.size(), item.getId());
+        
         // Remove existing associations
         predefinedItemStoreRepository.deleteByPredefinedItem(item);
         
         // Create new associations
         for (UUID storeId : storeIds) {
+            logger.debug("Looking up store: {}", storeId);
+            
             Store store = storeRepository.findByIdWithCompany(storeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
+                .orElseThrow(() -> {
+                    logger.error("Store not found with ID: {}", storeId);
+                    return new ResourceNotFoundException("Store not found with ID: " + storeId);
+                });
+            
+            logger.debug("Found store: {} (company: {})", store.getStoreName(), 
+                        store.getCompany() != null ? store.getCompany().getId() : "NULL");
             
             // Verify store belongs to same company
+            if (store.getCompany() == null) {
+                logger.error("Store {} has no company set!", storeId);
+                throw new IllegalStateException("Store has no company assigned");
+            }
+            
             if (!store.getCompany().getId().equals(item.getCompany().getId())) {
+                logger.error("Store {} belongs to different company. Expected: {}, Got: {}", 
+                            storeId, item.getCompany().getId(), store.getCompany().getId());
                 throw new IllegalArgumentException("Store does not belong to the same company");
             }
+            
+            logger.debug("Creating association between item {} and store {}", item.getId(), store.getId());
             
             // 1. Create association record
             PredefinedItemStore association = new PredefinedItemStore(item, store, user);
             predefinedItemStoreRepository.save(association);
             
             // 2. Create Product record in products table for inventory tracking
-            createProductFromPredefinedItem(item, store, null, user);
+            try {
+                createProductFromPredefinedItem(item, store, null, user);
+                logger.debug("Created product for store {}", store.getId());
+            } catch (Exception e) {
+                logger.error("Failed to create product for store {}: {}", storeId, e.getMessage(), e);
+                throw e;
+            }
         }
         
-        logger.info("Associated {} stores with predefined item {}", storeIds.size(), item.getId());
+        logger.info("Successfully associated {} stores with predefined item {}", storeIds.size(), item.getId());
     }
     
     /**
      * Associate warehouses with a predefined item
      */
     public void associateWarehouses(PredefinedItem item, List<UUID> warehouseIds, User user) {
+        logger.info("Associating {} warehouses with predefined item {}", warehouseIds.size(), item.getId());
+        
         // Remove existing associations
         predefinedItemWarehouseRepository.deleteByPredefinedItem(item);
         
         // Create new associations
         for (UUID warehouseId : warehouseIds) {
+            logger.debug("Looking up warehouse: {}", warehouseId);
+            
             Warehouse warehouse = warehouseRepository.findByIdWithCompany(warehouseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found with ID: " + warehouseId));
+                .orElseThrow(() -> {
+                    logger.error("Warehouse not found with ID: {}", warehouseId);
+                    return new ResourceNotFoundException("Warehouse not found with ID: " + warehouseId);
+                });
+            
+            logger.debug("Found warehouse: {} (company: {})", warehouse.getName(), 
+                        warehouse.getCompany() != null ? warehouse.getCompany().getId() : "NULL");
             
             // Verify warehouse belongs to same company
+            if (warehouse.getCompany() == null) {
+                logger.error("Warehouse {} has no company set!", warehouseId);
+                throw new IllegalStateException("Warehouse has no company assigned");
+            }
+            
             if (!warehouse.getCompany().getId().equals(item.getCompany().getId())) {
+                logger.error("Warehouse {} belongs to different company. Expected: {}, Got: {}", 
+                            warehouseId, item.getCompany().getId(), warehouse.getCompany().getId());
                 throw new IllegalArgumentException("Warehouse does not belong to the same company");
             }
+            
+            logger.debug("Creating association between item {} and warehouse {}", item.getId(), warehouse.getId());
             
             // 1. Create association record
             PredefinedItemWarehouse association = new PredefinedItemWarehouse(item, warehouse, user);
             predefinedItemWarehouseRepository.save(association);
             
             // 2. Create Product record in products table for inventory tracking
-            createProductFromPredefinedItem(item, null, warehouse, user);
+            try {
+                createProductFromPredefinedItem(item, null, warehouse, user);
+                logger.debug("Created product for warehouse {}", warehouse.getId());
+            } catch (Exception e) {
+                logger.error("Failed to create product for warehouse {}: {}", warehouseId, e.getMessage(), e);
+                throw e;
+            }
         }
         
-        logger.info("Associated {} warehouses with predefined item {}", warehouseIds.size(), item.getId());
+        logger.info("Successfully associated {} warehouses with predefined item {}", warehouseIds.size(), item.getId());
     }
     
     /**
