@@ -2,9 +2,11 @@ package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.WarehouseInventoryAdditionRequest;
+import com.pos.inventsight.dto.WarehouseInventoryAdditionResponse;
 import com.pos.inventsight.dto.WarehouseInventoryRequest;
 import com.pos.inventsight.dto.WarehouseInventoryResponse;
 import com.pos.inventsight.dto.WarehouseInventoryWithdrawalRequest;
+import com.pos.inventsight.dto.WarehouseInventoryWithdrawalResponse;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
@@ -43,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for warehouse inventory management with RBAC
@@ -425,10 +428,16 @@ public class WarehouseInventoryController {
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
             );
             
+            // ✅ NEW: Convert entities to DTOs with flattened product info
+            List<WarehouseInventoryAdditionResponse> additionDTOs = additions.getContent()
+                .stream()
+                .map(WarehouseInventoryAdditionResponse::new)
+                .collect(Collectors.toList());
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("warehouseId", warehouseId);
-            response.put("additions", additions.getContent());
+            response.put("additions", additionDTOs);  // ✅ Return DTOs instead of entities
             response.put("currentPage", additions.getNumber());
             response.put("totalPages", additions.getTotalPages());
             response.put("totalItems", additions.getTotalElements());
@@ -480,10 +489,16 @@ public class WarehouseInventoryController {
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
             );
             
+            // ✅ NEW: Convert entities to DTOs with flattened product info
+            List<WarehouseInventoryWithdrawalResponse> withdrawalDTOs = withdrawals.getContent()
+                .stream()
+                .map(WarehouseInventoryWithdrawalResponse::new)
+                .collect(Collectors.toList());
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("warehouseId", warehouseId);
-            response.put("withdrawals", withdrawals.getContent());
+            response.put("withdrawals", withdrawalDTOs);  // ✅ Return DTOs instead of entities
             response.put("currentPage", withdrawals.getNumber());
             response.put("totalPages", withdrawals.getTotalPages());
             response.put("totalItems", withdrawals.getTotalElements());
