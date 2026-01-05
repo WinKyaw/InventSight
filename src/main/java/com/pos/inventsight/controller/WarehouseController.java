@@ -3,13 +3,19 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.WarehouseRequest;
 import com.pos.inventsight.dto.WarehouseResponse;
+import com.pos.inventsight.exception.ResourceNotFoundException;
+import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.UserRole;
 import com.pos.inventsight.model.sql.Warehouse;
+import com.pos.inventsight.repository.sql.ProductRepository;
+import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.service.WarehouseService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for warehouse management
@@ -32,11 +39,19 @@ import java.util.UUID;
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class WarehouseController {
 
+    private static final Logger logger = LoggerFactory.getLogger(WarehouseController.class);
+
     @Autowired
     private WarehouseService warehouseService;
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private WarehouseRepository warehouseRepository;
+    
+    @Autowired
+    private ProductRepository productRepository;
 
     /**
      * Create a new warehouse (GM+ only)
@@ -326,6 +341,72 @@ public class WarehouseController {
             System.err.println("❌ Error fetching warehouse stats: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Error fetching statistics: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Get products available for a specific warehouse
+     * These are products created from predefined items that are associated with this warehouse
+     * GET /api/warehouses/{warehouseId}/available-products
+     */
+    @GetMapping("/{warehouseId}/available-products")
+    public ResponseEntity<?> getWarehouseAvailableProducts(
+            @PathVariable UUID warehouseId,
+            Authentication authentication) {
+        try {
+            String username = authentication != null ? authentication.getName() : "unknown";
+            logger.info("📦 Getting available products for warehouse: {} (user: {})", warehouseId, username);
+            
+            // Verify warehouse exists
+            Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found with ID: " + warehouseId));
+            
+            // Get products associated with this warehouse
+            // These come from predefined_item_warehouses → predefined_items → products
+            List<Product> products = productRepository.findByWarehouseId(warehouseId);
+            
+            // Convert to response DTOs
+            List<Map<String, Object>> productList = products.stream()
+                .map(product -> {
+                    Map<String, Object> productMap = new HashMap<>();
+                    productMap.put("id", product.getId());
+                    productMap.put("name", product.getName());
+                    productMap.put("sku", product.getSku());
+                    productMap.put("description", product.getDescription());
+                    productMap.put("category", product.getCategory());
+                    productMap.put("unitType", product.getUnit());
+                    productMap.put("price", product.getRetailPrice());
+                    productMap.put("predefinedItemId", product.getPredefinedItem() != null ? 
+                                   product.getPredefinedItem().getId() : null);
+                    return productMap;
+                })
+                .collect(Collectors.toList());
+            
+            logger.info("✅ Found {} products available for warehouse {}", productList.size(), warehouseId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("warehouseId", warehouseId);
+            response.put("warehouseName", warehouse.getName());
+            response.put("products", productList);
+            response.put("count", productList.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (ResourceNotFoundException e) {
+            logger.error("❌ Warehouse not found: {}", warehouseId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()
+                ));
+        } catch (Exception e) {
+            logger.error("❌ Error fetching available products for warehouse {}: {}", warehouseId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "success", false,
+                    "error", "Error fetching available products: " + e.getMessage()
+                ));
         }
     }
 

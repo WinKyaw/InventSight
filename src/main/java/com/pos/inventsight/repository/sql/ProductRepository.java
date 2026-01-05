@@ -117,4 +117,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     // Find low stock products by company (quantity <= threshold)
     @Query("SELECT p FROM Product p WHERE p.quantity <= p.lowStockThreshold AND p.company = :company")
     List<Product> findLowStockProductsByCompany(@Param("company") Company company);
+    
+    /**
+     * Find all products associated with a specific warehouse
+     * These are products created from predefined items assigned to the warehouse
+     */
+    @Query("SELECT p FROM Product p WHERE p.warehouse.id = :warehouseId AND p.isActive = true ORDER BY p.name ASC")
+    List<Product> findByWarehouseId(@Param("warehouseId") UUID warehouseId);
 }
