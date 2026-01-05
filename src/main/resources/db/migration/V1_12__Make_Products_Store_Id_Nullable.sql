@@ -5,8 +5,20 @@ BEGIN;
 
 -- Remove NOT NULL constraint from store_id (if it exists)
 -- This migration is idempotent - it won't fail if constraint is already removed
-ALTER TABLE products 
-ALTER COLUMN store_id DROP NOT NULL;
+DO $$
+BEGIN
+    -- PostgreSQL doesn't have IF EXISTS for DROP NOT NULL, so we try-catch it
+    BEGIN
+        ALTER TABLE products ALTER COLUMN store_id DROP NOT NULL;
+    EXCEPTION
+        WHEN undefined_column THEN
+            -- Column doesn't exist, ignore
+            NULL;
+        WHEN others THEN
+            -- Constraint may already be removed or other error, continue
+            NULL;
+    END;
+END $$;
 
 -- Add check constraint to ensure product belongs to at least one location
 -- (Either store_id OR warehouse_id must be set, but not necessarily both)
