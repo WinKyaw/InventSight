@@ -23,6 +23,27 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findBySku(String sku);
     Optional<Product> findByBarcode(String barcode);
     
+    /**
+     * Find product by SKU within a specific store
+     * Since SKU is only unique per location, we need to specify which store
+     */
+    @Query("SELECT p FROM Product p WHERE p.sku = :sku AND p.store.id = :storeId AND p.isActive = true")
+    Optional<Product> findBySkuAndStoreId(@Param("sku") String sku, @Param("storeId") UUID storeId);
+
+    /**
+     * Find product by SKU within a specific warehouse
+     * Since SKU is only unique per location, we need to specify which warehouse
+     */
+    @Query("SELECT p FROM Product p WHERE p.sku = :sku AND p.warehouse.id = :warehouseId AND p.isActive = true")
+    Optional<Product> findBySkuAndWarehouseId(@Param("sku") String sku, @Param("warehouseId") UUID warehouseId);
+
+    /**
+     * Find all products with a specific SKU across all locations
+     * This can return multiple products (same SKU in different stores/warehouses)
+     */
+    @Query("SELECT p FROM Product p WHERE p.sku = :sku AND p.isActive = true ORDER BY p.createdAt DESC")
+    List<Product> findAllBySku(@Param("sku") String sku);
+    
     // Multi-tenant aware queries
     Optional<Product> findBySkuAndStore(String sku, Store store);
     Optional<Product> findByBarcodeAndStore(String barcode, Store store);
