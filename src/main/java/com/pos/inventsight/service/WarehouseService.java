@@ -4,8 +4,12 @@ import com.pos.inventsight.dto.WarehouseRequest;
 import com.pos.inventsight.dto.WarehouseResponse;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import com.pos.inventsight.exception.ResourceNotFoundException;
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Warehouse;
+import com.pos.inventsight.repository.sql.CompanyRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,12 @@ public class WarehouseService {
     @Autowired
     private ActivityLogService activityLogService;
 
+    @Autowired
+    private CompanyRepository companyRepository;
+
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+
     /**
      * Create a new warehouse
      */
@@ -49,6 +59,42 @@ public class WarehouseService {
         System.out.println("🏢 WarehouseService: Creating warehouse");
         System.out.println("   Name: " + request.getName());
         System.out.println("   Location: " + request.getLocation());
+        System.out.println("   User: " + username);
+        
+        // ✅ NEW: Get company from tenant context
+        String tenantId = TenantContext.getCurrentTenant();
+        System.out.println("   Current Tenant: " + tenantId);
+        
+        Company company = null;
+        if (tenantId != null && tenantId.startsWith("company_")) {
+            // Extract company UUID from tenant context (format: company_<uuid_with_underscores>)
+            try {
+                String uuidPart = tenantId.substring("company_".length());
+                String uuidString = uuidPart.replace("_", "-");
+                UUID companyId = UUID.fromString(uuidString);
+                
+                // Fetch the company
+                company = companyRepository.findById(companyId).orElse(null);
+                
+                if (company != null) {
+                    System.out.println("✅ Warehouse will be assigned to company: " + company.getName() + " (ID: " + companyId + ")");
+                } else {
+                    System.err.println("⚠️ Company not found in tenant context: " + companyId);
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Failed to extract company from tenant context: " + e.getMessage());
+            }
+        }
+        
+        // Fallback: get company from user's active membership if not found from tenant context
+        if (company == null) {
+            System.out.println("⚠️ No valid tenant context, using user's active company");
+            company = getUserActiveCompany(user);
+        }
+        
+        if (company == null) {
+            throw new IllegalStateException("Cannot create warehouse: No company context available. User must belong to an active company.");
+        }
 
         // Check if warehouse with same name already exists
         if (warehouseRepository.existsByNameIgnoreCaseAndIsActiveTrue(request.getName())) {
@@ -73,10 +119,14 @@ public class WarehouseService {
         warehouse.setCapacityCubicMeters(request.getCapacityCubicMeters());
         warehouse.setIsActive(request.getIsActive());
         warehouse.setCreatedBy(username);
+        
+        // ✅ NEW: Set company
+        warehouse.setCompany(company);
 
         warehouse = warehouseRepository.save(warehouse);
         
         System.out.println("✅ Warehouse saved with ID: " + warehouse.getId());
+        System.out.println("✅ Assigned to company: " + company.getName() + " (ID: " + company.getId() + ")");
 
         // Log activity
         activityLogService.logActivity(
@@ -84,7 +134,7 @@ public class WarehouseService {
             username,
             "warehouse_created", 
             "warehouse",
-            "Warehouse '" + warehouse.getName() + "' created"
+            "Warehouse '" + warehouse.getName() + "' created for company '" + company.getName() + "'"
         );
 
         return new WarehouseResponse(warehouse);
@@ -243,5 +293,21 @@ public class WarehouseService {
         if (!warehouseRepository.existsById(warehouseId)) {
             throw new ResourceNotFoundException("Warehouse not found with ID: " + warehouseId);
         }
+    }
+
+    /**
+     * Get user's active company (first active membership)
+     * Helper method for warehouse creation
+     */
+    private Company getUserActiveCompany(User user) {
+        List<CompanyStoreUser> memberships = companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+        
+        if (memberships.isEmpty()) {
+            throw new IllegalStateException("User has no active company membership");
+        }
+        
+        Company company = memberships.get(0).getCompany();
+        System.out.println("✅ Using company from user membership: " + company.getName() + " (ID: " + company.getId() + ")");
+        return company;
     }
 }
