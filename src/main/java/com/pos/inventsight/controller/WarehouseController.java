@@ -355,7 +355,7 @@ public class WarehouseController {
             @PathVariable UUID warehouseId,
             Authentication authentication) {
         try {
-            String username = authentication != null ? authentication.getName() : "unknown";
+            String username = authentication.getName();
             logger.info("📦 Getting available products for warehouse: {} (user: {})", warehouseId, username);
             
             // Verify warehouse exists
