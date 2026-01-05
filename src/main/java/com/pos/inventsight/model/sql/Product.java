@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.hibernate.annotations.GenericGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,6 +19,8 @@ import java.util.UUID;
 @Table(name = "products")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Product {
+    
+    private static final Logger logger = LoggerFactory.getLogger(Product.class);
     
     @Id
     @GeneratedValue(generator = "UUID")
@@ -33,7 +37,7 @@ public class Product {
     
     @NotBlank
     @Size(max = 50)
-    @Column(unique = true)
+    @Column(name = "sku")
     private String sku;
     
     // Reference to predefined item SKU
@@ -331,6 +335,18 @@ public class Product {
     public void validateLocation() {
         if (store == null && warehouse == null) {
             throw new IllegalStateException("Product must belong to either a store or a warehouse");
+        }
+        
+        // Optional: Add application-level logging for debugging SKU uniqueness
+        // Validation is primarily handled by database constraints:
+        // - idx_products_sku_store_unique: Ensures SKU unique per store
+        // - idx_products_sku_warehouse_unique: Ensures SKU unique per warehouse
+        if (sku != null && sku.length() > 0) {
+            if (store != null) {
+                logger.debug("Product SKU {} will be unique within store {}", sku, store.getId());
+            } else if (warehouse != null) {
+                logger.debug("Product SKU {} will be unique within warehouse {}", sku, warehouse.getId());
+            }
         }
     }
 }
