@@ -137,20 +137,10 @@ public class StoreInventoryController {
      * Helper method to check if user has GM+ role
      */
     private boolean isGMPlusRole(User user) {
-        if (user.getCompanyStoreUserRoles() == null || user.getCompanyStoreUserRoles().isEmpty()) {
-            return false;
-        }
-        
-        for (CompanyStoreUserRole role : user.getCompanyStoreUserRoles()) {
-            CompanyRole companyRole = role.getRole();
-            if (companyRole == CompanyRole.FOUNDER || 
-                companyRole == CompanyRole.CEO || 
-                companyRole == CompanyRole.GENERAL_MANAGER ||
-                companyRole == CompanyRole.ADMIN) {
-                return true;
-            }
-        }
-        
-        return false;
+        // Get user's highest company role
+        CompanyRole role = storeInventoryService.getUserCompanyRole(user);
+        return role == CompanyRole.FOUNDER || 
+               role == CompanyRole.CEO || 
+               role == CompanyRole.GENERAL_MANAGER;
     }
 }

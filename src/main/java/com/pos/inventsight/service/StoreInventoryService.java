@@ -4,6 +4,7 @@ import com.pos.inventsight.dto.StoreInventoryAdditionRequest;
 import com.pos.inventsight.dto.StoreInventoryAdditionResponse;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.StoreInventoryAdditionRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -38,6 +40,9 @@ public class StoreInventoryService {
 
     @Autowired
     private ActivityLogService activityLogService;
+
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
 
     /**
      * Add inventory to store (restock)
@@ -128,16 +133,38 @@ public class StoreInventoryService {
     }
 
     /**
-     * Helper method to get user's company role
+     * Get user's company role - returns highest role in company hierarchy
      */
-    private CompanyRole getUserCompanyRole(User user) {
-        // Check if user has a company store user role
-        if (user.getCompanyStoreUserRoles() != null && !user.getCompanyStoreUserRoles().isEmpty()) {
-            CompanyStoreUserRole role = user.getCompanyStoreUserRoles().iterator().next();
-            return role.getRole();
+    public CompanyRole getUserCompanyRole(User user) {
+        // Get user's active company memberships
+        List<CompanyStoreUser> memberships = companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+        if (memberships.isEmpty()) {
+            return CompanyRole.EMPLOYEE; // Default to lowest privilege
         }
         
-        // Default to EMPLOYEE if no role found
-        return CompanyRole.EMPLOYEE;
+        // Return the highest role based on hierarchy
+        CompanyRole highestRole = CompanyRole.EMPLOYEE;
+        for (CompanyStoreUser membership : memberships) {
+            CompanyRole role = membership.getRole();
+            
+            // Check in order of hierarchy (highest to lowest)
+            if (role == CompanyRole.FOUNDER) {
+                return CompanyRole.FOUNDER; // Highest possible, return immediately
+            }
+            if (role == CompanyRole.CEO && highestRole != CompanyRole.FOUNDER) {
+                highestRole = CompanyRole.CEO;
+            }
+            if (role == CompanyRole.GENERAL_MANAGER && 
+                highestRole != CompanyRole.FOUNDER &&
+                highestRole != CompanyRole.CEO) {
+                highestRole = CompanyRole.GENERAL_MANAGER;
+            }
+            if (role == CompanyRole.STORE_MANAGER &&
+                highestRole == CompanyRole.EMPLOYEE) {
+                highestRole = CompanyRole.STORE_MANAGER;
+            }
+        }
+        
+        return highestRole;
     }
 }
