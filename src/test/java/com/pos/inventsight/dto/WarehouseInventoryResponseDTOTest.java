@@ -76,8 +76,6 @@ class WarehouseInventoryResponseDTOTest {
         assertEquals("RECEIPT", response.getTransactionType(), "Transaction type should be converted to string");
         assertEquals("COMPLETED", response.getStatus(), "Status should be converted to string");
         assertEquals("test.user@example.com", response.getCreatedBy(), "Created by should be preserved");
-        
-        System.out.println("✅ WarehouseInventoryAdditionResponse correctly flattens product and warehouse info");
     }
 
     @Test
@@ -102,8 +100,6 @@ class WarehouseInventoryResponseDTOTest {
         assertNull(response.getProductId(), "Product ID should be null");
         assertEquals("Unknown Product", response.getProductName(), "Product name should be 'Unknown Product'");
         assertNull(response.getProductSku(), "Product SKU should be null");
-        
-        System.out.println("✅ WarehouseInventoryAdditionResponse handles null product gracefully");
     }
 
     @Test
@@ -162,8 +158,6 @@ class WarehouseInventoryResponseDTOTest {
         assertEquals("ISSUE", response.getTransactionType(), "Transaction type should be converted to string");
         assertEquals("COMPLETED", response.getStatus(), "Status should be converted to string");
         assertEquals("admin@example.com", response.getCreatedBy(), "Created by should be preserved");
-        
-        System.out.println("✅ WarehouseInventoryWithdrawalResponse correctly flattens product and warehouse info");
     }
 
     @Test
@@ -188,7 +182,5 @@ class WarehouseInventoryResponseDTOTest {
         assertNull(response.getProductId(), "Product ID should be null");
         assertEquals("Unknown Product", response.getProductName(), "Product name should be 'Unknown Product'");
         assertNull(response.getProductSku(), "Product SKU should be null");
-        
-        System.out.println("✅ WarehouseInventoryWithdrawalResponse handles null product gracefully");
     }
 }
