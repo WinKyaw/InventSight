@@ -321,4 +321,16 @@ public class Product {
                .divide(costPrice, 4, BigDecimal.ROUND_HALF_UP)
                .multiply(new BigDecimal(100));
     }
+    
+    /**
+     * Validate that product belongs to at least one location (store or warehouse)
+     * This is called before persisting or updating the entity
+     */
+    @PrePersist
+    @PreUpdate
+    public void validateLocation() {
+        if (store == null && warehouse == null) {
+            throw new IllegalStateException("Product must belong to either a store or a warehouse");
+        }
+    }
 }
