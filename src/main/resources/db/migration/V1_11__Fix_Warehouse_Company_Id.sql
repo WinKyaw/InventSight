@@ -1,10 +1,11 @@
 -- Fix existing warehouses with NULL company_id
 -- This assigns them to the first active company (assuming single-company setup during development)
 
--- Get the first active company ID
+-- Get the first active company ID and update warehouses
 DO $$
 DECLARE
     first_company_id UUID;
+    updated_count INTEGER;
 BEGIN
     -- Get first active company
     SELECT id INTO first_company_id 
@@ -20,8 +21,10 @@ BEGIN
             updated_at = CURRENT_TIMESTAMP
         WHERE company_id IS NULL;
         
+        GET DIAGNOSTICS updated_count = ROW_COUNT;
+        
         RAISE NOTICE 'Updated % warehouses with company_id: %', 
-            (SELECT COUNT(*) FROM warehouses WHERE company_id = first_company_id),
+            updated_count,
             first_company_id;
     ELSE
         RAISE NOTICE 'No active companies found - warehouses not updated';

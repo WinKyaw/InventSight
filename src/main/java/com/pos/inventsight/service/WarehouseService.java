@@ -74,23 +74,26 @@ public class WarehouseService {
                 UUID companyId = UUID.fromString(uuidString);
                 
                 // Fetch the company
-                company = companyRepository.findById(companyId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Company not found: " + companyId));
+                company = companyRepository.findById(companyId).orElse(null);
                 
-                System.out.println("✅ Warehouse will be assigned to company: " + company.getName() + " (ID: " + companyId + ")");
+                if (company != null) {
+                    System.out.println("✅ Warehouse will be assigned to company: " + company.getName() + " (ID: " + companyId + ")");
+                } else {
+                    System.err.println("⚠️ Company not found in tenant context: " + companyId);
+                }
             } catch (Exception e) {
                 System.err.println("⚠️ Failed to extract company from tenant context: " + e.getMessage());
-                // Fallback: try to get from user's active company membership
-                company = getUserActiveCompany(user);
             }
-        } else {
-            // Fallback: get company from user's active membership
-            System.out.println("⚠️ No tenant context available, using user's active company");
+        }
+        
+        // Fallback: get company from user's active membership if not found from tenant context
+        if (company == null) {
+            System.out.println("⚠️ No valid tenant context, using user's active company");
             company = getUserActiveCompany(user);
         }
         
         if (company == null) {
-            throw new IllegalStateException("Cannot create warehouse: No company context found. User must belong to a company.");
+            throw new IllegalStateException("Cannot create warehouse: No company context available. User must belong to an active company.");
         }
 
         // Check if warehouse with same name already exists

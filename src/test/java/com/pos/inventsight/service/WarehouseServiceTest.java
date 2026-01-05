@@ -232,12 +232,13 @@ class WarehouseServiceTest {
         
         when(userService.getUserByUsername("testuser")).thenReturn(testUser);
         when(companyRepository.findById(testCompany.getId())).thenReturn(Optional.empty());
+        // Also ensure fallback to user membership fails
         when(companyStoreUserRepository.findByUserAndIsActiveTrue(testUser))
             .thenReturn(Collections.emptyList());
         when(warehouseRepository.existsByNameIgnoreCaseAndIsActiveTrue("New Warehouse")).thenReturn(false);
         
         // Act & Assert
-        assertThrows(Exception.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
             warehouseService.createWarehouse(warehouseRequest, authentication);
         });
         
