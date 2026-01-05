@@ -136,7 +136,7 @@ public interface StoreInventoryAdditionRepository extends JpaRepository<StoreInv
      * Get total quantity added for a product in a store
      */
     @Query("SELECT SUM(sia.quantity) FROM StoreInventoryAddition sia WHERE sia.store.id = :storeId AND " +
-           "sia.product.id = :productId AND sia.status = 'COMPLETED'")
+           "sia.product.id = :productId AND sia.status = com.pos.inventsight.model.sql.StoreInventoryAddition$TransactionStatus.COMPLETED")
     Long getTotalQuantityAddedByStoreAndProduct(@Param("storeId") UUID storeId, 
                                                  @Param("productId") UUID productId);
 
@@ -144,14 +144,14 @@ public interface StoreInventoryAdditionRepository extends JpaRepository<StoreInv
      * Get total value of additions for a store
      */
     @Query("SELECT SUM(sia.totalCost) FROM StoreInventoryAddition sia WHERE sia.store.id = :storeId AND " +
-           "sia.status = 'COMPLETED'")
+           "sia.status = com.pos.inventsight.model.sql.StoreInventoryAddition$TransactionStatus.COMPLETED")
     Double getTotalAdditionValueByStore(@Param("storeId") UUID storeId);
 
     /**
      * Get total value of additions for a date range
      */
     @Query("SELECT SUM(sia.totalCost) FROM StoreInventoryAddition sia WHERE " +
-           "sia.receiptDate BETWEEN :startDate AND :endDate AND sia.status = 'COMPLETED'")
+           "sia.receiptDate BETWEEN :startDate AND :endDate AND sia.status = com.pos.inventsight.model.sql.StoreInventoryAddition$TransactionStatus.COMPLETED")
     Double getTotalAdditionValueByDateRange(@Param("startDate") LocalDate startDate, 
                                              @Param("endDate") LocalDate endDate);
 

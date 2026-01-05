@@ -113,7 +113,7 @@ public class StoreInventoryService {
     }
 
     /**
-     * Get addition history for a store with pagination
+     * Get addition history for a store with pagination and filtering
      */
     public Page<StoreInventoryAddition> getAdditions(
             UUID storeId,
@@ -128,7 +128,9 @@ public class StoreInventoryService {
             return additionRepository.findByStoreIdAndCreatedBy(storeId, filterByUsername, pageable);
         }
         
-        // Otherwise return all additions for the store
+        // TODO: Add support for date range and transaction type filtering
+        // For now, return all additions for the store
+        // Future enhancement: Create custom query methods or use Specifications for complex filtering
         return additionRepository.findByStoreId(storeId, pageable);
     }
 
