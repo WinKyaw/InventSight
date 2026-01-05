@@ -350,6 +350,7 @@ public class WarehouseController {
      * GET /api/warehouses/{warehouseId}/available-products
      */
     @GetMapping("/{warehouseId}/available-products")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getWarehouseAvailableProducts(
             @PathVariable UUID warehouseId,
             Authentication authentication) {

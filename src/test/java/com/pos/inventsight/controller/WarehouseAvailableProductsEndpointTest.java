@@ -64,4 +64,20 @@ public class WarehouseAvailableProductsEndpointTest {
         assertEquals(UUID.class, paramTypes[0], "First parameter should be UUID");
         assertEquals(Authentication.class, paramTypes[1], "Second parameter should be Authentication");
     }
+
+    /**
+     * Test that the endpoint requires authentication
+     */
+    @Test
+    public void testGetWarehouseAvailableProducts_RequiresAuthentication() throws NoSuchMethodException {
+        Method method = WarehouseController.class.getMethod("getWarehouseAvailableProducts",
+                UUID.class, Authentication.class);
+        
+        org.springframework.security.access.prepost.PreAuthorize preAuthorize = 
+            method.getAnnotation(org.springframework.security.access.prepost.PreAuthorize.class);
+        
+        assertNotNull(preAuthorize, "Endpoint should have @PreAuthorize annotation");
+        assertEquals("isAuthenticated()", preAuthorize.value(), 
+            "Endpoint should require authentication");
+    }
 }
