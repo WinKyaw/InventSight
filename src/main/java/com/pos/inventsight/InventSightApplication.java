@@ -68,11 +68,13 @@ public class InventSightApplication {
 			}
 		});
 		
-		// Log warehouse endpoints
+		// Log warehouse endpoints (excluding store-warehouse)
 		logger.info("🏭 Warehouse Endpoints:");
 		map.forEach((info, method) -> {
 			Set<String> patterns = info.getPatternValues();
-			if (patterns.stream().anyMatch(p -> p.contains("warehouse") && !p.contains("store"))) {
+			boolean isWarehouse = patterns.stream().anyMatch(p -> p.contains("warehouse"));
+			boolean isNotStore = patterns.stream().noneMatch(p -> p.contains("store"));
+			if (isWarehouse && isNotStore) {
 				logger.info("  {} -> {}.{}()", 
 					info, 
 					method.getBeanType().getSimpleName(), 

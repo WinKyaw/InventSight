@@ -69,10 +69,8 @@ public class StoreInventoryController {
     @PreAuthorize(RoleConstants.CAN_MODIFY_INVENTORY)
     public ResponseEntity<?> addInventory(@Valid @RequestBody StoreInventoryAdditionRequest request,
                                          Authentication authentication) {
-        logger.info("📦 [StoreInventoryController] Add inventory request received");
-        logger.info("   Store ID: {}", request.getStoreId());
-        logger.info("   Product ID: {}", request.getProductId());
-        logger.info("   Quantity: {}", request.getQuantity());
+        logger.info("📦 [StoreInventoryController] Add inventory request received - Store ID: {}, Product ID: {}, Quantity: {}", 
+            request.getStoreId(), request.getProductId(), request.getQuantity());
         
         try {
             StoreInventoryAdditionResponse response = storeInventoryService.addInventory(request, authentication);
