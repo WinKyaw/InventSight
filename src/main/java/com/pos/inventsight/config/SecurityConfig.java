@@ -7,7 +7,6 @@ import com.pos.inventsight.repository.sql.CompanyRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.tenant.CompanyTenantFilter;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,15 +29,10 @@ import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
-import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Security Configuration for InventSight
@@ -108,40 +102,6 @@ public class SecurityConfig {
     
     @Value("${inventsight.security.offline-mode.enabled:false}")
     private boolean offlineModeEnabled;
-    
-    @Autowired(required = false)
-    private RequestMappingHandlerMapping requestMappingHandlerMapping;
-    
-    /**
-     * Log registered endpoints on startup
-     */
-    @PostConstruct
-    public void logEndpoints() {
-        if (requestMappingHandlerMapping == null) {
-            logger.warn("RequestMappingHandlerMapping not available for endpoint logging");
-            return;
-        }
-        
-        logger.info("=".repeat(80));
-        logger.info("📋 REGISTERED REQUEST MAPPINGS");
-        logger.info("=".repeat(80));
-        
-        Map<RequestMappingInfo, HandlerMethod> map = 
-            requestMappingHandlerMapping.getHandlerMethods();
-        
-        // Filter for store-inventory endpoints
-        map.forEach((info, method) -> {
-            Set<String> patterns = info.getPatternValues();
-            if (patterns.stream().anyMatch(p -> p.contains("store-inventory"))) {
-                logger.info("  {} -> {}.{}()", 
-                    info, 
-                    method.getBeanType().getSimpleName(), 
-                    method.getMethod().getName());
-            }
-        });
-        
-        logger.info("=".repeat(80));
-    }
     
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
