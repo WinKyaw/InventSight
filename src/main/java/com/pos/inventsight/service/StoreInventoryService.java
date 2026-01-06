@@ -146,11 +146,15 @@ public class StoreInventoryService {
         
         // Process each item
         for (StoreInventoryBatchAddRequest.BatchItem item : request.getItems()) {
+            String productName = "Unknown";
             try {
                 // Get product
                 Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                         "Product not found with ID: " + item.getProductId()));
+                
+                // Extract product name early for error reporting
+                productName = product.getName();
                 
                 // Verify product belongs to store
                 if (product.getStore() == null || !product.getStore().getId().equals(store.getId())) {
@@ -198,13 +202,7 @@ public class StoreInventoryService {
                 logger.error("❌ Failed to add product {}: {}", 
                     item.getProductId(), e.getMessage());
                 
-                // Add to errors
-                String productName = "Unknown";
-                try {
-                    Product p = productRepository.findById(item.getProductId()).orElse(null);
-                    if (p != null) productName = p.getName();
-                } catch (Exception ignored) {}
-                
+                // Add to errors (productName extracted earlier to avoid extra DB call)
                 response.getErrors().add(new StoreInventoryBatchAddResponse.BatchError(
                     item.getProductId().toString(),
                     productName,
