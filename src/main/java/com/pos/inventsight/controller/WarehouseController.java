@@ -370,9 +370,11 @@ public class WarehouseController {
                 products.size(), warehouse.getName(), warehouseId);
             
             // Log each product for debugging
-            products.forEach(p -> 
-                logger.debug("  - Product: {} (SKU: {}, ID: {})", p.getName(), p.getSku(), p.getId())
-            );
+            if (logger.isDebugEnabled()) {
+                products.forEach(p -> 
+                    logger.debug("  - Product: {} (SKU: {}, ID: {})", p.getName(), p.getSku(), p.getId())
+                );
+            }
             
             // Convert to response DTOs
             List<Map<String, Object>> productList = products.stream()
