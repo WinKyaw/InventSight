@@ -366,6 +366,14 @@ public class WarehouseController {
             // These come from predefined_item_warehouses → predefined_items → products
             List<Product> products = productRepository.findByWarehouseId(warehouseId);
             
+            logger.info("✅ Found {} products for warehouse {} ({})", 
+                products.size(), warehouse.getName(), warehouseId);
+            
+            // Log each product for debugging
+            products.forEach(p -> 
+                logger.debug("  - Product: {} (SKU: {}, ID: {})", p.getName(), p.getSku(), p.getId())
+            );
+            
             // Convert to response DTOs
             List<Map<String, Object>> productList = products.stream()
                 .map(product -> {
@@ -377,13 +385,12 @@ public class WarehouseController {
                     productMap.put("category", product.getCategory());
                     productMap.put("unitType", product.getUnit());
                     productMap.put("price", product.getRetailPrice());
+                    productMap.put("warehouseId", warehouseId); // ✅ Include warehouse ID
                     productMap.put("predefinedItemId", product.getPredefinedItem() != null ? 
                                    product.getPredefinedItem().getId() : null);
                     return productMap;
                 })
                 .collect(Collectors.toList());
-            
-            logger.info("✅ Found {} products available for warehouse {}", productList.size(), warehouseId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
