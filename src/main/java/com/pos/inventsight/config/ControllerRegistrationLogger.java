@@ -68,6 +68,18 @@ public class ControllerRegistrationLogger implements ApplicationListener<Context
             }
         });
         
+        // Log store-inventory endpoints
+        logger.info("");
+        logger.info("--- Store Inventory Endpoints ---");
+        handlerMethods.forEach((mapping, method) -> {
+            if (mapping.toString().contains("/api/store-inventory")) {
+                logger.info("✓ {} -> {}.{}", 
+                    mapping, 
+                    method.getBeanType().getSimpleName(), 
+                    method.getMethod().getName());
+            }
+        });
+        
         // Log sales-related endpoints
         logger.info("");
         logger.info("--- Sales Endpoints ---");
@@ -87,7 +99,8 @@ public class ControllerRegistrationLogger implements ApplicationListener<Context
             String mappingStr = mapping.toString();
             if (mappingStr.contains("/api/") && 
                 !mappingStr.contains("/api/warehouses") && 
-                !mappingStr.contains("/api/warehouse-inventory")) {
+                !mappingStr.contains("/api/warehouse-inventory") &&
+                !mappingStr.contains("/api/store-inventory")) {
                 logger.info("✓ {} -> {}.{}", 
                     mapping, 
                     method.getBeanType().getSimpleName(), 

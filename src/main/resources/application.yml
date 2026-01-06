@@ -7,6 +7,14 @@ spring:
   application:
     name: inventsight-backend
     
+  # Web/MVC Configuration
+  web:
+    resources:
+      static-locations: classpath:/static/
+      add-mappings: true
+  mvc:
+    static-path-pattern: /static/**
+    
   # PostgreSQL Configuration (Core Business Data)
   datasource:
     url: jdbc:postgresql://localhost:5432/inventsight_db

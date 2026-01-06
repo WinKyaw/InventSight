@@ -11,6 +11,7 @@ import com.pos.inventsight.model.sql.StoreInventoryAddition;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.StoreInventoryService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,21 @@ public class StoreInventoryController {
     private StoreInventoryService storeInventoryService;
 
     /**
+     * Log controller initialization
+     */
+    @PostConstruct
+    public void init() {
+        logger.info("=".repeat(80));
+        logger.info("✅ StoreInventoryController initialized and registered");
+        logger.info("📍 Base URL: /api/store-inventory");
+        logger.info("📍 Endpoints registered:");
+        logger.info("   - POST   /api/store-inventory/add                (addInventory)");
+        logger.info("   - POST   /api/store-inventory/add-batch          (addInventoryBatch)");
+        logger.info("   - GET    /api/store-inventory/store/{storeId}/additions (getAdditions)");
+        logger.info("=".repeat(80));
+    }
+
+    /**
      * Add inventory to store (restock)
      * POST /api/store-inventory/add
      */
@@ -53,6 +69,8 @@ public class StoreInventoryController {
     @PreAuthorize(RoleConstants.CAN_MODIFY_INVENTORY)
     public ResponseEntity<?> addInventory(@Valid @RequestBody StoreInventoryAdditionRequest request,
                                          Authentication authentication) {
+        logger.info("📦 Add inventory request received for store: {}", request.getStoreId());
+        
         try {
             StoreInventoryAdditionResponse response = storeInventoryService.addInventory(request, authentication);
             
@@ -61,14 +79,16 @@ public class StoreInventoryController {
             result.put("message", "Inventory added successfully");
             result.put("addition", response);
             
+            logger.info("✅ Inventory added successfully for product: {}", request.getProductId());
+            
             return ResponseEntity.ok(result);
             
         } catch (IllegalArgumentException e) {
-            logger.error("Invalid request for adding inventory: {}", e.getMessage());
+            logger.error("❌ Invalid request for adding inventory: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(new ApiResponse(false, e.getMessage()));
         } catch (Exception e) {
-            logger.error("Error adding inventory: {}", e.getMessage(), e);
+            logger.error("❌ Error adding inventory: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Error adding inventory: " + e.getMessage()));
         }
