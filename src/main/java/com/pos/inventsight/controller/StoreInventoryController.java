@@ -57,7 +57,7 @@ public class StoreInventoryController {
         logger.info("📍 Endpoints registered:");
         logger.info("   - POST   /api/store-inventory/add                (addInventory)");
         logger.info("   - POST   /api/store-inventory/add-batch          (addInventoryBatch)");
-        logger.info("   - GET    /api/store-inventory/store/{id}/additions (getAdditions)");
+        logger.info("   - GET    /api/store-inventory/store/{storeId}/additions (getAdditions)");
         logger.info("=".repeat(80));
     }
 
