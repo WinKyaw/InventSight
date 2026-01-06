@@ -47,17 +47,17 @@ public class StoreInventoryController {
     private StoreInventoryService storeInventoryService;
 
     /**
-     * Log controller initialization
+     * Log controller initialization to verify it's being registered
      */
     @PostConstruct
     public void init() {
         logger.info("=".repeat(80));
-        logger.info("✅ StoreInventoryController initialized and registered");
+        logger.info("✅ StoreInventoryController INITIALIZED and REGISTERED");
         logger.info("📍 Base URL: /api/store-inventory");
-        logger.info("📍 Endpoints registered:");
+        logger.info("📍 Registered endpoints:");
         logger.info("   - POST   /api/store-inventory/add                (addInventory)");
         logger.info("   - POST   /api/store-inventory/add-batch          (addInventoryBatch)");
-        logger.info("   - GET    /api/store-inventory/store/{storeId}/additions (getAdditions)");
+        logger.info("   - GET    /api/store-inventory/store/{id}/additions (getAdditions)");
         logger.info("=".repeat(80));
     }
 
@@ -69,7 +69,8 @@ public class StoreInventoryController {
     @PreAuthorize(RoleConstants.CAN_MODIFY_INVENTORY)
     public ResponseEntity<?> addInventory(@Valid @RequestBody StoreInventoryAdditionRequest request,
                                          Authentication authentication) {
-        logger.info("📦 Add inventory request received for store: {}", request.getStoreId());
+        logger.info("📦 [StoreInventoryController] Add inventory request received - Store ID: {}, Product ID: {}, Quantity: {}", 
+            request.getStoreId(), request.getProductId(), request.getQuantity());
         
         try {
             StoreInventoryAdditionResponse response = storeInventoryService.addInventory(request, authentication);
@@ -79,7 +80,7 @@ public class StoreInventoryController {
             result.put("message", "Inventory added successfully");
             result.put("addition", response);
             
-            logger.info("✅ Inventory added successfully for product: {}", request.getProductId());
+            logger.info("✅ Inventory added successfully");
             
             return ResponseEntity.ok(result);
             
