@@ -14,6 +14,7 @@ spring:
       add-mappings: true
   mvc:
     static-path-pattern: /static/**
+    throw-exception-if-no-handler-found: true
     
   # PostgreSQL Configuration (Core Business Data)
   datasource:
@@ -257,6 +258,8 @@ logging:
     com.inventsight: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG
+    com.pos.inventsight.controller.StoreInventoryController: DEBUG
   file:
     name: logs/inventsight.log
     
