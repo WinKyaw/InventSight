@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  * REST Controller for store inventory management
  */
 @RestController
-@RequestMapping("/api/store-inventory")
+@RequestMapping("/store-inventory")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class StoreInventoryController {
 
