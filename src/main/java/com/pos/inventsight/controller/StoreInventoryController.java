@@ -3,6 +3,8 @@ package com.pos.inventsight.controller;
 import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.StoreInventoryAdditionRequest;
 import com.pos.inventsight.dto.StoreInventoryAdditionResponse;
+import com.pos.inventsight.dto.StoreInventoryBatchAddRequest;
+import com.pos.inventsight.dto.StoreInventoryBatchAddResponse;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUserRole;
 import com.pos.inventsight.model.sql.StoreInventoryAddition;
@@ -130,6 +132,56 @@ public class StoreInventoryController {
                     "success", false,
                     "error", e.getMessage()
                 ));
+        }
+    }
+
+    /**
+     * Add multiple items to store inventory (batch restock)
+     * POST /api/store-inventory/add-batch
+     */
+    @PostMapping("/add-batch")
+    @PreAuthorize(RoleConstants.CAN_MODIFY_INVENTORY)
+    public ResponseEntity<?> addInventoryBatch(
+            @Valid @RequestBody StoreInventoryBatchAddRequest request,
+            Authentication authentication) {
+        try {
+            logger.info("📦 Batch restock request for {} items in store: {}", 
+                request.getItems().size(), request.getStoreId());
+            
+            StoreInventoryBatchAddResponse response = 
+                storeInventoryService.addInventoryBatch(request, authentication);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getFailedItems() == 0);
+            result.put("message", String.format(
+                "Batch restock completed: %d successful, %d failed out of %d total",
+                response.getSuccessfulItems(),
+                response.getFailedItems(),
+                response.getTotalItems()
+            ));
+            result.put("data", response);
+            
+            // Return 207 Multi-Status if there are partial failures
+            if (response.getFailedItems() > 0 && response.getSuccessfulItems() > 0) {
+                return ResponseEntity.status(HttpStatus.MULTI_STATUS).body(result);
+            }
+            
+            // Return 200 if all successful
+            if (response.getFailedItems() == 0) {
+                return ResponseEntity.ok(result);
+            }
+            
+            // Return 400 if all failed
+            return ResponseEntity.badRequest().body(result);
+            
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid batch restock request: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error in batch restock: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error in batch restock: " + e.getMessage()));
         }
     }
 

@@ -2,6 +2,8 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.dto.StoreInventoryAdditionRequest;
 import com.pos.inventsight.dto.StoreInventoryAdditionResponse;
+import com.pos.inventsight.dto.StoreInventoryBatchAddRequest;
+import com.pos.inventsight.dto.StoreInventoryBatchAddResponse;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
@@ -110,6 +112,115 @@ public class StoreInventoryService {
             request.getQuantity(), product.getName(), store.getStoreName());
 
         return new StoreInventoryAdditionResponse(addition);
+    }
+
+    /**
+     * Add multiple items to store inventory in a single transaction (batch restock)
+     */
+    @Transactional
+    public StoreInventoryBatchAddResponse addInventoryBatch(
+            StoreInventoryBatchAddRequest request, 
+            Authentication authentication) {
+        
+        if (authentication == null) {
+            throw new IllegalArgumentException("Authentication is required");
+        }
+
+        String username = authentication.getName();
+        User user = (User) authentication.getPrincipal();
+        CompanyRole userRole = getUserCompanyRole(user);
+        
+        logger.info("📦 Batch restocking {} items for store: {}", 
+            request.getItems().size(), request.getStoreId());
+        
+        // Verify store exists
+        Store store = storeRepository.findById(request.getStoreId())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Store not found with ID: " + request.getStoreId()));
+        
+        StoreInventoryBatchAddResponse response = new StoreInventoryBatchAddResponse();
+        response.setTotalItems(request.getItems().size());
+        
+        int successCount = 0;
+        int failCount = 0;
+        
+        // Process each item
+        for (StoreInventoryBatchAddRequest.BatchItem item : request.getItems()) {
+            try {
+                // Get product
+                Product product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                        "Product not found with ID: " + item.getProductId()));
+                
+                // Verify product belongs to store
+                if (product.getStore() == null || !product.getStore().getId().equals(store.getId())) {
+                    throw new IllegalArgumentException(
+                        "Product does not belong to the specified store");
+                }
+                
+                // Determine notes (item-specific overrides global)
+                String notes = item.getNotes() != null ? 
+                    item.getNotes() : request.getGlobalNotes();
+                
+                // Create addition record
+                StoreInventoryAddition addition = new StoreInventoryAddition(
+                    store, product, item.getQuantity());
+                addition.setNotes(notes);
+                addition.setTransactionType(StoreInventoryAddition.TransactionType.RESTOCK);
+                addition.setCreatedBy(username);
+                
+                addition = additionRepository.save(addition);
+                
+                // Update product quantity
+                Integer currentQuantity = product.getQuantity() != null ? 
+                    product.getQuantity() : 0;
+                product.setQuantity(currentQuantity + item.getQuantity());
+                productRepository.save(product);
+                
+                // Log activity
+                activityLogService.logActivity(
+                    username,
+                    username,
+                    "store_inventory_batch_add",
+                    "store_inventory_addition",
+                    String.format("Added %d units of %s to store %s (batch operation)",
+                        item.getQuantity(), product.getName(), store.getStoreName())
+                );
+                
+                logger.debug("✅ Added {} units of {} (ID: {})", 
+                    item.getQuantity(), product.getName(), product.getId());
+                
+                // Add to successful additions
+                response.getAdditions().add(new StoreInventoryAdditionResponse(addition));
+                successCount++;
+                
+            } catch (Exception e) {
+                logger.error("❌ Failed to add product {}: {}", 
+                    item.getProductId(), e.getMessage());
+                
+                // Add to errors
+                String productName = "Unknown";
+                try {
+                    Product p = productRepository.findById(item.getProductId()).orElse(null);
+                    if (p != null) productName = p.getName();
+                } catch (Exception ignored) {}
+                
+                response.getErrors().add(new StoreInventoryBatchAddResponse.BatchError(
+                    item.getProductId().toString(),
+                    productName,
+                    e.getMessage()
+                ));
+                failCount++;
+            }
+        }
+        
+        response.setSuccessfulItems(successCount);
+        response.setFailedItems(failCount);
+        
+        logger.info("✅ Batch restock completed: {} successful, {} failed out of {} total",
+            successCount, failCount, request.getItems().size());
+        
+        return response;
     }
 
     /**
