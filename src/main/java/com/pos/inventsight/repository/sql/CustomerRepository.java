@@ -2,6 +2,7 @@ package com.pos.inventsight.repository.sql;
 
 import com.pos.inventsight.model.sql.Company;
 import com.pos.inventsight.model.sql.Customer;
+import com.pos.inventsight.model.sql.Store;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +21,16 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
      * Find all active customers for a company
      */
     Page<Customer> findByCompanyAndIsActiveTrueOrderByNameAsc(Company company, Pageable pageable);
+    
+    /**
+     * Find all active customers for a company and store
+     */
+    Page<Customer> findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(Company company, Store store, Pageable pageable);
+    
+    /**
+     * Find customer by ID and company (for tenant isolation)
+     */
+    Optional<Customer> findByIdAndCompanyAndIsActiveTrue(UUID id, Company company);
     
     /**
      * Find customer by phone number

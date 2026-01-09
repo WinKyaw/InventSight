@@ -55,12 +55,39 @@ public class Customer {
     @Column(name = "total_purchases", precision = 12, scale = 2)
     private BigDecimal totalPurchases = BigDecimal.ZERO;
     
+    // Address Fields
+    @Size(max = 200, message = "Address must not exceed 200 characters")
+    @Column(name = "address")
+    private String address;
+    
+    @Size(max = 100, message = "City must not exceed 100 characters")
+    @Column(name = "city")
+    private String city;
+    
+    @Size(max = 100, message = "State must not exceed 100 characters")
+    @Column(name = "state")
+    private String state;
+    
+    @Size(max = 20, message = "Postal code must not exceed 20 characters")
+    @Column(name = "postal_code")
+    private String postalCode;
+    
+    @Size(max = 100, message = "Country must not exceed 100 characters")
+    @Column(name = "country")
+    private String country;
+    
     // Multi-tenant Fields
     @NotNull(message = "Company is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Company company;
+    
+    // Optional Store Association
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Store store;
     
     @NotNull(message = "Creator is required")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -132,8 +159,26 @@ public class Customer {
         this.totalPurchases = totalPurchases != null ? totalPurchases : BigDecimal.ZERO;
     }
     
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+    
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
+    
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+    
     public Company getCompany() { return company; }
     public void setCompany(Company company) { this.company = company; }
+    
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
     
     public User getCreatedByUser() { return createdByUser; }
     public void setCreatedByUser(User createdByUser) { this.createdByUser = createdByUser; }
