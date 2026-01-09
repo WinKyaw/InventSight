@@ -1,6 +1,7 @@
 package com.pos.inventsight.dto;
 
 import com.pos.inventsight.model.sql.PaymentMethod;
+import com.pos.inventsight.model.sql.ReceiptType;
 import com.pos.inventsight.model.sql.SaleStatus;
 
 import java.math.BigDecimal;
@@ -18,6 +19,10 @@ public class SaleResponse {
     private BigDecimal totalAmount;
     private SaleStatus status;
     
+    // Company info
+    private UUID companyId;
+    private String companyName;
+    
     // Store info
     private UUID storeId;
     private String storeName;
@@ -27,12 +32,27 @@ public class SaleResponse {
     private String processedByUsername;
     private String processedByFullName;
     
+    private UUID fulfilledByUserId;
+    private String fulfilledByUsername;
+    private LocalDateTime fulfilledAt;
+    
     // Customer info
+    private UUID customerId;
     private String customerName;
     private String customerEmail;
     private String customerPhone;
+    private BigDecimal customerDiscount; // From customer.discountPercentage
     
     private PaymentMethod paymentMethod;
+    private ReceiptType receiptType;
+    
+    // Delivery (if applicable)
+    private UUID deliveryPersonId;
+    private String deliveryPersonName;
+    private LocalDateTime deliveryAssignedAt;
+    private LocalDateTime deliveredAt;
+    private String deliveryNotes;
+    
     private String notes;
     
     private List<SaleItemDTO> items;
@@ -95,6 +115,12 @@ public class SaleResponse {
     public SaleStatus getStatus() { return status; }
     public void setStatus(SaleStatus status) { this.status = status; }
     
+    public UUID getCompanyId() { return companyId; }
+    public void setCompanyId(UUID companyId) { this.companyId = companyId; }
+    
+    public String getCompanyName() { return companyName; }
+    public void setCompanyName(String companyName) { this.companyName = companyName; }
+    
     public UUID getStoreId() { return storeId; }
     public void setStoreId(UUID storeId) { this.storeId = storeId; }
     
@@ -110,6 +136,18 @@ public class SaleResponse {
     public String getProcessedByFullName() { return processedByFullName; }
     public void setProcessedByFullName(String processedByFullName) { this.processedByFullName = processedByFullName; }
     
+    public UUID getFulfilledByUserId() { return fulfilledByUserId; }
+    public void setFulfilledByUserId(UUID fulfilledByUserId) { this.fulfilledByUserId = fulfilledByUserId; }
+    
+    public String getFulfilledByUsername() { return fulfilledByUsername; }
+    public void setFulfilledByUsername(String fulfilledByUsername) { this.fulfilledByUsername = fulfilledByUsername; }
+    
+    public LocalDateTime getFulfilledAt() { return fulfilledAt; }
+    public void setFulfilledAt(LocalDateTime fulfilledAt) { this.fulfilledAt = fulfilledAt; }
+    
+    public UUID getCustomerId() { return customerId; }
+    public void setCustomerId(UUID customerId) { this.customerId = customerId; }
+    
     public String getCustomerName() { return customerName; }
     public void setCustomerName(String customerName) { this.customerName = customerName; }
     
@@ -119,8 +157,29 @@ public class SaleResponse {
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
     
+    public BigDecimal getCustomerDiscount() { return customerDiscount; }
+    public void setCustomerDiscount(BigDecimal customerDiscount) { this.customerDiscount = customerDiscount; }
+    
     public PaymentMethod getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
+    
+    public ReceiptType getReceiptType() { return receiptType; }
+    public void setReceiptType(ReceiptType receiptType) { this.receiptType = receiptType; }
+    
+    public UUID getDeliveryPersonId() { return deliveryPersonId; }
+    public void setDeliveryPersonId(UUID deliveryPersonId) { this.deliveryPersonId = deliveryPersonId; }
+    
+    public String getDeliveryPersonName() { return deliveryPersonName; }
+    public void setDeliveryPersonName(String deliveryPersonName) { this.deliveryPersonName = deliveryPersonName; }
+    
+    public LocalDateTime getDeliveryAssignedAt() { return deliveryAssignedAt; }
+    public void setDeliveryAssignedAt(LocalDateTime deliveryAssignedAt) { this.deliveryAssignedAt = deliveryAssignedAt; }
+    
+    public LocalDateTime getDeliveredAt() { return deliveredAt; }
+    public void setDeliveredAt(LocalDateTime deliveredAt) { this.deliveredAt = deliveredAt; }
+    
+    public String getDeliveryNotes() { return deliveryNotes; }
+    public void setDeliveryNotes(String deliveryNotes) { this.deliveryNotes = deliveryNotes; }
     
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }

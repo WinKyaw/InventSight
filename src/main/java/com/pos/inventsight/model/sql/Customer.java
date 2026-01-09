@@ -1,6 +1,7 @@
 package com.pos.inventsight.model.sql;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -10,7 +11,10 @@ import org.hibernate.annotations.GenericGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "customers")
@@ -75,6 +79,29 @@ public class Customer {
     @Size(max = 100, message = "Country must not exceed 100 characters")
     @Column(name = "country")
     private String country;
+    
+    // Location tracking
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private BigDecimal latitude;
+    
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private BigDecimal longitude;
+    
+    // Browsing history (JSON array of product UUIDs)
+    @Column(name = "recently_browsed_items", columnDefinition = "TEXT")
+    private String recentlyBrowsedItems;
+    
+    @Column(name = "last_browsed_at")
+    private LocalDateTime lastBrowsedAt;
+    
+    // Purchase tracking
+    @Column(name = "last_purchase_date")
+    private LocalDateTime lastPurchaseDate;
+    
+    // Relationship to receipts
+    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private List<Sale> receipts;
     
     // Multi-tenant Fields
     @NotNull(message = "Company is required")
@@ -198,6 +225,24 @@ public class Customer {
     public User getDeletedByUser() { return deletedByUser; }
     public void setDeletedByUser(User deletedByUser) { this.deletedByUser = deletedByUser; }
     
+    public BigDecimal getLatitude() { return latitude; }
+    public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }
+    
+    public BigDecimal getLongitude() { return longitude; }
+    public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
+    
+    public String getRecentlyBrowsedItems() { return recentlyBrowsedItems; }
+    public void setRecentlyBrowsedItems(String recentlyBrowsedItems) { this.recentlyBrowsedItems = recentlyBrowsedItems; }
+    
+    public LocalDateTime getLastBrowsedAt() { return lastBrowsedAt; }
+    public void setLastBrowsedAt(LocalDateTime lastBrowsedAt) { this.lastBrowsedAt = lastBrowsedAt; }
+    
+    public LocalDateTime getLastPurchaseDate() { return lastPurchaseDate; }
+    public void setLastPurchaseDate(LocalDateTime lastPurchaseDate) { this.lastPurchaseDate = lastPurchaseDate; }
+    
+    public List<Sale> getReceipts() { return receipts; }
+    public void setReceipts(List<Sale> receipts) { this.receipts = receipts; }
+    
     @PreUpdate
     public void updateTimestamp() {
         this.updatedAt = LocalDateTime.now();
@@ -219,6 +264,56 @@ public class Customer {
         if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
             this.totalPurchases = this.totalPurchases.add(amount);
         }
+    }
+    
+    /**
+     * Add a product to recently browsed items (max 10)
+     */
+    public void addToBrowsingHistory(UUID productId) {
+        List<String> browsedList = parseRecentlyBrowsed();
+        
+        // Remove if already exists
+        browsedList.remove(productId.toString());
+        
+        // Add to front
+        browsedList.add(0, productId.toString());
+        
+        // Keep only last 10
+        if (browsedList.size() > 10) {
+            browsedList = browsedList.subList(0, 10);
+        }
+        
+        // Convert back to JSON
+        this.recentlyBrowsedItems = convertToJson(browsedList);
+        this.lastBrowsedAt = LocalDateTime.now();
+    }
+    
+    private List<String> parseRecentlyBrowsed() {
+        if (recentlyBrowsedItems == null || recentlyBrowsedItems.isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(recentlyBrowsedItems, 
+                mapper.getTypeFactory().constructCollectionType(List.class, String.class));
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+    
+    private String convertToJson(List<String> list) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(list);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+    
+    public List<UUID> getRecentlyBrowsedProductIds() {
+        return parseRecentlyBrowsed().stream()
+            .map(UUID::fromString)
+            .collect(Collectors.toList());
     }
     
     /**

@@ -44,7 +44,19 @@ public class Sale {
     @Enumerated(EnumType.STRING)
     private SaleStatus status = SaleStatus.COMPLETED;
     
+    // Customer relationship (replacing plain text fields)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Customer customer;
+    
     // Multi-tenancy support
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Company company;
+    
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
@@ -64,10 +76,40 @@ public class Sale {
     @Column(name = "customer_phone")
     private String customerPhone;
     
+    // Employee who created the receipt (processedBy)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User processedBy;
+    
+    // Employee who fulfilled the receipt
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fulfilled_by_user_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User fulfilledBy;
+    
+    @Column(name = "fulfilled_at")
+    private LocalDateTime fulfilledAt;
+    
+    // Delivery person (optional)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_person_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User deliveryPerson;
+    
+    @Column(name = "delivery_assigned_at")
+    private LocalDateTime deliveryAssignedAt;
+    
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+    
+    @Column(name = "delivery_notes")
+    private String deliveryNotes;
+    
+    // Receipt type
+    @Enumerated(EnumType.STRING)
+    @Column(name = "receipt_type", length = 20)
+    private ReceiptType receiptType = ReceiptType.IN_STORE;
     
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -134,6 +176,12 @@ public class Sale {
     public Store getStore() { return store; }
     public void setStore(Store store) { this.store = store; }
     
+    public Company getCompany() { return company; }
+    public void setCompany(Company company) { this.company = company; }
+    
+    public Customer getCustomer() { return customer; }
+    public void setCustomer(Customer customer) { this.customer = customer; }
+    
     public PaymentMethod getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
     
@@ -148,6 +196,27 @@ public class Sale {
     
     public User getProcessedBy() { return processedBy; }
     public void setProcessedBy(User processedBy) { this.processedBy = processedBy; }
+    
+    public User getFulfilledBy() { return fulfilledBy; }
+    public void setFulfilledBy(User fulfilledBy) { this.fulfilledBy = fulfilledBy; }
+    
+    public LocalDateTime getFulfilledAt() { return fulfilledAt; }
+    public void setFulfilledAt(LocalDateTime fulfilledAt) { this.fulfilledAt = fulfilledAt; }
+    
+    public User getDeliveryPerson() { return deliveryPerson; }
+    public void setDeliveryPerson(User deliveryPerson) { this.deliveryPerson = deliveryPerson; }
+    
+    public LocalDateTime getDeliveryAssignedAt() { return deliveryAssignedAt; }
+    public void setDeliveryAssignedAt(LocalDateTime deliveryAssignedAt) { this.deliveryAssignedAt = deliveryAssignedAt; }
+    
+    public LocalDateTime getDeliveredAt() { return deliveredAt; }
+    public void setDeliveredAt(LocalDateTime deliveredAt) { this.deliveredAt = deliveredAt; }
+    
+    public String getDeliveryNotes() { return deliveryNotes; }
+    public void setDeliveryNotes(String deliveryNotes) { this.deliveryNotes = deliveryNotes; }
+    
+    public ReceiptType getReceiptType() { return receiptType; }
+    public void setReceiptType(ReceiptType receiptType) { this.receiptType = receiptType; }
     
     public List<SaleItem> getItems() { return items; }
     public void setItems(List<SaleItem> items) { this.items = items; }

@@ -6,9 +6,12 @@ import com.pos.inventsight.model.sql.SaleStatus;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.Customer;
+import com.pos.inventsight.model.sql.ReceiptType;
 import com.pos.inventsight.repository.sql.SaleRepository;
 import com.pos.inventsight.repository.sql.SaleItemRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
+import com.pos.inventsight.repository.sql.CustomerRepository;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.dto.CashierStatsDTO;
@@ -56,6 +59,12 @@ public class SaleService {
     @Autowired
     private StoreRepository storeRepository;
     
+    @Autowired
+    private CustomerRepository customerRepository;
+    
+    @Autowired
+    private com.pos.inventsight.repository.sql.UserRepository userRepository;
+    
     private static final BigDecimal TAX_RATE = new BigDecimal("0.08"); // 8% tax rate
     
     // Sale Processing
@@ -74,6 +83,36 @@ public class SaleService {
         Sale sale = new Sale();
         sale.setProcessedBy(user);
         sale.setStore(activeStore);  // ✅ SET STORE FROM USER'S ACTIVE STORE
+        sale.setCompany(activeStore.getCompany()); // ✅ SET COMPANY FROM STORE
+        
+        // Link to customer if provided
+        if (request.getCustomerId() != null) {
+            Customer customer = customerRepository.findById(request.getCustomerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+            sale.setCustomer(customer);
+            
+            // Update customer's last purchase date will be done after sale completion
+        } else if (request.getCustomerName() != null) {
+            // Legacy: store as text
+            sale.setCustomerName(request.getCustomerName());
+            sale.setCustomerEmail(request.getCustomerEmail());
+            sale.setCustomerPhone(request.getCustomerPhone());
+        }
+        
+        sale.setPaymentMethod(request.getPaymentMethod());
+        sale.setReceiptType(request.getReceiptType() != null ? request.getReceiptType() : ReceiptType.IN_STORE);
+        sale.setNotes(request.getNotes());
+        sale.setStatus(SaleStatus.PENDING);
+        
+        // If delivery, assign delivery person
+        if (sale.getReceiptType() == ReceiptType.DELIVERY && request.getDeliveryPersonId() != null) {
+            User deliveryPerson = userRepository.findById(request.getDeliveryPersonId())
+                .orElseThrow(() -> new ResourceNotFoundException("Delivery person not found"));
+            sale.setDeliveryPerson(deliveryPerson);
+            sale.setDeliveryAssignedAt(LocalDateTime.now());
+            sale.setDeliveryNotes(request.getDeliveryNotes());
+        }
+        
         sale.setCustomerName(request.getCustomerName());
         sale.setCustomerEmail(request.getCustomerEmail());
         sale.setCustomerPhone(request.getCustomerPhone());
@@ -142,6 +181,13 @@ public class SaleService {
         // Complete sale
         savedSale.setStatus(SaleStatus.COMPLETED);
         savedSale = saleRepository.save(savedSale);
+        
+        // Update customer's last purchase date if customer is linked
+        if (savedSale.getCustomer() != null) {
+            Customer customer = savedSale.getCustomer();
+            customer.setLastPurchaseDate(LocalDateTime.now());
+            customerRepository.save(customer);
+        }
         
         // Log activity
         activityLogService.logActivity(
@@ -476,6 +522,26 @@ public class SaleService {
         response.setTotalAmount(sale.getTotalAmount());
         response.setStatus(sale.getStatus());
         
+        // Customer
+        if (sale.getCustomer() != null) {
+            response.setCustomerId(sale.getCustomer().getId());
+            response.setCustomerName(sale.getCustomer().getName());
+            response.setCustomerEmail(sale.getCustomer().getEmail());
+            response.setCustomerPhone(sale.getCustomer().getPhoneNumber());
+            response.setCustomerDiscount(sale.getCustomer().getDiscountPercentage());
+        } else {
+            // Fallback to legacy fields
+            response.setCustomerName(sale.getCustomerName());
+            response.setCustomerEmail(sale.getCustomerEmail());
+            response.setCustomerPhone(sale.getCustomerPhone());
+        }
+        
+        // Company
+        if (sale.getCompany() != null) {
+            response.setCompanyId(sale.getCompany().getId());
+            response.setCompanyName(sale.getCompany().getName());
+        }
+        
         // Store info
         if (sale.getStore() != null) {
             response.setStoreId(sale.getStore().getId());
@@ -489,12 +555,24 @@ public class SaleService {
             response.setProcessedByFullName(sale.getProcessedBy().getFullName());
         }
         
-        // Customer info
-        response.setCustomerName(sale.getCustomerName());
-        response.setCustomerEmail(sale.getCustomerEmail());
-        response.setCustomerPhone(sale.getCustomerPhone());
+        // Fulfillment info
+        if (sale.getFulfilledBy() != null) {
+            response.setFulfilledByUserId(sale.getFulfilledBy().getId());
+            response.setFulfilledByUsername(sale.getFulfilledBy().getUsername());
+            response.setFulfilledAt(sale.getFulfilledAt());
+        }
+        
+        // Delivery info
+        if (sale.getDeliveryPerson() != null) {
+            response.setDeliveryPersonId(sale.getDeliveryPerson().getId());
+            response.setDeliveryPersonName(sale.getDeliveryPerson().getUsername());
+            response.setDeliveryAssignedAt(sale.getDeliveryAssignedAt());
+            response.setDeliveredAt(sale.getDeliveredAt());
+            response.setDeliveryNotes(sale.getDeliveryNotes());
+        }
         
         response.setPaymentMethod(sale.getPaymentMethod());
+        response.setReceiptType(sale.getReceiptType());
         response.setNotes(sale.getNotes());
         
         // Items
@@ -548,6 +626,60 @@ public class SaleService {
     public List<CashierStatsDTO> getCashierStatsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         List<Object[]> results = saleRepository.getCashierStatsByDateRange(startDate, endDate);
         return convertToCashierStats(results);
+    }
+    
+    /**
+     * Mark receipt as fulfilled
+     */
+    public SaleResponse fulfillReceipt(Long saleId, UUID userId) {
+        User user = userService.getUserById(userId);
+        
+        Sale sale = saleRepository.findById(saleId)
+            .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
+        
+        sale.setFulfilledBy(user);
+        sale.setFulfilledAt(LocalDateTime.now());
+        sale.setStatus(SaleStatus.COMPLETED);
+        
+        Sale savedSale = saleRepository.save(sale);
+        
+        activityLogService.logActivity(
+            userId.toString(), 
+            user.getUsername(), 
+            "SALE_FULFILLED", 
+            "SALE", 
+            String.format("Receipt fulfilled: %s", sale.getReceiptNumber())
+        );
+        
+        return convertToSaleResponse(savedSale);
+    }
+    
+    /**
+     * Mark receipt as delivered
+     */
+    public SaleResponse markAsDelivered(Long saleId, UUID userId) {
+        Sale sale = saleRepository.findById(saleId)
+            .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
+        
+        if (sale.getReceiptType() != ReceiptType.DELIVERY) {
+            throw new IllegalArgumentException("Receipt is not a delivery order");
+        }
+        
+        sale.setDeliveredAt(LocalDateTime.now());
+        sale.setStatus(SaleStatus.DELIVERED);
+        
+        Sale savedSale = saleRepository.save(sale);
+        
+        User user = userService.getUserById(userId);
+        activityLogService.logActivity(
+            userId.toString(), 
+            user.getUsername(), 
+            "SALE_DELIVERED", 
+            "SALE", 
+            String.format("Receipt delivered: %s", sale.getReceiptNumber())
+        );
+        
+        return convertToSaleResponse(savedSale);
     }
     
     /**
