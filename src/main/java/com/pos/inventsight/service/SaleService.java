@@ -655,7 +655,7 @@ public class SaleService {
             .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
         
         if (sale.getReceiptType() != ReceiptType.DELIVERY) {
-            throw new IllegalArgumentException("Receipt is not a delivery order");
+            throw new IllegalArgumentException("Cannot mark non-delivery receipt as delivered. Receipt type is: " + sale.getReceiptType());
         }
         
         sale.setDeliveredAt(LocalDateTime.now());

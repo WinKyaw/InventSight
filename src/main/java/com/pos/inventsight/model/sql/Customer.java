@@ -280,7 +280,7 @@ public class Customer {
         
         // Keep only last 10
         if (browsedList.size() > 10) {
-            browsedList = browsedList.subList(0, 10);
+            browsedList = new ArrayList<>(browsedList.subList(0, 10));
         }
         
         // Convert back to JSON

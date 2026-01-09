@@ -13,11 +13,22 @@ ADD COLUMN company_id UUID,
 ADD CONSTRAINT fk_sale_company FOREIGN KEY (company_id) REFERENCES companies(id);
 
 -- Update existing sales to get company_id from their store
+-- This assumes all existing sales have valid store_id references
+-- and all stores have valid company_id references
 UPDATE sales 
 SET company_id = stores.company_id
 FROM stores
 WHERE sales.store_id = stores.id
 AND sales.company_id IS NULL;
+
+-- Verify that all sales now have a company_id before making it NOT NULL
+-- If any sales don't have company_id, they should be investigated
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM sales WHERE company_id IS NULL) THEN
+        RAISE EXCEPTION 'Some sales records do not have a company_id. Please investigate before applying this migration.';
+    END IF;
+END $$;
 
 -- Now make company_id NOT NULL
 ALTER TABLE sales 
