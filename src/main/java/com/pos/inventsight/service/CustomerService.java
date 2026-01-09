@@ -1,21 +1,28 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.dto.CustomerRequest;
+import com.pos.inventsight.dto.CustomerResponse;
 import com.pos.inventsight.exception.DuplicateResourceException;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.Customer;
 import com.pos.inventsight.model.sql.Customer.CustomerType;
+import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.CustomerRepository;
+import com.pos.inventsight.repository.sql.StoreRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -27,171 +34,183 @@ public class CustomerService {
     @Autowired
     private CustomerRepository customerRepository;
     
-    /**
-     * Get all active customers for a company (paginated)
-     */
-    public Page<Customer> getCustomers(Company company, Pageable pageable) {
-        return customerRepository.findByCompanyAndIsActiveTrueOrderByNameAsc(company, pageable);
-    }
+    @Autowired
+    private StoreRepository storeRepository;
+    
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    @Autowired
+    private UserService userService;
     
     /**
-     * Get customers by type
+     * Get the user's primary company
      */
-    public Page<Customer> getCustomersByType(Company company, CustomerType type, Pageable pageable) {
-        return customerRepository.findByCompanyAndCustomerTypeAndIsActiveTrueOrderByNameAsc(
-            company, type, pageable);
-    }
-    
-    /**
-     * Search customers by name, phone, or email
-     */
-    public Page<Customer> searchCustomers(Company company, String searchTerm, Pageable pageable) {
-        return customerRepository.searchCustomers(company, searchTerm, pageable);
-    }
-    
-    /**
-     * Get a single customer by ID
-     */
-    public Customer getCustomerById(UUID customerId, Company company) {
-        Customer customer = customerRepository.findById(customerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + customerId));
-        
-        // Verify customer belongs to company
-        if (!customer.getCompany().getId().equals(company.getId())) {
-            throw new ResourceNotFoundException("Customer not found in your company");
+    private Company getUserCompany(User user) {
+        List<CompanyStoreUser> memberships = companyStoreUserRepository.findByUserAndIsActiveTrue(user);
+        if (memberships.isEmpty()) {
+            throw new IllegalStateException("User is not associated with any company");
         }
-        
-        return customer;
+        // Return the first company the user belongs to
+        return memberships.get(0).getCompany();
     }
     
     /**
-     * Create a new customer
+     * Create a new customer from DTO
      */
-    public Customer createCustomer(
-            String name,
-            String phoneNumber,
-            String email,
-            CustomerType customerType,
-            String notes,
-            BigDecimal discountPercentage,
-            Company company,
-            User createdBy) {
+    public CustomerResponse createCustomer(CustomerRequest request, Authentication auth) {
+        // Get user and company
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
         
-        // Check for duplicate phone number if provided
-        if (phoneNumber != null && !phoneNumber.isEmpty()) {
-            if (customerRepository.existsByCompanyAndPhoneNumberAndIsActiveTrue(company, phoneNumber)) {
+        // Validate email uniqueness if provided
+        if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+            if (customerRepository.existsByCompanyAndEmailAndIsActiveTrue(company, request.getEmail())) {
                 throw new DuplicateResourceException(
-                    "Customer with phone number '" + phoneNumber + "' already exists");
+                    "Customer with email '" + request.getEmail() + "' already exists");
             }
         }
         
-        // Check for duplicate email if provided
-        if (email != null && !email.isEmpty()) {
-            if (customerRepository.existsByCompanyAndEmailAndIsActiveTrue(company, email)) {
+        // Validate phone uniqueness if provided
+        if (request.getPhone() != null && !request.getPhone().isEmpty()) {
+            if (customerRepository.existsByCompanyAndPhoneNumberAndIsActiveTrue(company, request.getPhone())) {
                 throw new DuplicateResourceException(
-                    "Customer with email '" + email + "' already exists");
+                    "Customer with phone '" + request.getPhone() + "' already exists");
             }
         }
         
-        Customer customer = new Customer(name, company, createdBy, customerType);
-        customer.setPhoneNumber(phoneNumber);
-        customer.setEmail(email);
-        customer.setNotes(notes);
-        customer.setDiscountPercentage(discountPercentage);
+        // Validate and get store if provided
+        Store store = null;
+        if (request.getStoreId() != null) {
+            store = storeRepository.findById(request.getStoreId())
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + request.getStoreId()));
+            
+            // Verify store belongs to same company
+            if (!store.getCompany().getId().equals(company.getId())) {
+                throw new IllegalArgumentException("Store does not belong to your company");
+            }
+        }
+        
+        // Create customer
+        Customer customer = new Customer(request.getName(), company, user, CustomerType.REGISTERED);
+        customer.setEmail(request.getEmail());
+        customer.setPhoneNumber(request.getPhone());
+        customer.setAddress(request.getAddress());
+        customer.setCity(request.getCity());
+        customer.setState(request.getState());
+        customer.setPostalCode(request.getPostalCode());
+        customer.setCountry(request.getCountry());
+        customer.setNotes(request.getNotes());
+        customer.setStore(store);
         
         Customer saved = customerRepository.save(customer);
-        logger.info("Created customer '{}' ({}) in company {}", name, customerType, company.getId());
+        logger.info("Created customer '{}' in company {}", request.getName(), company.getId());
         
-        return saved;
+        return new CustomerResponse(saved);
     }
     
     /**
-     * Create a guest customer with minimal information
+     * Get all customers for company (paginated)
      */
-    public Customer createGuestCustomer(Company company, User createdBy) {
-        // Generate a unique guest name
-        long guestCount = customerRepository.countByCompanyAndIsActiveTrue(company);
-        String guestName = "Guest Customer #" + (guestCount + 1);
-        
-        Customer customer = new Customer(guestName, company, createdBy, CustomerType.GUEST);
-        
-        Customer saved = customerRepository.save(customer);
-        logger.info("Created guest customer '{}' in company {}", guestName, company.getId());
-        
-        return saved;
+    public Page<CustomerResponse> getCustomers(Pageable pageable, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        Page<Customer> customers = customerRepository.findByCompanyAndIsActiveTrueOrderByNameAsc(company, pageable);
+        return customers.map(CustomerResponse::new);
     }
     
     /**
-     * Update a customer
+     * Search customers by name, email, or phone
      */
-    public Customer updateCustomer(
-            UUID customerId,
-            String name,
-            String phoneNumber,
-            String email,
-            CustomerType customerType,
-            String notes,
-            BigDecimal discountPercentage,
-            Company company) {
-        
-        Customer customer = getCustomerById(customerId, company);
-        
-        // Check for duplicate phone number if changed
-        if (phoneNumber != null && !phoneNumber.isEmpty() && 
-            !phoneNumber.equals(customer.getPhoneNumber())) {
-            if (customerRepository.existsByCompanyAndPhoneNumberAndIsActiveTrue(company, phoneNumber)) {
-                throw new DuplicateResourceException(
-                    "Customer with phone number '" + phoneNumber + "' already exists");
-            }
-        }
+    public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        Page<Customer> customers = customerRepository.searchCustomers(company, searchTerm, pageable);
+        return customers.map(CustomerResponse::new);
+    }
+    
+    /**
+     * Get single customer by ID
+     */
+    public CustomerResponse getCustomerById(UUID id, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        Customer customer = customerRepository.findByIdAndCompanyAndIsActiveTrue(id, company)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + id));
+        return new CustomerResponse(customer);
+    }
+    
+    /**
+     * Update customer
+     */
+    public CustomerResponse updateCustomer(UUID id, CustomerRequest request, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        Customer customer = customerRepository.findByIdAndCompanyAndIsActiveTrue(id, company)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + id));
         
         // Check for duplicate email if changed
-        if (email != null && !email.isEmpty() && 
-            !email.equals(customer.getEmail())) {
-            if (customerRepository.existsByCompanyAndEmailAndIsActiveTrue(company, email)) {
+        if (request.getEmail() != null && !request.getEmail().isEmpty() && 
+            !request.getEmail().equals(customer.getEmail())) {
+            if (customerRepository.existsByCompanyAndEmailAndIsActiveTrue(company, request.getEmail())) {
                 throw new DuplicateResourceException(
-                    "Customer with email '" + email + "' already exists");
+                    "Customer with email '" + request.getEmail() + "' already exists");
             }
         }
         
-        customer.setName(name);
-        customer.setPhoneNumber(phoneNumber);
-        customer.setEmail(email);
-        customer.setCustomerType(customerType);
-        customer.setNotes(notes);
-        customer.setDiscountPercentage(discountPercentage);
+        // Check for duplicate phone if changed
+        if (request.getPhone() != null && !request.getPhone().isEmpty() && 
+            !request.getPhone().equals(customer.getPhoneNumber())) {
+            if (customerRepository.existsByCompanyAndPhoneNumberAndIsActiveTrue(company, request.getPhone())) {
+                throw new DuplicateResourceException(
+                    "Customer with phone '" + request.getPhone() + "' already exists");
+            }
+        }
+        
+        // Validate and get store if provided
+        Store store = null;
+        if (request.getStoreId() != null) {
+            store = storeRepository.findById(request.getStoreId())
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + request.getStoreId()));
+            
+            // Verify store belongs to same company
+            if (!store.getCompany().getId().equals(company.getId())) {
+                throw new IllegalArgumentException("Store does not belong to your company");
+            }
+        }
+        
+        // Update customer fields
+        customer.setName(request.getName());
+        customer.setEmail(request.getEmail());
+        customer.setPhoneNumber(request.getPhone());
+        customer.setAddress(request.getAddress());
+        customer.setCity(request.getCity());
+        customer.setState(request.getState());
+        customer.setPostalCode(request.getPostalCode());
+        customer.setCountry(request.getCountry());
+        customer.setNotes(request.getNotes());
+        customer.setStore(store);
         
         Customer updated = customerRepository.save(customer);
-        logger.info("Updated customer {} in company {}", customerId, company.getId());
+        logger.info("Updated customer {} in company {}", id, company.getId());
         
-        return updated;
+        return new CustomerResponse(updated);
     }
     
     /**
-     * Soft delete a customer
+     * Soft delete customer
      */
-    public void deleteCustomer(UUID customerId, Company company, User deletedBy) {
-        Customer customer = getCustomerById(customerId, company);
+    public void deleteCustomer(UUID id, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
         
-        customer.softDelete(deletedBy);
+        Customer customer = customerRepository.findByIdAndCompanyAndIsActiveTrue(id, company)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + id));
+        
+        customer.softDelete(user);
         customerRepository.save(customer);
         
         logger.info("Soft deleted customer {} in company {} by user {}", 
-                   customerId, company.getId(), deletedBy.getUsername());
-    }
-    
-    /**
-     * Add a purchase to customer's total
-     */
-    public Customer addPurchase(UUID customerId, BigDecimal amount, Company company) {
-        Customer customer = getCustomerById(customerId, company);
-        
-        customer.addPurchase(amount);
-        Customer updated = customerRepository.save(customer);
-        
-        logger.info("Added purchase of {} to customer {} in company {}", 
-                   amount, customerId, company.getId());
-        
-        return updated;
+                   id, company.getId(), user.getUsername());
     }
 }

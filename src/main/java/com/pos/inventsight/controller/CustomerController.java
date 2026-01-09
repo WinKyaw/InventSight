@@ -1,28 +1,24 @@
 package com.pos.inventsight.controller;
 
-import com.pos.inventsight.dto.GenericApiResponse;
-import com.pos.inventsight.model.sql.Company;
-import com.pos.inventsight.model.sql.Customer;
-import com.pos.inventsight.model.sql.Customer.CustomerType;
-import com.pos.inventsight.model.sql.User;
-import com.pos.inventsight.service.CompanyService;
+import com.pos.inventsight.dto.CustomerRequest;
+import com.pos.inventsight.dto.CustomerResponse;
 import com.pos.inventsight.service.CustomerService;
-import com.pos.inventsight.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -37,51 +33,105 @@ public class CustomerController {
     @Autowired
     private CustomerService customerService;
     
-    @Autowired
-    private CompanyService companyService;
-    
-    @Autowired
-    private UserService userService;
-    
     /**
-     * List customers for a company (paginated, searchable)
+     * Create a new customer
      */
-    @GetMapping
-    @Operation(summary = "List customers", description = "Get all customers for a company")
-    public ResponseEntity<GenericApiResponse<Map<String, Object>>> listCustomers(
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
-            @Parameter(description = "Customer type filter") @RequestParam(required = false) CustomerType type,
-            @Parameter(description = "Search term") @RequestParam(required = false) String search,
-            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+    @PostMapping
+    @Operation(summary = "Create customer", description = "Create a new customer for the company")
+    public ResponseEntity<Map<String, Object>> createCustomer(
+            @Valid @RequestBody CustomerRequest request,
             Authentication authentication) {
         
         try {
-            Company company = companyService.getCompany(companyId, authentication);
-            
-            Pageable pageable = PageRequest.of(page, size);
-            Page<Customer> customersPage;
-            
-            if (search != null && !search.trim().isEmpty()) {
-                customersPage = customerService.searchCustomers(company, search, pageable);
-            } else if (type != null) {
-                customersPage = customerService.getCustomersByType(company, type, pageable);
-            } else {
-                customersPage = customerService.getCustomers(company, pageable);
-            }
+            CustomerResponse customer = customerService.createCustomer(request, authentication);
             
             Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Customer created successfully");
+            response.put("customer", customer);
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            
+        } catch (Exception e) {
+            logger.error("Error creating customer: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to create customer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+    
+    /**
+     * List all customers (paginated)
+     */
+    @GetMapping
+    @Operation(summary = "List customers", description = "Get all customers for the company with pagination")
+    public ResponseEntity<Map<String, Object>> listCustomers(
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Sort by field") @RequestParam(defaultValue = "name") String sortBy,
+            @Parameter(description = "Sort direction") @RequestParam(defaultValue = "asc") String sortDir,
+            Authentication authentication) {
+        
+        try {
+            Sort sort = sortDir.equalsIgnoreCase("desc") 
+                ? Sort.by(sortBy).descending() 
+                : Sort.by(sortBy).ascending();
+            Pageable pageable = PageRequest.of(page, size, sort);
+            
+            Page<CustomerResponse> customersPage = customerService.getCustomers(pageable, authentication);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Customers retrieved successfully");
             response.put("customers", customersPage.getContent());
             response.put("currentPage", customersPage.getNumber());
             response.put("totalItems", customersPage.getTotalElements());
             response.put("totalPages", customersPage.getTotalPages());
             
-            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customers retrieved successfully", response));
+            return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             logger.error("Error listing customers: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new GenericApiResponse<>(false, "Failed to retrieve customers: " + e.getMessage(), null));
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to retrieve customers: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    /**
+     * Search customers
+     */
+    @GetMapping("/search")
+    @Operation(summary = "Search customers", description = "Search customers by name, email, or phone")
+    public ResponseEntity<Map<String, Object>> searchCustomers(
+            @Parameter(description = "Search query") @RequestParam String q,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<CustomerResponse> customersPage = customerService.searchCustomers(q, pageable, authentication);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Customers search completed");
+            response.put("query", q);
+            response.put("customers", customersPage.getContent());
+            response.put("currentPage", customersPage.getNumber());
+            response.put("totalItems", customersPage.getTotalElements());
+            response.put("totalPages", customersPage.getTotalPages());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Error searching customers: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to search customers: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
     
@@ -90,100 +140,26 @@ public class CustomerController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "Get customer", description = "Get a single customer by ID")
-    public ResponseEntity<GenericApiResponse<Customer>> getCustomer(
+    public ResponseEntity<Map<String, Object>> getCustomer(
             @Parameter(description = "Customer ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
             Authentication authentication) {
         
         try {
-            Company company = companyService.getCompany(companyId, authentication);
-            Customer customer = customerService.getCustomerById(id, company);
+            CustomerResponse customer = customerService.getCustomerById(id, authentication);
             
-            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customer retrieved successfully", customer));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Customer retrieved successfully");
+            response.put("customer", customer);
+            
+            return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             logger.error("Error getting customer {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new GenericApiResponse<>(false, "Customer not found: " + e.getMessage(), null));
-        }
-    }
-    
-    /**
-     * Create a new customer
-     */
-    @PostMapping
-    @Operation(summary = "Create customer", description = "Create a new customer")
-    public ResponseEntity<GenericApiResponse<Customer>> createCustomer(
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
-            @RequestBody Map<String, Object> request,
-            Authentication authentication) {
-        
-        try {
-            Company company = companyService.getCompany(companyId, authentication);
-            User user = userService.getUserByUsername(authentication.getName());
-            
-            String name = (String) request.get("name");
-            String phoneNumber = (String) request.get("phoneNumber");
-            String email = (String) request.get("email");
-            String typeStr = (String) request.getOrDefault("customerType", "GUEST");
-            CustomerType customerType = CustomerType.valueOf(typeStr);
-            String notes = (String) request.get("notes");
-            
-            BigDecimal discountPercentage = null;
-            if (request.containsKey("discountPercentage")) {
-                Object discount = request.get("discountPercentage");
-                if (discount != null) {
-                    if (discount instanceof Number) {
-                        discountPercentage = new BigDecimal(discount.toString());
-                    } else if (discount instanceof String) {
-                        try {
-                            discountPercentage = new BigDecimal((String) discount);
-                        } catch (NumberFormatException e) {
-                            throw new IllegalArgumentException("Invalid discount percentage format");
-                        }
-                    } else {
-                        throw new IllegalArgumentException("Discount percentage must be a number");
-                    }
-                } else {
-                    discountPercentage = BigDecimal.ZERO;
-                }
-            }
-            
-            Customer customer = customerService.createCustomer(
-                name, phoneNumber, email, customerType, notes, discountPercentage, company, user);
-            
-            return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new GenericApiResponse<>(true, "Customer created successfully", customer));
-            
-        } catch (Exception e) {
-            logger.error("Error creating customer: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new GenericApiResponse<>(false, "Failed to create customer: " + e.getMessage(), null));
-        }
-    }
-    
-    /**
-     * Quick create guest customer
-     */
-    @PostMapping("/guest")
-    @Operation(summary = "Create guest customer", description = "Quickly create a guest customer with minimal information")
-    public ResponseEntity<GenericApiResponse<Customer>> createGuestCustomer(
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
-            Authentication authentication) {
-        
-        try {
-            Company company = companyService.getCompany(companyId, authentication);
-            User user = userService.getUserByUsername(authentication.getName());
-            
-            Customer customer = customerService.createGuestCustomer(company, user);
-            
-            return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new GenericApiResponse<>(true, "Guest customer created successfully", customer));
-            
-        } catch (Exception e) {
-            logger.error("Error creating guest customer: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new GenericApiResponse<>(false, "Failed to create guest customer: " + e.getMessage(), null));
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Customer not found: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         }
     }
     
@@ -192,51 +168,27 @@ public class CustomerController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "Update customer", description = "Update an existing customer")
-    public ResponseEntity<GenericApiResponse<Customer>> updateCustomer(
+    public ResponseEntity<Map<String, Object>> updateCustomer(
             @Parameter(description = "Customer ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
-            @RequestBody Map<String, Object> request,
+            @Valid @RequestBody CustomerRequest request,
             Authentication authentication) {
         
         try {
-            Company company = companyService.getCompany(companyId, authentication);
+            CustomerResponse customer = customerService.updateCustomer(id, request, authentication);
             
-            String name = (String) request.get("name");
-            String phoneNumber = (String) request.get("phoneNumber");
-            String email = (String) request.get("email");
-            String typeStr = (String) request.getOrDefault("customerType", "GUEST");
-            CustomerType customerType = CustomerType.valueOf(typeStr);
-            String notes = (String) request.get("notes");
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Customer updated successfully");
+            response.put("customer", customer);
             
-            BigDecimal discountPercentage = null;
-            if (request.containsKey("discountPercentage")) {
-                Object discount = request.get("discountPercentage");
-                if (discount != null) {
-                    if (discount instanceof Number) {
-                        discountPercentage = new BigDecimal(discount.toString());
-                    } else if (discount instanceof String) {
-                        try {
-                            discountPercentage = new BigDecimal((String) discount);
-                        } catch (NumberFormatException e) {
-                            throw new IllegalArgumentException("Invalid discount percentage format");
-                        }
-                    } else {
-                        throw new IllegalArgumentException("Discount percentage must be a number");
-                    }
-                } else {
-                    discountPercentage = BigDecimal.ZERO;
-                }
-            }
-            
-            Customer customer = customerService.updateCustomer(
-                id, name, phoneNumber, email, customerType, notes, discountPercentage, company);
-            
-            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customer updated successfully", customer));
+            return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             logger.error("Error updating customer {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new GenericApiResponse<>(false, "Failed to update customer: " + e.getMessage(), null));
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to update customer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
     
@@ -245,23 +197,25 @@ public class CustomerController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete customer", description = "Soft delete a customer")
-    public ResponseEntity<GenericApiResponse<Void>> deleteCustomer(
+    public ResponseEntity<Map<String, Object>> deleteCustomer(
             @Parameter(description = "Customer ID") @PathVariable UUID id,
-            @Parameter(description = "Company ID") @RequestParam UUID companyId,
             Authentication authentication) {
         
         try {
-            Company company = companyService.getCompany(companyId, authentication);
-            User user = userService.getUserByUsername(authentication.getName());
+            customerService.deleteCustomer(id, authentication);
             
-            customerService.deleteCustomer(id, company, user);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Customer deleted successfully");
             
-            return ResponseEntity.ok(new GenericApiResponse<>(true, "Customer deleted successfully", null));
+            return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             logger.error("Error deleting customer {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new GenericApiResponse<>(false, "Failed to delete customer: " + e.getMessage(), null));
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to delete customer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 }
