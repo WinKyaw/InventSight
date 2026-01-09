@@ -312,7 +312,15 @@ public class Customer {
     
     public List<UUID> getRecentlyBrowsedProductIds() {
         return parseRecentlyBrowsed().stream()
-            .map(UUID::fromString)
+            .map(idString -> {
+                try {
+                    return UUID.fromString(idString);
+                } catch (IllegalArgumentException e) {
+                    // Skip invalid UUID strings
+                    return null;
+                }
+            })
+            .filter(uuid -> uuid != null)
             .collect(Collectors.toList());
     }
     

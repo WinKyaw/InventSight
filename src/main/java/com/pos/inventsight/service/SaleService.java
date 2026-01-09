@@ -113,13 +113,6 @@ public class SaleService {
             sale.setDeliveryNotes(request.getDeliveryNotes());
         }
         
-        sale.setCustomerName(request.getCustomerName());
-        sale.setCustomerEmail(request.getCustomerEmail());
-        sale.setCustomerPhone(request.getCustomerPhone());
-        sale.setPaymentMethod(request.getPaymentMethod());
-        sale.setNotes(request.getNotes());
-        sale.setStatus(SaleStatus.PENDING);
-        
         // Calculate totals
         BigDecimal subtotal = BigDecimal.ZERO;
         List<SaleItem> saleItems = new ArrayList<>();
