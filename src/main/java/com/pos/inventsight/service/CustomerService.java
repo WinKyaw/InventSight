@@ -44,7 +44,15 @@ public class CustomerService {
     private UserService userService;
     
     /**
-     * Get the user's primary company
+     * Get the user's primary company.
+     * 
+     * Note: This implementation assumes users work with one company at a time.
+     * If a user belongs to multiple companies, the first active company membership is used.
+     * This is consistent with the current application's tenant model.
+     * 
+     * @param user the user whose company to retrieve
+     * @return the user's primary company
+     * @throws IllegalStateException if user is not associated with any company
      */
     private Company getUserCompany(User user) {
         List<CompanyStoreUser> memberships = companyStoreUserRepository.findByUserAndIsActiveTrue(user);
