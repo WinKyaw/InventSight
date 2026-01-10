@@ -391,10 +391,10 @@ public class PredefinedItemsService {
     public void associateWarehouses(PredefinedItem item, List<UUID> warehouseIds, User user) {
         logger.info("Associating {} warehouses with predefined item {}", warehouseIds.size(), item.getId());
         
-        // Remove existing associations
-        predefinedItemWarehouseRepository.deleteByPredefinedItem(item);
+        int associatedCount = 0;
+        int skippedCount = 0;
         
-        // Create new associations
+        // Create associations only for warehouses that don't already have them
         for (UUID warehouseId : warehouseIds) {
             logger.debug("Looking up warehouse: {}", warehouseId);
             
@@ -421,21 +421,28 @@ public class PredefinedItemsService {
             
             logger.debug("Creating association between item {} and warehouse {}", item.getId(), warehouse.getId());
             
-            // 1. Create association record
-            PredefinedItemWarehouse association = new PredefinedItemWarehouse(item, warehouse, user);
-            predefinedItemWarehouseRepository.save(association);
+            // 1. Create product in separate transaction (won't rollback if association fails)
+            createProductForWarehouse(item, warehouse, user);
             
-            // 2. Create Product record in products table for inventory tracking
-            try {
-                createProductFromPredefinedItem(item, null, warehouse, user);
-                logger.debug("Created product for warehouse {}", warehouse.getId());
-            } catch (Exception e) {
-                logger.error("Failed to create product for warehouse {}: {}", warehouseId, e.getMessage(), e);
-                throw e;
+            // 2. Check if association already exists
+            Optional<PredefinedItemWarehouse> existingAssociation = predefinedItemWarehouseRepository
+                .findByPredefinedItemIdAndWarehouseId(item.getId(), warehouse.getId());
+            
+            if (existingAssociation.isEmpty()) {
+                // Only insert if it doesn't exist
+                PredefinedItemWarehouse association = new PredefinedItemWarehouse(item, warehouse, user);
+                predefinedItemWarehouseRepository.save(association);
+                
+                logger.debug("Created association for warehouse {} (ID: {})", warehouse.getName(), warehouse.getId());
+                associatedCount++;
+            } else {
+                logger.debug("Association already exists for warehouse {} (ID: {}), skipping", warehouse.getName(), warehouse.getId());
+                skippedCount++;
             }
         }
         
-        logger.info("Successfully associated {} warehouses with predefined item {}", warehouseIds.size(), item.getId());
+        logger.info("Successfully associated {} warehouses (skipped {} existing) with predefined item {}", 
+            associatedCount, skippedCount, item.getId());
     }
     
     /**
@@ -507,59 +514,42 @@ public class PredefinedItemsService {
     }
     
     /**
-     * Create a Product record from a PredefinedItem for inventory tracking
-     * This is called when a predefined item is assigned to a store or warehouse
+     * Create product for warehouse in a separate transaction
+     * This ensures product creation won't rollback if association insert fails
      */
-    private void createProductFromPredefinedItem(
-            PredefinedItem item, 
-            Store store, 
-            Warehouse warehouse, 
-            User createdBy) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    protected void createProductForWarehouse(PredefinedItem predefinedItem, Warehouse warehouse, User user) {
+        // Check if product already exists
+        Optional<Product> existingProduct = productRepository
+            .findByPredefinedItemAndWarehouse(predefinedItem, warehouse);
         
-        // Check if product already exists for this location
-        Product existingProduct = null;
-        if (store != null) {
-            existingProduct = productRepository.findByPredefinedItemAndStore(item, store).orElse(null);
-        } else if (warehouse != null) {
-            existingProduct = productRepository.findByPredefinedItemAndWarehouse(item, warehouse).orElse(null);
+        if (existingProduct.isEmpty()) {
+            Product product = new Product();
+            product.setPredefinedItem(predefinedItem);
+            product.setWarehouse(warehouse);
+            product.setCompany(warehouse.getCompany());
+            product.setName(predefinedItem.getName());
+            product.setSku(predefinedItem.getSku());
+            product.setCategory(predefinedItem.getCategory());
+            product.setUnit(predefinedItem.getUnitType());
+            product.setDescription(predefinedItem.getDescription());
+            
+            // Copy price from default_price to all price fields for backward compatibility
+            BigDecimal defaultPrice = predefinedItem.getDefaultPrice();
+            product.setPrice(defaultPrice); // Legacy price field
+            product.setOriginalPrice(defaultPrice);
+            product.setOwnerSetSellPrice(defaultPrice);
+            product.setRetailPrice(defaultPrice);
+            
+            product.setQuantity(0); // Initial stock is 0
+            product.setLowStockThreshold(5); // Default low stock threshold
+            product.setCreatedBy(user.getUsername());
+            product.setIsActive(true);
+            
+            productRepository.save(product);
+            logger.debug("Created product for warehouse {} (ID: {})", warehouse.getName(), warehouse.getId());
+        } else {
+            logger.debug("Product already exists for warehouse {} (ID: {})", warehouse.getName(), warehouse.getId());
         }
-        
-        if (existingProduct != null) {
-            logger.info("Product already exists for predefined item {} in {} {}", 
-                item.getId(), 
-                store != null ? "store" : "warehouse", 
-                store != null ? store.getId() : warehouse.getId());
-            return; // Don't create duplicate
-        }
-        
-        Product product = new Product();
-        product.setName(item.getName());
-        product.setSku(item.getSku());
-        product.setCategory(item.getCategory());
-        product.setUnit(item.getUnitType());
-        product.setDescription(item.getDescription());
-        
-        // Copy price from default_price to all price fields for backward compatibility
-        BigDecimal defaultPrice = item.getDefaultPrice();
-        product.setPrice(defaultPrice); // Legacy price field
-        product.setOriginalPrice(defaultPrice);
-        product.setOwnerSetSellPrice(defaultPrice);
-        product.setRetailPrice(defaultPrice);
-        
-        product.setCompany(item.getCompany());
-        product.setStore(store);
-        product.setWarehouse(warehouse);
-        product.setQuantity(0); // Initial stock is 0
-        product.setLowStockThreshold(5); // Default low stock threshold
-        product.setPredefinedItem(item); // Link back to master catalog
-        product.setCreatedBy(createdBy.getUsername());
-        product.setIsActive(true);
-        
-        productRepository.save(product);
-        
-        logger.info("Created product from predefined item {} for {} {}", 
-            item.getId(), 
-            store != null ? "store" : "warehouse", 
-            store != null ? store.getId() : warehouse.getId());
     }
 }

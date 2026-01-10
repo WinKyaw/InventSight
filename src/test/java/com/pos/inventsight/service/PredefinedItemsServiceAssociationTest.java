@@ -183,6 +183,8 @@ class PredefinedItemsServiceAssociationTest {
             });
         when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
         when(warehouseRepository.findByIdWithCompany(warehouse2.getId())).thenReturn(Optional.of(warehouse2));
+        when(predefinedItemWarehouseRepository.findByPredefinedItemIdAndWarehouseId(any(), any()))
+            .thenReturn(Optional.empty());
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.findByPredefinedItemAndWarehouse(any(), any())).thenReturn(Optional.empty());
@@ -197,7 +199,7 @@ class PredefinedItemsServiceAssociationTest {
         
         // Then
         assertNotNull(result);
-        verify(predefinedItemWarehouseRepository, times(1)).deleteByPredefinedItem(any());
+        verify(predefinedItemWarehouseRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemWarehouseRepository, times(2)).save(any(PredefinedItemWarehouse.class));
         verify(predefinedItemStoreRepository, never()).save(any(PredefinedItemStore.class));
     }
@@ -224,6 +226,8 @@ class PredefinedItemsServiceAssociationTest {
         when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
         when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(any(), any()))
             .thenReturn(Optional.empty());
+        when(predefinedItemWarehouseRepository.findByPredefinedItemIdAndWarehouseId(any(), any()))
+            .thenReturn(Optional.empty());
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
@@ -243,7 +247,7 @@ class PredefinedItemsServiceAssociationTest {
         assertNotNull(result);
         verify(predefinedItemStoreRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemStoreRepository, times(1)).save(any(PredefinedItemStore.class));
-        verify(predefinedItemWarehouseRepository, times(1)).deleteByPredefinedItem(any());
+        verify(predefinedItemWarehouseRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemWarehouseRepository, times(1)).save(any(PredefinedItemWarehouse.class));
     }
     
@@ -512,6 +516,8 @@ class PredefinedItemsServiceAssociationTest {
         when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
         when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(any(), any()))
             .thenReturn(Optional.empty());
+        when(predefinedItemWarehouseRepository.findByPredefinedItemIdAndWarehouseId(any(), any()))
+            .thenReturn(Optional.empty());
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
@@ -534,7 +540,7 @@ class PredefinedItemsServiceAssociationTest {
         // Each item should have associations created
         verify(predefinedItemStoreRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemStoreRepository, times(2)).save(any(PredefinedItemStore.class));
-        verify(predefinedItemWarehouseRepository, times(2)).deleteByPredefinedItem(any());
+        verify(predefinedItemWarehouseRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemWarehouseRepository, times(2)).save(any(PredefinedItemWarehouse.class));
     }
     
@@ -620,5 +626,89 @@ class PredefinedItemsServiceAssociationTest {
         
         // Should create association
         verify(predefinedItemStoreRepository, times(1)).save(any(PredefinedItemStore.class));
+    }
+    
+    @Test
+    void testAssociateWarehouses_WithExistingAssociation_SkipsDuplicate() {
+        // Given
+        String name = "Test Item";
+        String unitType = "PCS";
+        String generatedSku = "SKU-12345";
+        List<UUID> warehouseIds = Arrays.asList(warehouse1.getId(), warehouse2.getId());
+        
+        PredefinedItem predefinedItem = new PredefinedItem(name, unitType, company, user);
+        predefinedItem.setId(UUID.randomUUID());
+        predefinedItem.setSku(generatedSku);
+        
+        PredefinedItemWarehouse existingAssociation = new PredefinedItemWarehouse(predefinedItem, warehouse1, user);
+        
+        when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(warehouseRepository.findByIdWithCompany(warehouse2.getId())).thenReturn(Optional.of(warehouse2));
+        
+        // Warehouse 1 already has an association
+        when(predefinedItemWarehouseRepository.findByPredefinedItemIdAndWarehouseId(predefinedItem.getId(), warehouse1.getId()))
+            .thenReturn(Optional.of(existingAssociation));
+        
+        // Warehouse 2 doesn't have an association
+        when(predefinedItemWarehouseRepository.findByPredefinedItemIdAndWarehouseId(predefinedItem.getId(), warehouse2.getId()))
+            .thenReturn(Optional.empty());
+        
+        when(productRepository.findByPredefinedItemAndWarehouse(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // When
+        predefinedItemsService.associateWarehouses(predefinedItem, warehouseIds, user);
+        
+        // Then
+        // Should create products for both warehouses
+        verify(productRepository, times(2)).save(any(Product.class));
+        
+        // Should only create association for warehouse2 (warehouse1 already exists)
+        verify(predefinedItemWarehouseRepository, times(1)).save(any(PredefinedItemWarehouse.class));
+        
+        // Should never delete existing associations
+        verify(predefinedItemWarehouseRepository, never()).deleteByPredefinedItem(any());
+    }
+    
+    @Test
+    void testAssociateWarehouses_WithExistingProduct_SkipsProductCreation() {
+        // Given
+        String name = "Test Item";
+        String unitType = "PCS";
+        String generatedSku = "SKU-12345";
+        List<UUID> warehouseIds = Arrays.asList(warehouse1.getId());
+        
+        PredefinedItem predefinedItem = new PredefinedItem(name, unitType, company, user);
+        predefinedItem.setId(UUID.randomUUID());
+        predefinedItem.setSku(generatedSku);
+        
+        Product existingProduct = new Product();
+        existingProduct.setId(UUID.randomUUID());
+        existingProduct.setPredefinedItem(predefinedItem);
+        existingProduct.setWarehouse(warehouse1);
+        
+        when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(predefinedItemWarehouseRepository.findByPredefinedItemIdAndWarehouseId(predefinedItem.getId(), warehouse1.getId()))
+            .thenReturn(Optional.empty());
+        
+        // Product already exists
+        when(productRepository.findByPredefinedItemAndWarehouse(predefinedItem, warehouse1))
+            .thenReturn(Optional.of(existingProduct));
+        
+        when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // When
+        predefinedItemsService.associateWarehouses(predefinedItem, warehouseIds, user);
+        
+        // Then
+        // Should not create a new product
+        verify(productRepository, never()).save(any(Product.class));
+        
+        // Should create association
+        verify(predefinedItemWarehouseRepository, times(1)).save(any(PredefinedItemWarehouse.class));
     }
 }
