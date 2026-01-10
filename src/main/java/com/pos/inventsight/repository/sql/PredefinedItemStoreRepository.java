@@ -50,4 +50,10 @@ public interface PredefinedItemStoreRepository extends JpaRepository<PredefinedI
      */
     @Query("SELECT pis.store FROM PredefinedItemStore pis WHERE pis.predefinedItem = :item")
     List<Store> findStoresByPredefinedItem(@Param("item") PredefinedItem item);
+    
+    /**
+     * Find association between predefined item and store by IDs
+     * Used to check if association already exists before creating
+     */
+    Optional<PredefinedItemStore> findByPredefinedItemIdAndStoreId(UUID predefinedItemId, UUID storeId);
 }

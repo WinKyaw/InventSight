@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -337,10 +338,7 @@ public class PredefinedItemsService {
     public void associateStores(PredefinedItem item, List<UUID> storeIds, User user) {
         logger.info("Associating {} stores with predefined item {}", storeIds.size(), item.getId());
         
-        // Remove existing associations
-        predefinedItemStoreRepository.deleteByPredefinedItem(item);
-        
-        // Create new associations
+        // Create associations only for stores that don't already have them
         for (UUID storeId : storeIds) {
             logger.debug("Looking up store: {}", storeId);
             
@@ -367,17 +365,20 @@ public class PredefinedItemsService {
             
             logger.debug("Creating association between item {} and store {}", item.getId(), store.getId());
             
-            // 1. Create association record
-            PredefinedItemStore association = new PredefinedItemStore(item, store, user);
-            predefinedItemStoreRepository.save(association);
+            // 1. Create product in separate transaction (won't rollback if association fails)
+            createProductForStore(item, store, user);
             
-            // 2. Create Product record in products table for inventory tracking
-            try {
-                createProductFromPredefinedItem(item, store, null, user);
-                logger.debug("Created product for store {}", store.getId());
-            } catch (Exception e) {
-                logger.error("Failed to create product for store {}: {}", storeId, e.getMessage(), e);
-                throw e;
+            // 2. Check if association already exists
+            Optional<PredefinedItemStore> existingAssociation = predefinedItemStoreRepository
+                .findByPredefinedItemIdAndStoreId(item.getId(), store.getId());
+            
+            if (existingAssociation.isEmpty()) {
+                // Create association record only if it doesn't exist
+                PredefinedItemStore association = new PredefinedItemStore(item, store, user);
+                predefinedItemStoreRepository.save(association);
+                logger.debug("Created association for store {} (ID: {})", store.getStoreName(), store.getId());
+            } else {
+                logger.debug("Association already exists for store {} (ID: {}), skipping", store.getStoreName(), store.getId());
             }
         }
         
@@ -463,6 +464,46 @@ public class PredefinedItemsService {
      */
     public List<String> getUnitTypes(Company company) {
         return predefinedItemRepository.findDistinctUnitTypesByCompany(company);
+    }
+    
+    /**
+     * Create product for store in a separate transaction
+     * This ensures product creation won't rollback if association insert fails
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    protected void createProductForStore(PredefinedItem predefinedItem, Store store, User user) {
+        // Check if product already exists
+        Optional<Product> existingProduct = productRepository
+            .findByPredefinedItemAndStore(predefinedItem, store);
+        
+        if (existingProduct.isEmpty()) {
+            Product product = new Product();
+            product.setPredefinedItem(predefinedItem);
+            product.setStore(store);
+            product.setCompany(store.getCompany());
+            product.setName(predefinedItem.getName());
+            product.setSku(predefinedItem.getSku());
+            product.setCategory(predefinedItem.getCategory());
+            product.setUnit(predefinedItem.getUnitType());
+            product.setDescription(predefinedItem.getDescription());
+            
+            // Copy price from default_price to all price fields for backward compatibility
+            BigDecimal defaultPrice = predefinedItem.getDefaultPrice();
+            product.setPrice(defaultPrice); // Legacy price field
+            product.setOriginalPrice(defaultPrice);
+            product.setOwnerSetSellPrice(defaultPrice);
+            product.setRetailPrice(defaultPrice);
+            
+            product.setQuantity(0); // Initial stock is 0
+            product.setLowStockThreshold(5); // Default low stock threshold
+            product.setCreatedBy(user.getUsername());
+            product.setIsActive(true);
+            
+            productRepository.save(product);
+            logger.debug("Created product for store {} (ID: {})", store.getStoreName(), store.getId());
+        } else {
+            logger.debug("Product already exists for store {} (ID: {})", store.getStoreName(), store.getId());
+        }
     }
     
     /**

@@ -143,6 +143,8 @@ class PredefinedItemsServiceAssociationTest {
             });
         when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
         when(storeRepository.findByIdWithCompany(store2.getId())).thenReturn(Optional.of(store2));
+        when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(any(), any()))
+            .thenReturn(Optional.empty());
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.findByPredefinedItemAndStore(any(), any())).thenReturn(Optional.empty());
@@ -157,7 +159,7 @@ class PredefinedItemsServiceAssociationTest {
         
         // Then
         assertNotNull(result);
-        verify(predefinedItemStoreRepository, times(1)).deleteByPredefinedItem(any());
+        verify(predefinedItemStoreRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemStoreRepository, times(2)).save(any(PredefinedItemStore.class));
         verify(predefinedItemWarehouseRepository, never()).save(any(PredefinedItemWarehouse.class));
     }
@@ -220,6 +222,8 @@ class PredefinedItemsServiceAssociationTest {
             });
         when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
         when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(any(), any()))
+            .thenReturn(Optional.empty());
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
@@ -237,7 +241,7 @@ class PredefinedItemsServiceAssociationTest {
         
         // Then
         assertNotNull(result);
-        verify(predefinedItemStoreRepository, times(1)).deleteByPredefinedItem(any());
+        verify(predefinedItemStoreRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemStoreRepository, times(1)).save(any(PredefinedItemStore.class));
         verify(predefinedItemWarehouseRepository, times(1)).deleteByPredefinedItem(any());
         verify(predefinedItemWarehouseRepository, times(1)).save(any(PredefinedItemWarehouse.class));
@@ -506,6 +510,8 @@ class PredefinedItemsServiceAssociationTest {
             });
         when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
         when(warehouseRepository.findByIdWithCompany(warehouse1.getId())).thenReturn(Optional.of(warehouse1));
+        when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(any(), any()))
+            .thenReturn(Optional.empty());
         when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(predefinedItemWarehouseRepository.save(any(PredefinedItemWarehouse.class)))
@@ -526,9 +532,93 @@ class PredefinedItemsServiceAssociationTest {
         assertEquals(0, result.get("failed"));
         
         // Each item should have associations created
-        verify(predefinedItemStoreRepository, times(2)).deleteByPredefinedItem(any());
+        verify(predefinedItemStoreRepository, never()).deleteByPredefinedItem(any());
         verify(predefinedItemStoreRepository, times(2)).save(any(PredefinedItemStore.class));
         verify(predefinedItemWarehouseRepository, times(2)).deleteByPredefinedItem(any());
         verify(predefinedItemWarehouseRepository, times(2)).save(any(PredefinedItemWarehouse.class));
+    }
+    
+    @Test
+    void testAssociateStores_WithExistingAssociation_SkipsDuplicate() {
+        // Given
+        String name = "Test Item";
+        String unitType = "PCS";
+        String generatedSku = "SKU-12345";
+        List<UUID> storeIds = Arrays.asList(store1.getId(), store2.getId());
+        
+        PredefinedItem predefinedItem = new PredefinedItem(name, unitType, company, user);
+        predefinedItem.setId(UUID.randomUUID());
+        predefinedItem.setSku(generatedSku);
+        
+        PredefinedItemStore existingAssociation = new PredefinedItemStore(predefinedItem, store1, user);
+        
+        when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
+        when(storeRepository.findByIdWithCompany(store2.getId())).thenReturn(Optional.of(store2));
+        
+        // Store 1 already has an association
+        when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(predefinedItem.getId(), store1.getId()))
+            .thenReturn(Optional.of(existingAssociation));
+        
+        // Store 2 doesn't have an association
+        when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(predefinedItem.getId(), store2.getId()))
+            .thenReturn(Optional.empty());
+        
+        when(productRepository.findByPredefinedItemAndStore(any(), any())).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // When
+        predefinedItemsService.associateStores(predefinedItem, storeIds, user);
+        
+        // Then
+        // Should create products for both stores
+        verify(productRepository, times(2)).save(any(Product.class));
+        
+        // Should only create association for store2 (store1 already exists)
+        verify(predefinedItemStoreRepository, times(1)).save(any(PredefinedItemStore.class));
+        
+        // Should never delete existing associations
+        verify(predefinedItemStoreRepository, never()).deleteByPredefinedItem(any());
+    }
+    
+    @Test
+    void testAssociateStores_WithExistingProduct_SkipsProductCreation() {
+        // Given
+        String name = "Test Item";
+        String unitType = "PCS";
+        String generatedSku = "SKU-12345";
+        List<UUID> storeIds = Arrays.asList(store1.getId());
+        
+        PredefinedItem predefinedItem = new PredefinedItem(name, unitType, company, user);
+        predefinedItem.setId(UUID.randomUUID());
+        predefinedItem.setSku(generatedSku);
+        
+        Product existingProduct = new Product();
+        existingProduct.setId(UUID.randomUUID());
+        existingProduct.setPredefinedItem(predefinedItem);
+        existingProduct.setStore(store1);
+        
+        when(storeRepository.findByIdWithCompany(store1.getId())).thenReturn(Optional.of(store1));
+        when(predefinedItemStoreRepository.findByPredefinedItemIdAndStoreId(predefinedItem.getId(), store1.getId()))
+            .thenReturn(Optional.empty());
+        
+        // Product already exists
+        when(productRepository.findByPredefinedItemAndStore(predefinedItem, store1))
+            .thenReturn(Optional.of(existingProduct));
+        
+        when(predefinedItemStoreRepository.save(any(PredefinedItemStore.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // When
+        predefinedItemsService.associateStores(predefinedItem, storeIds, user);
+        
+        // Then
+        // Should not create a new product
+        verify(productRepository, never()).save(any(Product.class));
+        
+        // Should create association
+        verify(predefinedItemStoreRepository, times(1)).save(any(PredefinedItemStore.class));
     }
 }
