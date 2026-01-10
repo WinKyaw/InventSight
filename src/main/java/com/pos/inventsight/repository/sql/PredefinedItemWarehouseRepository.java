@@ -50,4 +50,10 @@ public interface PredefinedItemWarehouseRepository extends JpaRepository<Predefi
      */
     @Query("SELECT piw.warehouse FROM PredefinedItemWarehouse piw WHERE piw.predefinedItem = :item")
     List<Warehouse> findWarehousesByPredefinedItem(@Param("item") PredefinedItem item);
+    
+    /**
+     * Find association between predefined item and warehouse by IDs
+     * Used to check if association already exists before creating
+     */
+    Optional<PredefinedItemWarehouse> findByPredefinedItemIdAndWarehouseId(UUID predefinedItemId, UUID warehouseId);
 }
