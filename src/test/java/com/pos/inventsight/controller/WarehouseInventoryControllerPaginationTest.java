@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 /**
  * Integration test for WarehouseInventoryController endpoints with pagination and RBAC
  */
-public class WarehouseInventoryControllerRBACTest {
+public class WarehouseInventoryControllerPaginationTest {
 
     @Test
     public void testControllerPaginationResponseStructure() {
