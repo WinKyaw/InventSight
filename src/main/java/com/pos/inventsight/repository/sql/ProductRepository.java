@@ -154,4 +154,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
      */
     @Query("SELECT p FROM Product p WHERE p.warehouse.id = :warehouseId AND p.isActive = true ORDER BY p.name ASC")
     List<Product> findByWarehouseId(@Param("warehouseId") UUID warehouseId);
+    
+    // Store-based filtering with company isolation
+    @Query("SELECT p FROM Product p WHERE p.store.id = :storeId AND p.company.id IN :companyIds AND p.isActive = true")
+    Page<Product> findByStoreIdAndCompanyIdIn(@Param("storeId") UUID storeId, @Param("companyIds") Set<UUID> companyIds, Pageable pageable);
+    
+    @Query("SELECT p FROM Product p WHERE p.store.id = :storeId AND p.company.id IN :companyIds AND p.category = :category AND p.isActive = true")
+    Page<Product> findByStoreIdAndCompanyIdInAndCategory(@Param("storeId") UUID storeId, @Param("companyIds") Set<UUID> companyIds, @Param("category") String category, Pageable pageable);
+    
+    @Query("SELECT p FROM Product p WHERE p.store.id = :storeId AND p.company.id IN :companyIds AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) AND p.isActive = true")
+    Page<Product> findByStoreIdAndCompanyIdInAndNameContainingIgnoreCase(@Param("storeId") UUID storeId, @Param("companyIds") Set<UUID> companyIds, @Param("name") String name, Pageable pageable);
 }

@@ -16,6 +16,7 @@ import com.pos.inventsight.service.UserService;
 import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
+import com.pos.inventsight.repository.sql.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -65,6 +66,9 @@ public class ProductController {
     @Autowired
     private SupplyManagementService supplyManagementService;
     
+    @Autowired
+    private ProductRepository productRepository;
+    
     // GET /products - Get all products with pagination
     @GetMapping
     public ResponseEntity<?> getAllProducts(
@@ -75,10 +79,16 @@ public class ProductController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String supplier,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID storeId,
             Authentication authentication) {
         try {
             String username = authentication.getName();
             System.out.println("📦 InventSight - Fetching products for user: " + username);
+            
+            // Log storeId if provided
+            if (storeId != null) {
+                System.out.println("🏪 Filtering products by store: " + storeId);
+            }
             
             // Get current user
             User currentUser = userService.getUserByUsername(username);
@@ -123,18 +133,39 @@ public class ProductController {
             
             Page<Product> productsPage;
             
-            if (search != null && !search.trim().isEmpty()) {
-                Page<Product> searchResults = productService.searchProducts(search, pageable);
-                List<Product> filtered = filterProductsByCompany(searchResults.getContent(), userCompanyIds);
-                productsPage = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
-            } else if (category != null && !category.trim().isEmpty()) {
-                List<Product> categoryProducts = productService.getProductsByCategory(category);
-                List<Product> filtered = filterProductsByCompany(categoryProducts, userCompanyIds);
-                productsPage = convertListToPage(filtered, pageable);
+            // Check if storeId is provided
+            if (storeId != null) {
+                // Use repository methods with storeId filtering
+                System.out.println("📦 Fetching products for store: " + storeId);
+                
+                if (search != null && !search.trim().isEmpty()) {
+                    productsPage = productRepository.findByStoreIdAndCompanyIdInAndNameContainingIgnoreCase(
+                        storeId, userCompanyIds, search, pageable);
+                } else if (category != null && !category.trim().isEmpty()) {
+                    productsPage = productRepository.findByStoreIdAndCompanyIdInAndCategory(
+                        storeId, userCompanyIds, category, pageable);
+                } else {
+                    productsPage = productRepository.findByStoreIdAndCompanyIdIn(
+                        storeId, userCompanyIds, pageable);
+                }
+                
+                System.out.println("✅ Found " + productsPage.getTotalElements() + " products for store");
+                
             } else {
-                List<Product> allProducts = productService.getAllActiveProducts();
-                List<Product> filtered = filterProductsByCompany(allProducts, userCompanyIds);
-                productsPage = convertListToPage(filtered, pageable);
+                // Existing logic: Get all products across all stores for user's companies
+                if (search != null && !search.trim().isEmpty()) {
+                    Page<Product> searchResults = productService.searchProducts(search, pageable);
+                    List<Product> filtered = filterProductsByCompany(searchResults.getContent(), userCompanyIds);
+                    productsPage = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
+                } else if (category != null && !category.trim().isEmpty()) {
+                    List<Product> categoryProducts = productService.getProductsByCategory(category);
+                    List<Product> filtered = filterProductsByCompany(categoryProducts, userCompanyIds);
+                    productsPage = convertListToPage(filtered, pageable);
+                } else {
+                    List<Product> allProducts = productService.getAllActiveProducts();
+                    List<Product> filtered = filterProductsByCompany(allProducts, userCompanyIds);
+                    productsPage = convertListToPage(filtered, pageable);
+                }
             }
             
             List<ProductResponse> productResponses = productsPage.getContent().stream()
