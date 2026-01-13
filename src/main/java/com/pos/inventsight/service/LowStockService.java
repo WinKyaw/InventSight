@@ -108,7 +108,7 @@ public class LowStockService {
         List<Map<String, Object>> availability = new ArrayList<>();
         
         // Find all products with same SKU in warehouses of the same company
-        List<Product> warehouseProducts = productRepository.findBySku(product.getSku())
+        List<Product> warehouseProducts = productRepository.findAllBySku(product.getSku())
             .stream()
             .filter(p -> p.getWarehouse() != null && 
                         p.getCompany() != null && 

@@ -1,5 +1,6 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.MarketplaceOrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,7 +94,7 @@ public class MarketplaceOrderService {
      */
     public MarketplaceOrder getOrderById(UUID id) {
         return marketplaceOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
     }
     
     /**

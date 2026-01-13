@@ -1,5 +1,6 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.TransferRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,7 +76,7 @@ public class TransferRequestService {
      */
     public TransferRequest getTransferRequestById(UUID id) {
         return transferRequestRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transfer request not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Transfer request not found with id: " + id));
     }
     
     /**

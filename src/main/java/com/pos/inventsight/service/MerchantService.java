@@ -1,5 +1,6 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.Company;
 import com.pos.inventsight.model.sql.Merchant;
 import com.pos.inventsight.repository.sql.MerchantRepository;
@@ -53,7 +54,7 @@ public class MerchantService {
      */
     public Merchant getMerchantById(UUID id) {
         return merchantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Merchant not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Merchant not found with id: " + id));
     }
     
     /**

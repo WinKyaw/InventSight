@@ -1,5 +1,6 @@
 package com.pos.inventsight.service;
 
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.ProductAdRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
@@ -63,7 +64,7 @@ public class ProductAdService {
      */
     public ProductAd getAdById(UUID id) {
         return productAdRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product ad not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Product ad not found with id: " + id));
     }
     
     /**
