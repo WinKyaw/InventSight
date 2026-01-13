@@ -143,11 +143,13 @@ public class ProductController {
                 // Verify store exists and belongs to user's company
                 System.out.println("📦 Fetching products for store: " + storeId);
                 
-                Store store = storeRepository.findById(storeId)
+                // Use eager fetch to avoid N+1 query issue
+                Store store = storeRepository.findByIdWithCompany(storeId)
                     .orElseThrow(() -> new RuntimeException("Store not found with ID: " + storeId));
                 
                 // Security check: Verify store belongs to user's company
                 if (!userCompanyIds.contains(store.getCompany().getId())) {
+                    System.out.println("❌ Access denied: User attempted to access store from different company");
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse(false, "Access denied: Store does not belong to your company"));
                 }
@@ -200,6 +202,18 @@ public class ProductController {
             
             return ResponseEntity.ok(response);
             
+        } catch (RuntimeException e) {
+            // Handle store not found separately
+            if (e.getMessage() != null && e.getMessage().contains("Store not found")) {
+                System.out.println("❌ Store not found: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(false, e.getMessage()));
+            }
+            // Other runtime exceptions
+            System.out.println("❌ Error fetching products: " + e.getMessage());
+            System.err.println("❌ Stack trace: " + e.getClass().getName() + " - " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to fetch products: " + e.getMessage()));
         } catch (Exception e) {
             System.out.println("❌ Error fetching products: " + e.getMessage());
             System.err.println("❌ Stack trace: " + e.getClass().getName() + " - " + e.getMessage());
