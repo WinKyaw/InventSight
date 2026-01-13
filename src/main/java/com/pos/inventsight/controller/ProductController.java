@@ -9,6 +9,7 @@ import com.pos.inventsight.model.sql.PermissionType;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.UserStoreRole;
+import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.service.ProductService;
 import com.pos.inventsight.service.OneTimePermissionService;
 import com.pos.inventsight.service.SupplyManagementService;
@@ -17,6 +18,7 @@ import com.pos.inventsight.repository.sql.UserRepository;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
+import com.pos.inventsight.repository.sql.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -68,6 +70,9 @@ public class ProductController {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private StoreRepository storeRepository;
     
     // GET /products - Get all products with pagination
     @GetMapping
@@ -135,9 +140,23 @@ public class ProductController {
             
             // Check if storeId is provided
             if (storeId != null) {
-                // Use repository methods with storeId filtering
+                // Verify store exists and belongs to user's company
                 System.out.println("📦 Fetching products for store: " + storeId);
                 
+                // Use eager fetch to avoid N+1 query issue
+                Store store = storeRepository.findByIdWithCompany(storeId)
+                    .orElseThrow(() -> new RuntimeException("Store not found with ID: " + storeId));
+                
+                // Security check: Verify store belongs to user's company
+                if (!userCompanyIds.contains(store.getCompany().getId())) {
+                    System.out.println("❌ Access denied: User attempted to access store from different company");
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(false, "Access denied: Store does not belong to your company"));
+                }
+                
+                System.out.println("🔍 Store verified: " + store.getStoreName() + " (Company: " + store.getCompany().getName() + ")");
+                
+                // Use repository methods with storeId filtering
                 if (search != null && !search.trim().isEmpty()) {
                     productsPage = productRepository.findByStoreIdAndCompanyIdInAndNameContainingIgnoreCase(
                         storeId, userCompanyIds, search, pageable);
@@ -149,7 +168,7 @@ public class ProductController {
                         storeId, userCompanyIds, pageable);
                 }
                 
-                System.out.println("✅ Found " + productsPage.getTotalElements() + " products for store");
+                System.out.println("✅ Found " + productsPage.getTotalElements() + " products for store: " + store.getStoreName());
                 
             } else {
                 // Existing logic: Get all products across all stores for user's companies
@@ -183,6 +202,18 @@ public class ProductController {
             
             return ResponseEntity.ok(response);
             
+        } catch (RuntimeException e) {
+            // Handle store not found separately
+            if (e.getMessage() != null && e.getMessage().contains("Store not found")) {
+                System.out.println("❌ Store not found: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(false, e.getMessage()));
+            }
+            // Other runtime exceptions
+            System.out.println("❌ Error fetching products: " + e.getMessage());
+            System.err.println("❌ Stack trace: " + e.getClass().getName() + " - " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to fetch products: " + e.getMessage()));
         } catch (Exception e) {
             System.out.println("❌ Error fetching products: " + e.getMessage());
             System.err.println("❌ Stack trace: " + e.getClass().getName() + " - " + e.getMessage());
