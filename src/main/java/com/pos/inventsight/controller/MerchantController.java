@@ -4,9 +4,9 @@ import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.model.sql.Company;
 import com.pos.inventsight.model.sql.Merchant;
 import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.service.MerchantService;
 import com.pos.inventsight.service.UserService;
-import com.pos.inventsight.service.CompanyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +28,18 @@ public class MerchantController {
     private UserService userService;
     
     @Autowired
-    private CompanyService companyService;
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    /**
+     * Helper method to get user's company
+     */
+    private Company getUserCompany(User user) {
+        List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+        if (companies.isEmpty()) {
+            return null;
+        }
+        return companies.get(0); // Return first company
+    }
     
     /**
      * POST /api/merchants - Create merchant
@@ -39,7 +50,7 @@ public class MerchantController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = companyService.getUserCompany(currentUser.getId());
+            Company company = getUserCompany(currentUser);
             
             if (company == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -69,7 +80,7 @@ public class MerchantController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = companyService.getUserCompany(currentUser.getId());
+            Company company = getUserCompany(currentUser);
             
             if (company == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)

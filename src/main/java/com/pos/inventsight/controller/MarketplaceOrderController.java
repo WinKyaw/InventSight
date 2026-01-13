@@ -4,7 +4,7 @@ import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.service.MarketplaceOrderService;
 import com.pos.inventsight.service.UserService;
-import com.pos.inventsight.service.CompanyService;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,18 @@ public class MarketplaceOrderController {
     private UserService userService;
     
     @Autowired
-    private CompanyService companyService;
+    private CompanyStoreUserRepository companyStoreUserRepository;
+    
+    /**
+     * Helper method to get user's company
+     */
+    private Company getUserCompany(User user) {
+        List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+        if (companies.isEmpty()) {
+            return null;
+        }
+        return companies.get(0); // Return first company
+    }
     
     /**
      * POST /api/marketplace/orders - Create order
@@ -37,7 +48,7 @@ public class MarketplaceOrderController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = companyService.getUserCompany(currentUser.getId());
+            Company company = getUserCompany(currentUser);
             Store currentStore = userService.getCurrentUserStore();
             
             if (company == null) {
@@ -93,7 +104,7 @@ public class MarketplaceOrderController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = companyService.getUserCompany(currentUser.getId());
+            Company company = getUserCompany(currentUser);
             
             if (company == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
