@@ -21,9 +21,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * Integration test for WarehouseInventoryController endpoints with pagination and RBAC
+ * Integration test for WarehouseInventoryController endpoints with pagination functionality
  */
-public class WarehouseInventoryControllerRBACTest {
+public class WarehouseInventoryControllerPaginationTest {
 
     @Test
     public void testControllerPaginationResponseStructure() {
