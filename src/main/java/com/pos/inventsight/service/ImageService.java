@@ -32,7 +32,8 @@ public class ImageService {
     @Value("${app.image.quality:85}")
     private int quality;
     
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    @Value("${spring.servlet.multipart.max-file-size:5MB}")
+    private String maxFileSizeStr;
     
     /**
      * Upload and process an image
@@ -51,8 +52,11 @@ public class ImageService {
             throw new IllegalArgumentException("File is empty");
         }
         
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("File size exceeds maximum limit of 5MB");
+        // Parse max file size from config (e.g., "5MB")
+        long maxFileSize = parseSize(maxFileSizeStr);
+        
+        if (file.getSize() > maxFileSize) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of " + maxFileSizeStr);
         }
         
         // Validate file type
@@ -121,5 +125,31 @@ public class ImageService {
         }
         
         return false;
+    }
+    
+    /**
+     * Parse size string (e.g., "5MB", "10KB") to bytes
+     */
+    private long parseSize(String sizeStr) {
+        sizeStr = sizeStr.trim().toUpperCase();
+        long multiplier = 1;
+        
+        if (sizeStr.endsWith("KB")) {
+            multiplier = 1024;
+            sizeStr = sizeStr.substring(0, sizeStr.length() - 2);
+        } else if (sizeStr.endsWith("MB")) {
+            multiplier = 1024 * 1024;
+            sizeStr = sizeStr.substring(0, sizeStr.length() - 2);
+        } else if (sizeStr.endsWith("GB")) {
+            multiplier = 1024 * 1024 * 1024;
+            sizeStr = sizeStr.substring(0, sizeStr.length() - 2);
+        }
+        
+        try {
+            return Long.parseLong(sizeStr.trim()) * multiplier;
+        } catch (NumberFormatException e) {
+            // Default to 5MB if parsing fails
+            return 5 * 1024 * 1024;
+        }
     }
 }

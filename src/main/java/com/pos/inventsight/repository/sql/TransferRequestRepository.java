@@ -46,6 +46,6 @@ public interface TransferRequestRepository extends JpaRepository<TransferRequest
     /**
      * Find pending transfer requests for approval
      */
-    @Query("SELECT tr FROM TransferRequest tr WHERE tr.company.id = :companyId AND tr.status = 'PENDING' ORDER BY tr.priority DESC, tr.createdAt ASC")
+    @Query("SELECT tr FROM TransferRequest tr WHERE tr.company.id = :companyId AND tr.status = com.pos.inventsight.model.sql.TransferRequestStatus.PENDING ORDER BY tr.priority DESC, tr.createdAt ASC")
     List<TransferRequest> findPendingRequestsByCompanyId(@Param("companyId") UUID companyId);
 }

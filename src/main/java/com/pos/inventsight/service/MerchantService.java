@@ -19,9 +19,6 @@ public class MerchantService {
     @Autowired
     private MerchantRepository merchantRepository;
     
-    @Autowired
-    private CompanyService companyService;
-    
     /**
      * Create a new merchant
      */
