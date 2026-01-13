@@ -15,6 +15,13 @@ spring:
   mvc:
     static-path-pattern: /static/**
     throw-exception-if-no-handler-found: true
+  
+  # File Upload Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 5MB
     
   # PostgreSQL Configuration (Core Business Data)
   datasource:
@@ -251,6 +258,15 @@ inventsight:
   # One-Time Permission Configuration
   permissions:
     default-expiry-hours: 1 # One-time permissions expire after 1 hour
+
+# Application-specific Configuration
+app:
+  # Image upload settings
+  image:
+    upload-dir: ./uploads/images
+    max-width: 800
+    max-height: 800
+    quality: 85
 
 # Logging Configuration
 logging:

@@ -197,6 +197,9 @@ public class SecurityConfig {
                     .requestMatchers("/js/**").permitAll()
                     .requestMatchers("/pages/**").permitAll()
                     
+                    // Uploaded images
+                    .requestMatchers("/uploads/images/**").permitAll()
+                    
                     .anyRequest().authenticated();
             });
         
