@@ -8,6 +8,7 @@ import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.Customer;
 import com.pos.inventsight.model.sql.ReceiptType;
+import com.pos.inventsight.model.sql.PaymentMethod;
 import com.pos.inventsight.repository.sql.SaleRepository;
 import com.pos.inventsight.repository.sql.SaleItemRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
@@ -99,10 +100,19 @@ public class SaleService {
             sale.setCustomerPhone(request.getCustomerPhone());
         }
         
-        sale.setPaymentMethod(request.getPaymentMethod());
+        // ✅ FIX: Only set payment method if provided (not null)
+        if (request.getPaymentMethod() != null) {
+            sale.setPaymentMethod(request.getPaymentMethod());
+        }
+        
         sale.setReceiptType(request.getReceiptType() != null ? request.getReceiptType() : ReceiptType.IN_STORE);
         sale.setNotes(request.getNotes());
-        sale.setStatus(SaleStatus.PENDING);
+        
+        // ✅ FIX: Set status from request, default to PENDING
+        SaleStatus status = request.getStatus() != null ? request.getStatus() : SaleStatus.PENDING;
+        sale.setStatus(status);
+        
+        System.out.println("📝 Receipt status: " + status);
         
         // If delivery, assign delivery person
         if (sale.getReceiptType() == ReceiptType.DELIVERY && request.getDeliveryPersonId() != null) {
@@ -121,12 +131,15 @@ public class SaleService {
         for (SaleRequest.ItemRequest itemRequest : request.getItems()) {
             Product product = productService.getProductById(itemRequest.getProductId());
             
-            // Check stock availability
-            if (product.getQuantity() < itemRequest.getQuantity()) {
-                throw new InsufficientStockException(
-                    "Insufficient stock for " + product.getName() + 
-                    ". Available: " + product.getQuantity() + ", Requested: " + itemRequest.getQuantity()
-                );
+            // ✅ FIX: Only check stock for COMPLETED receipts
+            if (status == SaleStatus.COMPLETED) {
+                // Check stock availability
+                if (product.getQuantity() < itemRequest.getQuantity()) {
+                    throw new InsufficientStockException(
+                        "Insufficient stock for " + product.getName() + 
+                        ". Available: " + product.getQuantity() + ", Requested: " + itemRequest.getQuantity()
+                    );
+                }
             }
             
             // Create sale item
@@ -158,45 +171,55 @@ public class SaleService {
         // Save sale
         Sale savedSale = saleRepository.save(sale);
         
-        // Save sale items and update inventory
-        for (SaleItem saleItem : saleItems) {
-            saleItem.setSale(savedSale);
-            saleItemRepository.save(saleItem);
+        // ✅ FIX: Only reduce inventory and complete sale if status is COMPLETED
+        if (status == SaleStatus.COMPLETED) {
+            // Save sale items and update inventory
+            for (SaleItem saleItem : saleItems) {
+                saleItem.setSale(savedSale);
+                saleItemRepository.save(saleItem);
+                
+                // Reduce inventory
+                productService.reduceStock(
+                    saleItem.getProduct().getId(), 
+                    saleItem.getQuantity(),
+                    "SALE - Receipt: " + savedSale.getReceiptNumber()
+                );
+            }
             
-            // Reduce inventory
-            productService.reduceStock(
-                saleItem.getProduct().getId(), 
-                saleItem.getQuantity(),
-                "SALE - Receipt: " + savedSale.getReceiptNumber()
+            // Update customer's last purchase date if customer is linked
+            if (savedSale.getCustomer() != null) {
+                Customer customer = savedSale.getCustomer();
+                customer.setLastPurchaseDate(LocalDateTime.now());
+                customerRepository.save(customer);
+            }
+            
+            // Log activity
+            activityLogService.logActivity(
+                userId.toString(), 
+                "WinKyaw", 
+                "SALE_COMPLETED", 
+                "SALE", 
+                String.format("Sale completed: %s - Total: $%.2f", 
+                    savedSale.getReceiptNumber(), savedSale.getTotalAmount())
             );
+            
+            System.out.println("✅ Sale completed: " + savedSale.getReceiptNumber() + 
+                             " - Total: $" + savedSale.getTotalAmount());
+        } else {
+            // PENDING: Just save items without reducing inventory
+            for (SaleItem saleItem : saleItems) {
+                saleItem.setSale(savedSale);
+                saleItemRepository.save(saleItem);
+            }
+            
+            System.out.println("📝 Pending receipt created: " + savedSale.getReceiptNumber() + 
+                             " - Total: $" + savedSale.getTotalAmount());
         }
         
-        // Complete sale
-        savedSale.setStatus(SaleStatus.COMPLETED);
-        savedSale = saleRepository.save(savedSale);
-        
-        // Update customer's last purchase date if customer is linked
-        if (savedSale.getCustomer() != null) {
-            Customer customer = savedSale.getCustomer();
-            customer.setLastPurchaseDate(LocalDateTime.now());
-            customerRepository.save(customer);
+        // Update analytics only for completed sales
+        if (status == SaleStatus.COMPLETED) {
+            inventoryAnalyticsService.updateDailyAnalytics(savedSale);
         }
-        
-        // Log activity
-        activityLogService.logActivity(
-            userId.toString(), 
-            "WinKyaw", 
-            "SALE_COMPLETED", 
-            "SALE", 
-            String.format("Sale completed: %s - Total: $%.2f", 
-                savedSale.getReceiptNumber(), savedSale.getTotalAmount())
-        );
-        
-        // Update analytics
-        inventoryAnalyticsService.updateDailyAnalytics(savedSale);
-        
-        System.out.println("✅ Sale completed: " + savedSale.getReceiptNumber() + 
-                         " - Total: $" + savedSale.getTotalAmount());
         
         // Convert to DTO and return
         return convertToSaleResponse(savedSale);
@@ -673,6 +696,79 @@ public class SaleService {
         );
         
         return convertToSaleResponse(savedSale);
+    }
+    
+    /**
+     * Complete a pending receipt with payment method
+     * Reduces stock for all items and updates status to COMPLETED
+     */
+    public SaleResponse completeReceipt(Long saleId, PaymentMethod paymentMethod, UUID userId) {
+        User user = userService.getUserById(userId);
+        
+        Sale sale = saleRepository.findById(saleId)
+            .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
+        
+        // Verify receipt is pending
+        if (sale.getStatus() != SaleStatus.PENDING) {
+            throw new IllegalStateException("Receipt is not in pending status. Current status: " + sale.getStatus());
+        }
+        
+        // Check user has access to this receipt (same tenant/company)
+        if (!sale.getCompany().getId().equals(user.getDefaultTenantId())) {
+            throw new IllegalArgumentException("Access denied: Receipt belongs to different company");
+        }
+        
+        // Reduce stock for all items
+        for (SaleItem item : sale.getItems()) {
+            Product product = item.getProduct();
+            
+            if (product.getQuantity() < item.getQuantity()) {
+                throw new InsufficientStockException(
+                    "Insufficient stock for product: " + product.getName() +
+                    ". Available: " + product.getQuantity() + ", Required: " + item.getQuantity()
+                );
+            }
+            
+            // Reduce inventory
+            productService.reduceStock(
+                product.getId(),
+                item.getQuantity(),
+                "COMPLETED - Receipt: " + sale.getReceiptNumber()
+            );
+        }
+        
+        // Update receipt
+        sale.setStatus(SaleStatus.COMPLETED);
+        sale.setPaymentMethod(paymentMethod);
+        sale.setUpdatedAt(LocalDateTime.now());
+        
+        Sale completedSale = saleRepository.save(sale);
+        
+        // Update customer's last purchase date if customer is linked
+        if (completedSale.getCustomer() != null) {
+            Customer customer = completedSale.getCustomer();
+            customer.setLastPurchaseDate(LocalDateTime.now());
+            customerRepository.save(customer);
+        }
+        
+        // Log activity
+        activityLogService.logActivity(
+            userId.toString(),
+            user.getUsername(),
+            "SALE_COMPLETED",
+            "SALE",
+            String.format("Receipt completed: %s - Total: $%.2f", 
+                completedSale.getReceiptNumber(), completedSale.getTotalAmount())
+        );
+        
+        // Update analytics
+        inventoryAnalyticsService.updateDailyAnalytics(completedSale);
+        
+        System.out.println("✅ Receipt completed: " + saleId + 
+                         " | Payment: " + paymentMethod + 
+                         " | Total: $" + completedSale.getTotalAmount());
+        
+        return convertToSaleResponse(completedSale);
     }
     
     /**
