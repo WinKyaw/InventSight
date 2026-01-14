@@ -101,6 +101,7 @@ public class SaleService {
         }
         
         // ✅ FIX: Only set payment method if provided (not null)
+        // For PENDING receipts, payment method will be set when completing the receipt
         if (request.getPaymentMethod() != null) {
             sale.setPaymentMethod(request.getPaymentMethod());
         }

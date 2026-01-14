@@ -30,7 +30,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * Test class to verify pending receipt creation and completion functionality
+ * Test class to verify pending receipt creation and completion functionality.
+ * Tests payment method validation rules:
+ * - PENDING receipts don't require payment method
+ * - COMPLETED receipts require payment method
+ * - Pending receipts can be completed later with payment method
  */
 @ExtendWith(MockitoExtension.class)
 public class PendingReceiptTest {

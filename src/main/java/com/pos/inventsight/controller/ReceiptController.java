@@ -4,6 +4,7 @@ import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
+import com.pos.inventsight.model.sql.PaymentMethod;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.User;
@@ -143,7 +144,7 @@ public class ReceiptController {
             System.out.println("📊 Receipt items count: " + request.getItems().size());
             
             // ✅ FIX: Validate payment method based on status
-            if (request.getStatus() != null && request.getStatus() == com.pos.inventsight.model.sql.SaleStatus.COMPLETED) {
+            if (request.requiresPaymentMethod()) {
                 if (request.getPaymentMethod() == null) {
                     return ResponseEntity.badRequest().body(new ApiResponse(
                         false, 
@@ -439,9 +440,9 @@ public class ReceiptController {
                 ));
             }
             
-            com.pos.inventsight.model.sql.PaymentMethod paymentMethod;
+            PaymentMethod paymentMethod;
             try {
-                paymentMethod = com.pos.inventsight.model.sql.PaymentMethod.valueOf(paymentMethodStr);
+                paymentMethod = PaymentMethod.valueOf(paymentMethodStr);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(new ApiResponse(
                     false,
