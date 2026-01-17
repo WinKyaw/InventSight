@@ -242,14 +242,72 @@ public class ProductService {
     public void reduceStock(UUID productId, Integer quantity, String reason) {
         Product product = getProductById(productId);
         
+        System.out.println("🔻 Reducing stock for: " + product.getName());
+        System.out.println("   Current stock: " + product.getQuantity());
+        System.out.println("   Quantity to reduce: " + quantity);
+        
         if (product.getQuantity() < quantity) {
-            throw new InsufficientStockException(
-                "Insufficient stock for " + product.getName() + 
-                ". Available: " + product.getQuantity() + ", Requested: " + quantity
+            String errorMsg = String.format(
+                "Insufficient stock for %s. Available: %d, Requested: %d",
+                product.getName(), product.getQuantity(), quantity
             );
+            System.err.println("❌ " + errorMsg);
+            throw new InsufficientStockException(errorMsg);
         }
         
-        updateStock(productId, product.getQuantity() - quantity, "SYSTEM", reason);
+        Integer oldQuantity = product.getQuantity();
+        Integer newQuantity = oldQuantity - quantity;
+        
+        // Update stock
+        product.setQuantity(newQuantity);
+        
+        // Update total sales
+        Integer currentSales = product.getTotalSales() != null ? product.getTotalSales() : 0;
+        product.setTotalSales(currentSales + quantity);
+        
+        // Update last sold date
+        product.setLastSoldDate(LocalDateTime.now());
+        
+        product.setUpdatedAt(LocalDateTime.now());
+        
+        Product savedProduct = productRepository.save(product);
+        
+        // Verify the update persisted
+        System.out.println("✅ Stock reduced successfully:");
+        System.out.println("   Old stock: " + oldQuantity);
+        System.out.println("   New stock: " + savedProduct.getQuantity());
+        System.out.println("   Total sales: " + savedProduct.getTotalSales());
+        
+        // Double-check by re-fetching
+        Product verifyProduct = productRepository.findById(product.getId())
+            .orElseThrow(() -> new RuntimeException("Product disappeared!"));
+        
+        if (!verifyProduct.getQuantity().equals(newQuantity)) {
+            System.err.println("❌ CRITICAL: Stock reduction did not persist!");
+            System.err.println("   Expected: " + newQuantity);
+            System.err.println("   Actual: " + verifyProduct.getQuantity());
+            throw new RuntimeException("Stock reduction failed to persist");
+        }
+        
+        System.out.println("✅ Stock reduction verified in database");
+        
+        // Log stock change
+        activityLogService.logActivity(
+            null, 
+            "SYSTEM", 
+            "STOCK_UPDATED", 
+            "PRODUCT", 
+            String.format("Stock updated for %s: %d → %d (%s)", 
+                product.getName(), oldQuantity, newQuantity, reason)
+        );
+        
+        // Check for alerts
+        if (product.isLowStock()) {
+            System.out.println("⚠️ Low stock alert: " + product.getName() + " (Qty: " + product.getQuantity() + ")");
+        }
+        if (product.needsReorder()) {
+            System.out.println("🔄 Reorder recommendation: " + product.getName() + " (Qty: " + product.getQuantity() + ")");
+        }
     }
     
     public void increaseStock(UUID productId, Integer quantity, String reason) {
