@@ -29,6 +29,9 @@ spring:
     username: inventsight_user
     password: inventsight_password_2025
     driver-class-name: org.postgresql.Driver
+    hikari:
+      auto-commit: false
+      maximum-pool-size: 10
     
   jpa:
     hibernate:
@@ -38,6 +41,13 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # Transaction Management
+        enable_lazy_load_no_trans: false
+        jdbc:
+          batch_size: 20
+          flush_mode: ALWAYS
+        order_inserts: true
+        order_updates: true
         # Multi-tenancy configuration - only enabled for PostgreSQL profiles
         # Will be overridden by profile-specific configurations
   

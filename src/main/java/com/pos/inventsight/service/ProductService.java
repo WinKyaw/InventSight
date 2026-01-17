@@ -5,6 +5,8 @@ import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.InsufficientStockException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ProductService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ProductService.class);
     
     @Autowired
     private ProductRepository productRepository;
@@ -242,14 +246,68 @@ public class ProductService {
     public void reduceStock(UUID productId, Integer quantity, String reason) {
         Product product = getProductById(productId);
         
+        logger.debug("Reducing stock for: {}", product.getName());
+        logger.debug("Current stock: {}, Quantity to reduce: {}", product.getQuantity(), quantity);
+        
         if (product.getQuantity() < quantity) {
-            throw new InsufficientStockException(
-                "Insufficient stock for " + product.getName() + 
-                ". Available: " + product.getQuantity() + ", Requested: " + quantity
+            String errorMsg = String.format(
+                "Insufficient stock for %s. Available: %d, Requested: %d",
+                product.getName(), product.getQuantity(), quantity
             );
+            logger.error("Insufficient stock: {}", errorMsg);
+            throw new InsufficientStockException(errorMsg);
         }
         
-        updateStock(productId, product.getQuantity() - quantity, "SYSTEM", reason);
+        Integer oldQuantity = product.getQuantity();
+        Integer newQuantity = oldQuantity - quantity;
+        
+        // Update stock
+        product.setQuantity(newQuantity);
+        
+        // Update total sales
+        Integer currentSales = product.getTotalSales() != null ? product.getTotalSales() : 0;
+        product.setTotalSales(currentSales + quantity);
+        
+        // Update last sold date
+        product.setLastSoldDate(LocalDateTime.now());
+        
+        product.setUpdatedAt(LocalDateTime.now());
+        
+        Product savedProduct = productRepository.save(product);
+        
+        // Verify the update persisted
+        logger.info("Stock reduced successfully for {}: {} → {} (Total sales: {})", 
+            product.getName(), oldQuantity, savedProduct.getQuantity(), savedProduct.getTotalSales());
+        
+        // Double-check by re-fetching
+        Product verifyProduct = productRepository.findById(product.getId())
+            .orElseThrow(() -> new RuntimeException("Product disappeared!"));
+        
+        if (!verifyProduct.getQuantity().equals(newQuantity)) {
+            logger.error("CRITICAL: Stock reduction did not persist! Expected: {}, Actual: {}", 
+                newQuantity, verifyProduct.getQuantity());
+            throw new RuntimeException("Stock reduction failed to persist");
+        }
+        
+        logger.debug("Stock reduction verified in database");
+        
+        // Log stock change
+        activityLogService.logActivity(
+            null, 
+            "SYSTEM", 
+            "STOCK_UPDATED", 
+            "PRODUCT", 
+            String.format("Stock updated for %s: %d → %d (%s)", 
+                product.getName(), oldQuantity, newQuantity, reason)
+        );
+        
+        // Check for alerts
+        if (product.isLowStock()) {
+            logger.warn("Low stock alert: {} (Qty: {})", product.getName(), product.getQuantity());
+        }
+        if (product.needsReorder()) {
+            logger.info("Reorder recommendation: {} (Qty: {})", product.getName(), product.getQuantity());
+        }
     }
     
     public void increaseStock(UUID productId, Integer quantity, String reason) {
