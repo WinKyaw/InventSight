@@ -665,4 +665,34 @@ public class ProductController {
         }
         return new org.springframework.data.domain.PageImpl<>(pageContent, pageable, list.size());
     }
+    
+    /**
+     * Get product stock status (for debugging)
+     * GET /products/{productId}/stock-status
+     */
+    @GetMapping("/{productId}/stock-status")
+    public ResponseEntity<?> getStockStatus(@PathVariable UUID productId) {
+        try {
+            Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+            
+            Map<String, Object> stockStatus = new HashMap<>();
+            stockStatus.put("productId", product.getId());
+            stockStatus.put("productName", product.getName());
+            stockStatus.put("currentStock", product.getQuantity());
+            stockStatus.put("totalSales", product.getTotalSales());
+            stockStatus.put("lastSoldDate", product.getLastSoldDate());
+            stockStatus.put("lowStockThreshold", product.getLowStockThreshold());
+            stockStatus.put("isLowStock", product.getQuantity() < (product.getLowStockThreshold() != null ? product.getLowStockThreshold() : 10));
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "stockStatus", stockStatus
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
 }

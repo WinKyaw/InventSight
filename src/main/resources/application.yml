@@ -43,11 +43,17 @@ spring:
         format_sql: true
         # Transaction Management
         enable_lazy_load_no_trans: false
+        # ✅ FIX: Ensure proper transaction isolation
+        connection:
+          isolation: 2
         jdbc:
           batch_size: 20
           flush_mode: ALWAYS
         order_inserts: true
         order_updates: true
+        # ✅ FIX: Disable second-level cache to prevent stale reads
+        cache:
+          use_second_level_cache: false
         # Multi-tenancy configuration - only enabled for PostgreSQL profiles
         # Will be overridden by profile-specific configurations
   
@@ -286,6 +292,8 @@ logging:
     org.hibernate.SQL: DEBUG
     org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG
     com.pos.inventsight.controller.StoreInventoryController: DEBUG
+    com.pos.inventsight.service.SaleService: INFO
+    com.pos.inventsight.service.ProductService: INFO
   file:
     name: logs/inventsight.log
     
