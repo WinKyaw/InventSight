@@ -174,6 +174,8 @@ public class SaleService {
         
         // ✅ FIX: Only reduce inventory and complete sale if status is COMPLETED
         if (status == SaleStatus.COMPLETED) {
+            System.out.println("🔻 Completing receipt - reducing stock for all items");
+            
             // Save sale items and update inventory
             for (SaleItem saleItem : saleItems) {
                 saleItem.setSale(savedSale);
@@ -718,6 +720,8 @@ public class SaleService {
         if (!sale.getCompany().getId().equals(user.getDefaultTenantId())) {
             throw new IllegalArgumentException("Access denied: Receipt belongs to different company");
         }
+        
+        System.out.println("🔻 Completing pending receipt - reducing stock for all items");
         
         // Reduce stock for all items
         for (SaleItem item : sale.getItems()) {
