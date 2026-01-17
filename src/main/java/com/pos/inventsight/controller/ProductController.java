@@ -19,6 +19,7 @@ import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.UserStoreRoleRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

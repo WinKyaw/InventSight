@@ -69,7 +69,7 @@ public class StockReductionAndSalesTrackingTest {
     public void testReduceStock_UpdatesQuantityAndSalesTracking() {
         // Given
         when(productRepository.findById(productId)).thenReturn(Optional.of(testProduct));
-        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+        when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(invocation -> {
             Product saved = invocation.getArgument(0);
             // Simulate persistence
             return saved;
@@ -79,7 +79,7 @@ public class StockReductionAndSalesTrackingTest {
         productService.reduceStock(productId, 10, "Test Sale");
 
         // Then
-        verify(productRepository, times(1)).save(any(Product.class));
+        verify(productRepository, times(1)).saveAndFlush(any(Product.class));
         verify(productRepository, times(2)).findById(productId); // Once to get, once to verify
         
         // Verify the product was updated correctly
@@ -113,7 +113,7 @@ public class StockReductionAndSalesTrackingTest {
     public void testReduceStock_AccumulatesTotalSales() {
         // Given
         when(productRepository.findById(productId)).thenReturn(Optional.of(testProduct));
-        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+        when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(invocation -> {
             Product saved = invocation.getArgument(0);
             return saved;
         });
@@ -147,7 +147,7 @@ public class StockReductionAndSalesTrackingTest {
         // Given
         testProduct.setTotalSales(null); // Simulate old product without totalSales field
         when(productRepository.findById(productId)).thenReturn(Optional.of(testProduct));
-        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+        when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(invocation -> {
             Product saved = invocation.getArgument(0);
             return saved;
         });
@@ -170,7 +170,7 @@ public class StockReductionAndSalesTrackingTest {
         testProduct.setLastSoldDate(beforeSale);
         
         when(productRepository.findById(productId)).thenReturn(Optional.of(testProduct));
-        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+        when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(invocation -> {
             Product saved = invocation.getArgument(0);
             return saved;
         });

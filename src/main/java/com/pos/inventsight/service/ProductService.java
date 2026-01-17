@@ -248,6 +248,15 @@ public class ProductService {
         logger.info("🔻 STOCK REDUCTION START");
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         
+        // ✅ FIX: Validate quantity parameter FIRST before using it
+        if (quantity == null || quantity <= 0) {
+            String errorMsg = String.format(
+                "Invalid quantity for stock reduction: %s", quantity
+            );
+            logger.error("❌ {}", errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
+        
         Product product = getProductById(productId);
         
         logger.info("Product: {}", product.getName());
@@ -256,15 +265,6 @@ public class ProductService {
         logger.info("Quantity to Reduce: {}", quantity);
         logger.info("Expected New Stock: {}", (product.getQuantity() - quantity));
         logger.info("Reason: {}", reason);
-        
-        // ✅ FIX: Validate quantity parameter
-        if (quantity == null || quantity <= 0) {
-            String errorMsg = String.format(
-                "Invalid quantity for stock reduction: %s", quantity
-            );
-            logger.error("❌ {}", errorMsg);
-            throw new IllegalArgumentException(errorMsg);
-        }
         
         // Validate sufficient stock
         if (product.getQuantity() < quantity) {
