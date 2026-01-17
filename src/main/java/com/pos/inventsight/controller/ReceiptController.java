@@ -4,6 +4,7 @@ import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
+import com.pos.inventsight.model.sql.PaymentMethod;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.User;
@@ -141,6 +142,19 @@ public class ReceiptController {
             
             System.out.println("🧾 InventSight - Creating new receipt for user: " + username);
             System.out.println("📊 Receipt items count: " + request.getItems().size());
+            
+            // ✅ FIX: Validate payment method based on status
+            if (request.requiresPaymentMethod()) {
+                if (request.getPaymentMethod() == null) {
+                    return ResponseEntity.badRequest().body(new ApiResponse(
+                        false, 
+                        "Payment method is required for completed receipts"
+                    ));
+                }
+                System.out.println("✅ Creating COMPLETED receipt with payment: " + request.getPaymentMethod());
+            } else {
+                System.out.println("📝 Creating PENDING receipt (no payment required)");
+            }
             
             SaleResponse receipt = saleService.createSale(request, user.getId());
             
@@ -403,5 +417,52 @@ public class ReceiptController {
                role == UserRole.FOUNDER ||
                role == UserRole.CO_OWNER ||
                role == UserRole.ADMIN;
+    }
+    
+    /**
+     * PUT /receipts/{id}/complete - Complete a pending receipt with payment method
+     */
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<?> completeReceipt(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            // Get payment method from request
+            String paymentMethodStr = (String) request.get("paymentMethod");
+            if (paymentMethodStr == null) {
+                return ResponseEntity.badRequest().body(new ApiResponse(
+                    false,
+                    "Payment method is required to complete receipt"
+                ));
+            }
+            
+            PaymentMethod paymentMethod;
+            try {
+                paymentMethod = PaymentMethod.valueOf(paymentMethodStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(new ApiResponse(
+                    false,
+                    "Invalid payment method: " + paymentMethodStr
+                ));
+            }
+            
+            System.out.println("💳 Completing receipt: " + id + " with payment: " + paymentMethod);
+            
+            // Use the existing service method to complete receipt
+            SaleResponse completedReceipt = saleService.completeReceipt(id, paymentMethod, user.getId());
+            
+            System.out.println("✅ Receipt completed: " + id);
+            return ResponseEntity.ok(completedReceipt);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error completing receipt: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error completing receipt: " + e.getMessage()));
+        }
     }
 }

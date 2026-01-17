@@ -2,6 +2,7 @@ package com.pos.inventsight.dto;
 
 import com.pos.inventsight.model.sql.PaymentMethod;
 import com.pos.inventsight.model.sql.ReceiptType;
+import com.pos.inventsight.model.sql.SaleStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Min;
@@ -20,10 +21,13 @@ public class SaleRequest {
     private String customerEmail;
     private String customerPhone;
     
-    @NotNull(message = "Payment method is required")
+    // ✅ FIX: Make optional - validate in controller based on status
     private PaymentMethod paymentMethod;
     
     private ReceiptType receiptType; // NEW: Receipt type
+    
+    // ✅ FIX: Add status field, default to PENDING
+    private SaleStatus status;
     
     private BigDecimal discountAmount = BigDecimal.ZERO;
     private String notes;
@@ -82,4 +86,12 @@ public class SaleRequest {
     
     public String getDeliveryNotes() { return deliveryNotes; }
     public void setDeliveryNotes(String deliveryNotes) { this.deliveryNotes = deliveryNotes; }
+    
+    public SaleStatus getStatus() { return status; }
+    public void setStatus(SaleStatus status) { this.status = status; }
+    
+    // Add validation method
+    public boolean requiresPaymentMethod() {
+        return status == SaleStatus.COMPLETED;
+    }
 }
