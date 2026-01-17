@@ -244,52 +244,97 @@ public class ProductService {
     }
     
     public void reduceStock(UUID productId, Integer quantity, String reason) {
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        logger.info("🔻 STOCK REDUCTION START");
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        
+        // ✅ FIX: Validate quantity parameter FIRST before using it
+        if (quantity == null || quantity <= 0) {
+            String errorMsg = String.format(
+                "Invalid quantity for stock reduction: %s", quantity
+            );
+            logger.error("❌ {}", errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
+        
         Product product = getProductById(productId);
         
-        logger.debug("Reducing stock for: {}", product.getName());
-        logger.debug("Current stock: {}, Quantity to reduce: {}", product.getQuantity(), quantity);
+        logger.info("Product: {}", product.getName());
+        logger.info("Product ID: {}", product.getId());
+        logger.info("Current Stock: {}", product.getQuantity());
+        logger.info("Quantity to Reduce: {}", quantity);
+        logger.info("Expected New Stock: {}", (product.getQuantity() - quantity));
+        logger.info("Reason: {}", reason);
         
+        // Validate sufficient stock
         if (product.getQuantity() < quantity) {
             String errorMsg = String.format(
                 "Insufficient stock for %s. Available: %d, Requested: %d",
                 product.getName(), product.getQuantity(), quantity
             );
-            logger.error("Insufficient stock: {}", errorMsg);
+            logger.error("❌ {}", errorMsg);
             throw new InsufficientStockException(errorMsg);
         }
         
+        // Store old values for verification
         Integer oldQuantity = product.getQuantity();
+        Integer oldTotalSales = product.getTotalSales() != null ? product.getTotalSales() : 0;
+        
+        // ✅ FIX: Calculate new values BEFORE setting
         Integer newQuantity = oldQuantity - quantity;
+        Integer newTotalSales = oldTotalSales + quantity;
         
-        // Update stock
+        logger.info("📊 Calculations:");
+        logger.info("   Old Quantity: {}", oldQuantity);
+        logger.info("   Reduce By: {}", quantity);
+        logger.info("   New Quantity: {}", newQuantity);
+        logger.info("   Old Total Sales: {}", oldTotalSales);
+        logger.info("   New Total Sales: {}", newTotalSales);
+        
+        // Set new values
         product.setQuantity(newQuantity);
-        
-        // Update total sales
-        Integer currentSales = product.getTotalSales() != null ? product.getTotalSales() : 0;
-        product.setTotalSales(currentSales + quantity);
-        
-        // Update last sold date
+        product.setTotalSales(newTotalSales);
         product.setLastSoldDate(LocalDateTime.now());
-        
         product.setUpdatedAt(LocalDateTime.now());
         
-        Product savedProduct = productRepository.save(product);
+        // ✅ FIX: Save and flush to database immediately
+        Product savedProduct = productRepository.saveAndFlush(product);
         
-        // Verify the update persisted
-        logger.info("Stock reduced successfully for {}: {} → {} (Total sales: {})", 
-            product.getName(), oldQuantity, savedProduct.getQuantity(), savedProduct.getTotalSales());
+        logger.info("💾 Product saved to database");
         
-        // Double-check by re-fetching
-        Product verifyProduct = productRepository.findById(product.getId())
-            .orElseThrow(() -> new RuntimeException("Product disappeared!"));
+        // ✅ FIX: Verify by re-fetching from database
+        productRepository.flush();
+        Product verifiedProduct = productRepository.findById(product.getId())
+            .orElseThrow(() -> new RuntimeException("Product disappeared after save!"));
         
-        if (!verifyProduct.getQuantity().equals(newQuantity)) {
-            logger.error("CRITICAL: Stock reduction did not persist! Expected: {}, Actual: {}", 
-                newQuantity, verifyProduct.getQuantity());
-            throw new RuntimeException("Stock reduction failed to persist");
+        logger.info("🔍 Verification (re-fetched from DB):");
+        logger.info("   Actual Quantity in DB: {}", verifiedProduct.getQuantity());
+        logger.info("   Actual Total Sales in DB: {}", verifiedProduct.getTotalSales());
+        
+        // ✅ FIX: Critical verification check
+        if (!verifiedProduct.getQuantity().equals(newQuantity)) {
+            logger.error("❌ CRITICAL ERROR: Stock reduction did not persist!");
+            logger.error("   Expected Quantity: {}", newQuantity);
+            logger.error("   Actual Quantity in DB: {}", verifiedProduct.getQuantity());
+            logger.error("   Difference: {}", (verifiedProduct.getQuantity() - newQuantity));
+            
+            throw new RuntimeException(String.format(
+                "Stock reduction failed to persist for product %s. Expected: %d, Actual: %d",
+                product.getName(), newQuantity, verifiedProduct.getQuantity()
+            ));
         }
         
-        logger.debug("Stock reduction verified in database");
+        if (!verifiedProduct.getTotalSales().equals(newTotalSales)) {
+            logger.error("❌ CRITICAL ERROR: Total sales update did not persist!");
+            logger.error("   Expected Total Sales: {}", newTotalSales);
+            logger.error("   Actual Total Sales in DB: {}", verifiedProduct.getTotalSales());
+        }
+        
+        logger.info("✅ STOCK REDUCTION SUCCESSFUL:");
+        logger.info("   Product: {}", product.getName());
+        logger.info("   Stock: {} → {}", oldQuantity, verifiedProduct.getQuantity());
+        logger.info("   Total Sales: {} → {}", oldTotalSales, verifiedProduct.getTotalSales());
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         
         // Log stock change
         activityLogService.logActivity(

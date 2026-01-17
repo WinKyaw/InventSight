@@ -74,15 +74,13 @@ public class SaleService {
     
     // Sale Processing
     public SaleResponse processSale(SaleRequest request, UUID userId) {
-        System.out.println("🧾 Processing new sale for user: " + userId);
-        System.out.println("📅 Sale time: 2025-08-26 08:47:36");
-        System.out.println("👤 Processed by: WinKyaw");
+        logger.info("🧾 Creating receipt for user: {}", userId);
         
         User user = userService.getUserById(userId);
         
         // ✅ GET USER'S ACTIVE STORE
         Store activeStore = userActiveStoreService.getUserActiveStoreOrThrow(userId);
-        System.out.println("🏪 Active store: " + activeStore.getStoreName() + " (ID: " + activeStore.getId() + ")");
+        logger.info("🏪 Active store: {} (ID: {})", activeStore.getStoreName(), activeStore.getId());
         
         // Create sale
         Sale sale = new Sale();
@@ -117,7 +115,14 @@ public class SaleService {
         SaleStatus status = request.getStatus() != null ? request.getStatus() : SaleStatus.PENDING;
         sale.setStatus(status);
         
-        System.out.println("📝 Receipt status: " + status);
+        logger.info("📝 Receipt status: {}", status);
+        
+        // ✅ FIX: Log all items BEFORE processing
+        logger.info("📦 Receipt items to process:");
+        for (SaleRequest.ItemRequest item : request.getItems()) {
+            logger.info("   - Product ID: {} | Quantity: {}", 
+                       item.getProductId(), item.getQuantity());
+        }
         
         // If delivery, assign delivery person
         if (sale.getReceiptType() == ReceiptType.DELIVERY && request.getDeliveryPersonId() != null) {
@@ -134,7 +139,14 @@ public class SaleService {
         
         // Process each item
         for (SaleRequest.ItemRequest itemRequest : request.getItems()) {
+            // ✅ FIX: Log each item processing
+            logger.info("🔄 Processing item - Product ID: {}, Quantity: {}", 
+                       itemRequest.getProductId(), itemRequest.getQuantity());
+            
             Product product = productService.getProductById(itemRequest.getProductId());
+            
+            logger.info("📦 Found product: {} | Current stock: {}", 
+                       product.getName(), product.getQuantity());
             
             // ✅ FIX: Only check stock for COMPLETED receipts
             if (status == SaleStatus.COMPLETED) {
@@ -145,6 +157,9 @@ public class SaleService {
                         ". Available: " + product.getQuantity() + ", Requested: " + itemRequest.getQuantity()
                     );
                 }
+                logger.info("✅ Stock check passed for COMPLETED receipt");
+            } else {
+                logger.info("⏸️ Receipt is PENDING - skipping stock check");
             }
             
             // Create sale item
@@ -157,6 +172,9 @@ public class SaleService {
             
             saleItems.add(saleItem);
             subtotal = subtotal.add(saleItem.getTotalPrice());
+            
+            logger.info("✅ Item processed: {} x {} = ${}", 
+                       product.getName(), itemRequest.getQuantity(), saleItem.getTotalPrice());
         }
         
         // Apply discount if provided
@@ -178,12 +196,15 @@ public class SaleService {
         
         // ✅ FIX: Only reduce inventory and complete sale if status is COMPLETED
         if (status == SaleStatus.COMPLETED) {
-            logger.info("Completing receipt - reducing stock for all items");
+            logger.info("🔻 Receipt is COMPLETED - reducing stock for all items");
             
             // Save sale items and update inventory
             for (SaleItem saleItem : saleItems) {
                 saleItem.setSale(savedSale);
                 saleItemRepository.save(saleItem);
+                
+                logger.info("🔻 Reducing stock - Product: {}, Quantity: {}", 
+                           saleItem.getProduct().getName(), saleItem.getQuantity());
                 
                 // Reduce inventory
                 productService.reduceStock(
@@ -203,30 +224,41 @@ public class SaleService {
             // Log activity
             activityLogService.logActivity(
                 userId.toString(), 
-                "WinKyaw", 
+                user.getUsername(), 
                 "SALE_COMPLETED", 
                 "SALE", 
                 String.format("Sale completed: %s - Total: $%.2f", 
                     savedSale.getReceiptNumber(), savedSale.getTotalAmount())
             );
             
-            System.out.println("✅ Sale completed: " + savedSale.getReceiptNumber() + 
-                             " - Total: $" + savedSale.getTotalAmount());
+            logger.info("✅ Sale completed: {} - Total: ${}", 
+                       savedSale.getReceiptNumber(), savedSale.getTotalAmount());
         } else {
             // PENDING: Just save items without reducing inventory
+            logger.info("📝 Receipt is PENDING - NOT reducing stock yet");
+            
             for (SaleItem saleItem : saleItems) {
                 saleItem.setSale(savedSale);
                 saleItemRepository.save(saleItem);
             }
             
-            System.out.println("📝 Pending receipt created: " + savedSale.getReceiptNumber() + 
-                             " - Total: $" + savedSale.getTotalAmount());
+            logger.info("📝 Pending receipt created: {} - Total: ${}", 
+                       savedSale.getReceiptNumber(), savedSale.getTotalAmount());
         }
         
         // Update analytics only for completed sales
         if (status == SaleStatus.COMPLETED) {
             inventoryAnalyticsService.updateDailyAnalytics(savedSale);
         }
+        
+        logger.info("✅ Receipt created successfully:");
+        logger.info("   ID: {}", savedSale.getId());
+        logger.info("   Receipt Number: {}", savedSale.getReceiptNumber());
+        logger.info("   Status: {}", savedSale.getStatus());
+        logger.info("   Total Items: {}", saleItems.size());
+        logger.info("   Subtotal: ${}", savedSale.getSubtotal());
+        logger.info("   Tax: ${}", savedSale.getTaxAmount());
+        logger.info("   Total: ${}", savedSale.getTotalAmount());
         
         // Convert to DTO and return
         return convertToSaleResponse(savedSale);
@@ -725,11 +757,19 @@ public class SaleService {
             throw new IllegalArgumentException("Access denied: Receipt belongs to different company");
         }
         
-        logger.info("Completing pending receipt {} - reducing stock for all items", saleId);
+        logger.info("🔻 Completing pending receipt {} - reducing stock for all items", saleId);
+        logger.info("📦 Receipt items to process:");
+        for (SaleItem item : sale.getItems()) {
+            logger.info("   - Product: {} | Quantity: {}", 
+                       item.getProduct().getName(), item.getQuantity());
+        }
         
         // Reduce stock for all items
         for (SaleItem item : sale.getItems()) {
             Product product = item.getProduct();
+            
+            logger.info("🔄 Processing item - Product: {}, Current Stock: {}, Quantity to reduce: {}", 
+                       product.getName(), product.getQuantity(), item.getQuantity());
             
             if (product.getQuantity() < item.getQuantity()) {
                 throw new InsufficientStockException(
@@ -737,6 +777,8 @@ public class SaleService {
                     ". Available: " + product.getQuantity() + ", Required: " + item.getQuantity()
                 );
             }
+            
+            logger.info("🔻 Reducing stock for: {}", product.getName());
             
             // Reduce inventory
             productService.reduceStock(
@@ -773,9 +815,8 @@ public class SaleService {
         // Update analytics
         inventoryAnalyticsService.updateDailyAnalytics(completedSale);
         
-        System.out.println("✅ Receipt completed: " + saleId + 
-                         " | Payment: " + paymentMethod + 
-                         " | Total: $" + completedSale.getTotalAmount());
+        logger.info("✅ Receipt completed: {} | Payment: {} | Total: ${}", 
+                   saleId, paymentMethod, completedSale.getTotalAmount());
         
         return convertToSaleResponse(completedSale);
     }
