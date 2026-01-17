@@ -18,6 +18,8 @@ import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.InsufficientStockException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +37,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class SaleService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SaleService.class);
     
     @Autowired
     private SaleRepository saleRepository;
@@ -174,7 +178,7 @@ public class SaleService {
         
         // ✅ FIX: Only reduce inventory and complete sale if status is COMPLETED
         if (status == SaleStatus.COMPLETED) {
-            System.out.println("🔻 Completing receipt - reducing stock for all items");
+            logger.info("Completing receipt - reducing stock for all items");
             
             // Save sale items and update inventory
             for (SaleItem saleItem : saleItems) {
@@ -721,7 +725,7 @@ public class SaleService {
             throw new IllegalArgumentException("Access denied: Receipt belongs to different company");
         }
         
-        System.out.println("🔻 Completing pending receipt - reducing stock for all items");
+        logger.info("Completing pending receipt {} - reducing stock for all items", saleId);
         
         // Reduce stock for all items
         for (SaleItem item : sale.getItems()) {
