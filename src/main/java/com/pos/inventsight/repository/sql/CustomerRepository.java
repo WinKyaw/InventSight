@@ -25,9 +25,11 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     Page<Customer> findByCompanyAndIsActiveTrueOrderByNameAsc(@Param("company") Company company, Pageable pageable);
     
     /**
-     * Find all active customers for a company and store
+     * Find all active customers for a company and store with eager loading
      */
-    Page<Customer> findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(Company company, Store store, Pageable pageable);
+    @Query("SELECT c FROM Customer c WHERE c.company = :company AND c.store = :store AND c.isActive = true ORDER BY c.name ASC")
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"company", "store", "createdByUser"})
+    Page<Customer> findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(@Param("company") Company company, @Param("store") Store store, Pageable pageable);
     
     /**
      * Find customer by ID and company (for tenant isolation) with eager loading
@@ -70,10 +72,12 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
                                    Pageable pageable);
     
     /**
-     * Find customers by customer type
+     * Find customers by customer type with eager loading
      */
+    @Query("SELECT c FROM Customer c WHERE c.company = :company AND c.customerType = :customerType AND c.isActive = true ORDER BY c.name ASC")
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"company", "store", "createdByUser"})
     Page<Customer> findByCompanyAndCustomerTypeAndIsActiveTrueOrderByNameAsc(
-        Company company, Customer.CustomerType customerType, Pageable pageable);
+        @Param("company") Company company, @Param("customerType") Customer.CustomerType customerType, Pageable pageable);
     
     /**
      * Count active customers for a company
