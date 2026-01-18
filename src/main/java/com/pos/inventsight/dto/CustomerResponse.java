@@ -40,10 +40,14 @@ public class CustomerResponse {
         this.postalCode = customer.getPostalCode();
         this.country = customer.getCountry();
         this.notes = customer.getNotes();
-        if (customer.getCompany() != null) {
-            this.companyId = customer.getCompany().getId();
-            this.companyName = customer.getCompany().getName();
+        
+        // Cache company to avoid multiple method calls
+        com.pos.inventsight.model.sql.Company company = customer.getCompany();
+        if (company != null) {
+            this.companyId = company.getId();
+            this.companyName = company.getName();
         }
+        
         if (customer.getStore() != null) {
             this.storeId = customer.getStore().getId();
             this.storeName = customer.getStore().getStoreName();
