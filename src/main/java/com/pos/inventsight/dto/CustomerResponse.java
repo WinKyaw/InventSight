@@ -40,8 +40,10 @@ public class CustomerResponse {
         this.postalCode = customer.getPostalCode();
         this.country = customer.getCountry();
         this.notes = customer.getNotes();
-        this.companyId = customer.getCompany().getId();
-        this.companyName = customer.getCompany().getName();
+        if (customer.getCompany() != null) {
+            this.companyId = customer.getCompany().getId();
+            this.companyName = customer.getCompany().getName();
+        }
         if (customer.getStore() != null) {
             this.storeId = customer.getStore().getId();
             this.storeName = customer.getStore().getStoreName();

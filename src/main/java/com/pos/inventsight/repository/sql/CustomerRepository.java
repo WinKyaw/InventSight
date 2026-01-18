@@ -18,9 +18,11 @@ import java.util.UUID;
 public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     
     /**
-     * Find all active customers for a company
+     * Find all active customers for a company with eager loading
      */
-    Page<Customer> findByCompanyAndIsActiveTrueOrderByNameAsc(Company company, Pageable pageable);
+    @Query("SELECT c FROM Customer c WHERE c.company = :company AND c.isActive = true ORDER BY c.name ASC")
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"company", "store", "createdByUser"})
+    Page<Customer> findByCompanyAndIsActiveTrueOrderByNameAsc(@Param("company") Company company, Pageable pageable);
     
     /**
      * Find all active customers for a company and store
@@ -28,9 +30,11 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     Page<Customer> findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(Company company, Store store, Pageable pageable);
     
     /**
-     * Find customer by ID and company (for tenant isolation)
+     * Find customer by ID and company (for tenant isolation) with eager loading
      */
-    Optional<Customer> findByIdAndCompanyAndIsActiveTrue(UUID id, Company company);
+    @Query("SELECT c FROM Customer c WHERE c.id = :id AND c.company = :company AND c.isActive = true")
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"company", "store", "createdByUser"})
+    Optional<Customer> findByIdAndCompanyAndIsActiveTrue(@Param("id") UUID id, @Param("company") Company company);
     
     /**
      * Find customer by phone number
@@ -53,13 +57,14 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     boolean existsByCompanyAndEmailAndIsActiveTrue(Company company, String email);
     
     /**
-     * Search customers by name, phone, or email
+     * Search customers by name, phone, or email with eager loading
      */
     @Query("SELECT c FROM Customer c WHERE c.company = :company AND c.isActive = true " +
            "AND (LOWER(c.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
            "OR LOWER(c.phoneNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
            "OR LOWER(c.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
            "ORDER BY c.name ASC")
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"company", "store", "createdByUser"})
     Page<Customer> searchCustomers(@Param("company") Company company, 
                                    @Param("searchTerm") String searchTerm, 
                                    Pageable pageable);
