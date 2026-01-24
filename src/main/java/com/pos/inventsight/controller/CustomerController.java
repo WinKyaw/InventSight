@@ -98,10 +98,10 @@ public class CustomerController {
             Authentication authentication) {
         
         try {
-            logger.info("📋 CustomerController: Listing customers");
-            logger.info("   Store ID: {}", storeId);
-            logger.info("   Search: {}", search);
-            logger.info("   Page: {}, Size: {}", page, size);
+            logger.debug("📋 CustomerController: Listing customers");
+            logger.debug("   Store ID: {}", storeId);
+            logger.debug("   Search: {}", search);
+            logger.debug("   Page: {}, Size: {}", page, size);
             
             Sort sort = sortDir.equalsIgnoreCase("desc") 
                 ? Sort.by(sortBy).descending() 
@@ -112,13 +112,13 @@ public class CustomerController {
             
             // If search query is provided, use search; otherwise use regular listing
             if (search != null && !search.trim().isEmpty()) {
-                logger.info("🔍 Searching customers with query: {}", search);
+                logger.debug("🔍 Searching customers with query");
                 customersPage = customerService.searchCustomers(search, storeId, pageable, authentication);
             } else if (storeId != null) {
-                logger.info("🏪 Filtering customers by store: {}", storeId);
+                logger.debug("🏪 Filtering customers by store");
                 customersPage = customerService.getCustomersByStore(storeId, pageable, authentication);
             } else {
-                logger.info("📋 Loading all customers");
+                logger.debug("📋 Loading all customers");
                 customersPage = customerService.getCustomers(pageable, authentication);
             }
             
@@ -136,10 +136,21 @@ public class CustomerController {
             return ResponseEntity.ok(response);
             
         } catch (IllegalStateException e) {
-            logger.error("State error: {}", e.getMessage());
+            logger.error("State error while listing customers", e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", e.getMessage());
+            errorResponse.put("message", "Unable to retrieve customers. Please check your company settings.");
+            errorResponse.put("customers", Collections.emptyList());
+            errorResponse.put("totalItems", 0);
+            errorResponse.put("totalPages", 0);
+            errorResponse.put("currentPage", 0);
+            errorResponse.put("hasMore", false);
+            return ResponseEntity.ok(errorResponse);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid argument while listing customers", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Invalid request parameters");
             errorResponse.put("customers", Collections.emptyList());
             errorResponse.put("totalItems", 0);
             errorResponse.put("totalPages", 0);
@@ -147,11 +158,11 @@ public class CustomerController {
             errorResponse.put("hasMore", false);
             return ResponseEntity.ok(errorResponse);
         } catch (Exception e) {
-            logger.error("❌ Error listing customers: {}", e.getMessage(), e);
+            logger.error("❌ Error listing customers", e);
             // Return 200 with empty list to prevent frontend errors
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve customers: " + e.getMessage());
+            errorResponse.put("message", "Failed to retrieve customers. Please try again.");
             errorResponse.put("customers", Collections.emptyList());
             errorResponse.put("totalItems", 0);
             errorResponse.put("totalPages", 0);

@@ -144,30 +144,27 @@ public class CustomerService {
     }
     
     /**
-     * Search customers by name, email, or phone
-     */
-    public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
-        User user = userService.getUserByUsername(auth.getName());
-        Company company = getUserCompany(user);
-        Page<Customer> customers = customerRepository.searchCustomers(company, searchTerm, pageable);
-        return customers.map(CustomerResponse::new);
-    }
-    
-    /**
      * Search customers with optional store filter
      */
     public Page<CustomerResponse> searchCustomers(String searchTerm, UUID storeId, Pageable pageable, Authentication auth) {
         User user = userService.getUserByUsername(auth.getName());
         Company company = getUserCompany(user);
         
+        Page<Customer> customers;
         if (storeId != null) {
             Store store = validateStoreOwnership(storeId, company);
-            Page<Customer> customers = customerRepository.searchCustomersByStore(company, store, searchTerm, pageable);
-            return customers.map(CustomerResponse::new);
+            customers = customerRepository.searchCustomersByStore(company, store, searchTerm, pageable);
         } else {
-            Page<Customer> customers = customerRepository.searchCustomers(company, searchTerm, pageable);
-            return customers.map(CustomerResponse::new);
+            customers = customerRepository.searchCustomers(company, searchTerm, pageable);
         }
+        return customers.map(CustomerResponse::new);
+    }
+    
+    /**
+     * Search customers by name, email, or phone (convenience method)
+     */
+    public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
+        return searchCustomers(searchTerm, null, pageable, auth);
     }
     
     /**
