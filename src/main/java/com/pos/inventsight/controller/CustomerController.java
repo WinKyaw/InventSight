@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -83,10 +84,13 @@ public class CustomerController {
     
     /**
      * List all customers (paginated)
+     * Supports optional filtering by storeId and search query
      */
     @GetMapping
-    @Operation(summary = "List customers", description = "Get all customers for the company with pagination")
+    @Operation(summary = "List customers", description = "Get all customers for the company with pagination and optional filtering")
     public ResponseEntity<Map<String, Object>> listCustomers(
+            @Parameter(description = "Optional store ID filter") @RequestParam(required = false) UUID storeId,
+            @Parameter(description = "Optional search query") @RequestParam(required = false) String search,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Sort by field") @RequestParam(defaultValue = "name") String sortBy,
@@ -94,12 +98,26 @@ public class CustomerController {
             Authentication authentication) {
         
         try {
+            logger.debug("Listing customers with pagination");
+            
             Sort sort = sortDir.equalsIgnoreCase("desc") 
                 ? Sort.by(sortBy).descending() 
                 : Sort.by(sortBy).ascending();
             Pageable pageable = PageRequest.of(page, size, sort);
             
-            Page<CustomerResponse> customersPage = customerService.getCustomers(pageable, authentication);
+            Page<CustomerResponse> customersPage;
+            
+            // If search query is provided, use search; otherwise use regular listing
+            if (search != null && !search.trim().isEmpty()) {
+                logger.debug("Performing customer search");
+                customersPage = customerService.searchCustomers(search, storeId, pageable, authentication);
+            } else if (storeId != null) {
+                logger.debug("Filtering customers by store");
+                customersPage = customerService.getCustomersByStore(storeId, pageable, authentication);
+            } else {
+                logger.debug("Loading all customers");
+                customersPage = customerService.getCustomers(pageable, authentication);
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -108,21 +126,46 @@ public class CustomerController {
             response.put("currentPage", customersPage.getNumber());
             response.put("totalItems", customersPage.getTotalElements());
             response.put("totalPages", customersPage.getTotalPages());
+            response.put("hasMore", customersPage.hasNext());
+            
+            logger.info("✅ Returning {} customers", customersPage.getContent().size());
             
             return ResponseEntity.ok(response);
             
         } catch (IllegalStateException e) {
-            logger.error("State error: {}", e.getMessage());
+            logger.error("State error while listing customers", e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            errorResponse.put("message", "Unable to retrieve customers. Please check your company settings.");
+            errorResponse.put("customers", Collections.emptyList());
+            errorResponse.put("totalItems", 0);
+            errorResponse.put("totalPages", 0);
+            errorResponse.put("currentPage", 0);
+            errorResponse.put("hasMore", false);
+            return ResponseEntity.ok(errorResponse);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid argument while listing customers", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Invalid request parameters");
+            errorResponse.put("customers", Collections.emptyList());
+            errorResponse.put("totalItems", 0);
+            errorResponse.put("totalPages", 0);
+            errorResponse.put("currentPage", 0);
+            errorResponse.put("hasMore", false);
+            return ResponseEntity.ok(errorResponse);
         } catch (Exception e) {
-            logger.error("Error listing customers: {}", e.getMessage(), e);
+            logger.error("❌ Error listing customers", e);
+            // Return 200 with empty list to prevent frontend errors
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve customers");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            errorResponse.put("message", "Failed to retrieve customers. Please try again.");
+            errorResponse.put("customers", Collections.emptyList());
+            errorResponse.put("totalItems", 0);
+            errorResponse.put("totalPages", 0);
+            errorResponse.put("currentPage", 0);
+            errorResponse.put("hasMore", false);
+            return ResponseEntity.ok(errorResponse);
         }
     }
     

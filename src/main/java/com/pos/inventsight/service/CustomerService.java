@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -128,12 +129,55 @@ public class CustomerService {
     }
     
     /**
-     * Search customers by name, email, or phone
+     * Validate that a store exists and belongs to the given company
      */
-    public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
+    private Store validateStoreOwnership(UUID storeId, Company company) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
+        
+        // Verify store belongs to same company
+        if (!store.getCompany().getId().equals(company.getId())) {
+            throw new IllegalArgumentException("Store does not belong to your company");
+        }
+        
+        return store;
+    }
+    
+    /**
+     * Search customers with optional store filter
+     */
+    public Page<CustomerResponse> searchCustomers(String searchTerm, UUID storeId, Pageable pageable, Authentication auth) {
         User user = userService.getUserByUsername(auth.getName());
         Company company = getUserCompany(user);
-        Page<Customer> customers = customerRepository.searchCustomers(company, searchTerm, pageable);
+        
+        Page<Customer> customers;
+        if (storeId != null) {
+            Store store = validateStoreOwnership(storeId, company);
+            customers = customerRepository.searchCustomersByStore(company, store, searchTerm, pageable);
+        } else {
+            customers = customerRepository.searchCustomers(company, searchTerm, pageable);
+        }
+        return customers.map(CustomerResponse::new);
+    }
+    
+    /**
+     * Search customers by name, email, or phone (convenience method without store filter).
+     * Delegates to the three-parameter version with storeId=null to search across all stores.
+     */
+    public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
+        // Pass null for storeId to search across all stores in the company
+        return searchCustomers(searchTerm, null, pageable, auth);
+    }
+    
+    /**
+     * Get customers filtered by store
+     */
+    public Page<CustomerResponse> getCustomersByStore(UUID storeId, Pageable pageable, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        
+        Store store = validateStoreOwnership(storeId, company);
+        Page<Customer> customers = customerRepository.findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(company, store, pageable);
         return customers.map(CustomerResponse::new);
     }
     
