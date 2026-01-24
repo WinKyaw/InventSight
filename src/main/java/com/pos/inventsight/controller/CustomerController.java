@@ -99,8 +99,6 @@ public class CustomerController {
         
         try {
             logger.debug("📋 CustomerController: Listing customers");
-            logger.debug("   Store ID: {}", storeId);
-            logger.debug("   Search: {}", search);
             logger.debug("   Page: {}, Size: {}", page, size);
             
             Sort sort = sortDir.equalsIgnoreCase("desc") 

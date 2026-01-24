@@ -161,7 +161,8 @@ public class CustomerService {
     }
     
     /**
-     * Search customers by name, email, or phone (convenience method)
+     * Search customers by name, email, or phone (convenience method without store filter).
+     * This method delegates to searchCustomers(searchTerm, null, pageable, auth).
      */
     public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
         return searchCustomers(searchTerm, null, pageable, auth);
