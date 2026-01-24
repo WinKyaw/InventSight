@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -128,6 +129,21 @@ public class CustomerService {
     }
     
     /**
+     * Validate that a store exists and belongs to the given company
+     */
+    private Store validateStoreOwnership(UUID storeId, Company company) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
+        
+        // Verify store belongs to same company
+        if (!store.getCompany().getId().equals(company.getId())) {
+            throw new IllegalArgumentException("Store does not belong to your company");
+        }
+        
+        return store;
+    }
+    
+    /**
      * Search customers by name, email, or phone
      */
     public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
@@ -145,14 +161,7 @@ public class CustomerService {
         Company company = getUserCompany(user);
         
         if (storeId != null) {
-            Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
-            
-            // Verify store belongs to same company
-            if (!store.getCompany().getId().equals(company.getId())) {
-                throw new IllegalArgumentException("Store does not belong to your company");
-            }
-            
+            Store store = validateStoreOwnership(storeId, company);
             Page<Customer> customers = customerRepository.searchCustomersByStore(company, store, searchTerm, pageable);
             return customers.map(CustomerResponse::new);
         } else {
@@ -168,14 +177,7 @@ public class CustomerService {
         User user = userService.getUserByUsername(auth.getName());
         Company company = getUserCompany(user);
         
-        Store store = storeRepository.findById(storeId)
-            .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
-        
-        // Verify store belongs to same company
-        if (!store.getCompany().getId().equals(company.getId())) {
-            throw new IllegalArgumentException("Store does not belong to your company");
-        }
-        
+        Store store = validateStoreOwnership(storeId, company);
         Page<Customer> customers = customerRepository.findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(company, store, pageable);
         return customers.map(CustomerResponse::new);
     }

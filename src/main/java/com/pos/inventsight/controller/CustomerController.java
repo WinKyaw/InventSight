@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -139,7 +140,7 @@ public class CustomerController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", e.getMessage());
-            errorResponse.put("customers", java.util.List.of());
+            errorResponse.put("customers", Collections.emptyList());
             errorResponse.put("totalItems", 0);
             errorResponse.put("totalPages", 0);
             errorResponse.put("currentPage", 0);
@@ -151,7 +152,7 @@ public class CustomerController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "Failed to retrieve customers: " + e.getMessage());
-            errorResponse.put("customers", java.util.List.of());
+            errorResponse.put("customers", Collections.emptyList());
             errorResponse.put("totalItems", 0);
             errorResponse.put("totalPages", 0);
             errorResponse.put("currentPage", 0);
