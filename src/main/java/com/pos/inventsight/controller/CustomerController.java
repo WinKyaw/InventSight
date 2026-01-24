@@ -98,8 +98,7 @@ public class CustomerController {
             Authentication authentication) {
         
         try {
-            logger.debug("📋 CustomerController: Listing customers");
-            logger.debug("   Page: {}, Size: {}", page, size);
+            logger.debug("Listing customers with pagination");
             
             Sort sort = sortDir.equalsIgnoreCase("desc") 
                 ? Sort.by(sortBy).descending() 
@@ -110,13 +109,13 @@ public class CustomerController {
             
             // If search query is provided, use search; otherwise use regular listing
             if (search != null && !search.trim().isEmpty()) {
-                logger.debug("🔍 Searching customers with query");
+                logger.debug("Performing customer search");
                 customersPage = customerService.searchCustomers(search, storeId, pageable, authentication);
             } else if (storeId != null) {
-                logger.debug("🏪 Filtering customers by store");
+                logger.debug("Filtering customers by store");
                 customersPage = customerService.getCustomersByStore(storeId, pageable, authentication);
             } else {
-                logger.debug("📋 Loading all customers");
+                logger.debug("Loading all customers");
                 customersPage = customerService.getCustomers(pageable, authentication);
             }
             

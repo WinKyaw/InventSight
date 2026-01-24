@@ -162,9 +162,10 @@ public class CustomerService {
     
     /**
      * Search customers by name, email, or phone (convenience method without store filter).
-     * This method delegates to searchCustomers(searchTerm, null, pageable, auth).
+     * Delegates to the three-parameter version with storeId=null to search across all stores.
      */
     public Page<CustomerResponse> searchCustomers(String searchTerm, Pageable pageable, Authentication auth) {
+        // Pass null for storeId to search across all stores in the company
         return searchCustomers(searchTerm, null, pageable, auth);
     }
     
