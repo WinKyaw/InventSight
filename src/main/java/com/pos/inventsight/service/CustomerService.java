@@ -138,6 +138,49 @@ public class CustomerService {
     }
     
     /**
+     * Search customers with optional store filter
+     */
+    public Page<CustomerResponse> searchCustomers(String searchTerm, UUID storeId, Pageable pageable, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        
+        if (storeId != null) {
+            Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
+            
+            // Verify store belongs to same company
+            if (!store.getCompany().getId().equals(company.getId())) {
+                throw new IllegalArgumentException("Store does not belong to your company");
+            }
+            
+            Page<Customer> customers = customerRepository.searchCustomersByStore(company, store, searchTerm, pageable);
+            return customers.map(CustomerResponse::new);
+        } else {
+            Page<Customer> customers = customerRepository.searchCustomers(company, searchTerm, pageable);
+            return customers.map(CustomerResponse::new);
+        }
+    }
+    
+    /**
+     * Get customers filtered by store
+     */
+    public Page<CustomerResponse> getCustomersByStore(UUID storeId, Pageable pageable, Authentication auth) {
+        User user = userService.getUserByUsername(auth.getName());
+        Company company = getUserCompany(user);
+        
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
+        
+        // Verify store belongs to same company
+        if (!store.getCompany().getId().equals(company.getId())) {
+            throw new IllegalArgumentException("Store does not belong to your company");
+        }
+        
+        Page<Customer> customers = customerRepository.findByCompanyAndStoreAndIsActiveTrueOrderByNameAsc(company, store, pageable);
+        return customers.map(CustomerResponse::new);
+    }
+    
+    /**
      * Get single customer by ID
      */
     public CustomerResponse getCustomerById(UUID id, Authentication auth) {

@@ -73,6 +73,20 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
                                    Pageable pageable);
     
     /**
+     * Search customers by name, phone, or email filtered by store
+     */
+    @Query("SELECT c FROM Customer c WHERE c.company = :company AND c.store = :store AND c.isActive = true " +
+           "AND (LOWER(c.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(c.phoneNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(c.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
+           "ORDER BY c.name ASC")
+    @EntityGraph(attributePaths = {"createdByUser"})
+    Page<Customer> searchCustomersByStore(@Param("company") Company company,
+                                          @Param("store") Store store,
+                                          @Param("searchTerm") String searchTerm, 
+                                          Pageable pageable);
+    
+    /**
      * Find customers by customer type with eager loading
      */
     @Query("SELECT c FROM Customer c WHERE c.company = :company AND c.customerType = :customerType AND c.isActive = true ORDER BY c.name ASC")
