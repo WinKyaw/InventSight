@@ -29,12 +29,12 @@ public class TransferRequest {
     private UUID productId;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "from_warehouse_id", nullable = false)
+    @JoinColumn(name = "from_warehouse_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Warehouse fromWarehouse;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "to_store_id", nullable = false)
+    @JoinColumn(name = "to_store_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Store toStore;
     

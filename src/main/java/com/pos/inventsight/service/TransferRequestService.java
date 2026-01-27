@@ -249,9 +249,8 @@ public class TransferRequestService {
             request.setCompletedAt(LocalDateTime.now());
         } else if (receivedQuantity > 0 && receivedQuantity < request.getApprovedQuantity()) {
             request.setStatus(TransferRequestStatus.PARTIALLY_RECEIVED);
-        } else if (receivedQuantity.equals(0)) {
-            request.setStatus(TransferRequestStatus.RECEIVED);
         } else {
+            // receivedQuantity is 0 or invalid - mark as received but not completed
             request.setStatus(TransferRequestStatus.RECEIVED);
         }
         

@@ -39,6 +39,11 @@ SET
   to_location_id = to_store_id
 WHERE from_location_type IS NULL;
 
+-- Make legacy columns nullable to support new transfer types (Store<->Store, Warehouse<->Warehouse, Store<->Warehouse)
+ALTER TABLE transfer_requests 
+  ALTER COLUMN from_warehouse_id DROP NOT NULL,
+  ALTER COLUMN to_store_id DROP NOT NULL;
+
 -- Add indexes for performance
 CREATE INDEX idx_transfer_from_location ON transfer_requests(from_location_type, from_location_id);
 CREATE INDEX idx_transfer_to_location ON transfer_requests(to_location_type, to_location_id);
