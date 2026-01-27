@@ -77,24 +77,24 @@ public interface TransferRequestRepository extends JpaRepository<TransferRequest
     /**
      * Find all transfer requests for a specific company (paginated)
      */
-    @Query("SELECT tr FROM TransferRequest tr WHERE tr.company.id = :companyId ORDER BY tr.createdAt DESC")
+    @Query("SELECT tr FROM TransferRequest tr WHERE tr.company.id = :companyId")
     Page<TransferRequest> findByCompanyId(@Param("companyId") UUID companyId, Pageable pageable);
     
     /**
      * Find transfer requests by status (paginated)
      */
-    @Query("SELECT tr FROM TransferRequest tr WHERE tr.company.id = :companyId AND tr.status = :status ORDER BY tr.createdAt DESC")
+    @Query("SELECT tr FROM TransferRequest tr WHERE tr.company.id = :companyId AND tr.status = :status")
     Page<TransferRequest> findByCompanyIdAndStatus(@Param("companyId") UUID companyId, @Param("status") TransferRequestStatus status, Pageable pageable);
     
     /**
      * Find transfer requests for a specific store (paginated)
      */
-    @Query("SELECT tr FROM TransferRequest tr WHERE tr.toStore.id = :storeId ORDER BY tr.createdAt DESC")
+    @Query("SELECT tr FROM TransferRequest tr WHERE tr.toStore.id = :storeId")
     Page<TransferRequest> findByStoreId(@Param("storeId") UUID storeId, Pageable pageable);
     
     /**
      * Find transfer requests for a specific warehouse (paginated)
      */
-    @Query("SELECT tr FROM TransferRequest tr WHERE tr.fromWarehouse.id = :warehouseId ORDER BY tr.createdAt DESC")
+    @Query("SELECT tr FROM TransferRequest tr WHERE tr.fromWarehouse.id = :warehouseId")
     Page<TransferRequest> findByWarehouseId(@Param("warehouseId") UUID warehouseId, Pageable pageable);
 }

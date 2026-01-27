@@ -127,10 +127,12 @@ public class TransferRequestControllerPaginationTest {
 
     @Test
     public void testEndpointPathAndParameters() {
-        // Test that endpoint paths match requirements
+        // Test that endpoint has expected structure
         String transfersPath = "/api/transfers";
         
-        assertTrue(transfersPath.contains("/api/transfers"));
+        // Verify path is properly formatted
+        assertTrue(transfersPath.startsWith("/api/"));
+        assertTrue(transfersPath.endsWith("/transfers"));
         
         // Test query parameters
         Map<String, Object> queryParams = new HashMap<>();
