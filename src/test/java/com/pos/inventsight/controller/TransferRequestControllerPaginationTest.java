@@ -55,8 +55,6 @@ public class TransferRequestControllerPaginationTest {
         assertEquals(Integer.class, paginationData.get("totalPages").getClass());
         assertEquals(Boolean.class, paginationData.get("hasNext").getClass());
         assertEquals(Boolean.class, paginationData.get("hasPrevious").getClass());
-        
-        System.out.println("✅ Test passed: Controller response structure matches expected format");
     }
 
     @Test
@@ -80,8 +78,6 @@ public class TransferRequestControllerPaginationTest {
         
         assertEquals(0, defaultPage, "Default page should be 0");
         assertEquals(20, defaultSize, "Default size should be 20");
-        
-        System.out.println("✅ Test passed: Pagination parameters are within valid ranges");
     }
 
     @Test
@@ -127,8 +123,6 @@ public class TransferRequestControllerPaginationTest {
         
         assertFalse(hasNext4, "Last page should not have next");
         assertTrue(hasPrevious4, "Last page should have previous");
-        
-        System.out.println("✅ Test passed: Page info calculation is correct");
     }
 
     @Test
@@ -151,8 +145,6 @@ public class TransferRequestControllerPaginationTest {
         assertTrue(queryParams.containsKey("status"));
         assertTrue(queryParams.containsKey("storeId"));
         assertTrue(queryParams.containsKey("warehouseId"));
-        
-        System.out.println("✅ Test passed: Endpoint paths and parameters are correct");
     }
 
     @Test
@@ -169,8 +161,6 @@ public class TransferRequestControllerPaginationTest {
         
         assertEquals(3, requiredTopLevelFields.size());
         assertEquals(6, requiredPaginationFields.size());
-        
-        System.out.println("✅ Test passed: Response fields match specification");
     }
 
     @Test
@@ -187,8 +177,6 @@ public class TransferRequestControllerPaginationTest {
         
         assertEquals(0, page, "Default page should be 0");
         assertEquals(20, size, "Default size should be 20");
-        
-        System.out.println("✅ Test passed: Backward compatibility maintained with default values");
     }
 
     @Test
@@ -206,8 +194,6 @@ public class TransferRequestControllerPaginationTest {
         assertEquals(1, queryParams.get("page"));
         assertEquals(10, queryParams.get("size"));
         assertEquals("PENDING", queryParams.get("status"));
-        
-        System.out.println("✅ Test passed: Pagination works with filters");
     }
 
     @Test
@@ -218,7 +204,5 @@ public class TransferRequestControllerPaginationTest {
         
         assertEquals("createdAt", sortField, "Should sort by createdAt");
         assertEquals("DESC", sortDirection, "Should sort in descending order");
-        
-        System.out.println("✅ Test passed: Sorting direction is correct");
     }
 }
