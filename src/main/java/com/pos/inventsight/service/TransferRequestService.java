@@ -3,6 +3,8 @@ package com.pos.inventsight.service;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.TransferRequestRepository;
+import com.pos.inventsight.repository.sql.WarehouseRepository;
+import com.pos.inventsight.repository.sql.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,12 @@ public class TransferRequestService {
     
     @Autowired
     private TransferRequestRepository transferRequestRepository;
+    
+    @Autowired
+    private WarehouseRepository warehouseRepository;
+    
+    @Autowired
+    private StoreRepository storeRepository;
     
     /**
      * Create a new transfer request
@@ -145,5 +153,184 @@ public class TransferRequestService {
         request.setNotes((request.getNotes() != null ? request.getNotes() + "\n" : "") + notes);
         request.setUpdatedAt(LocalDateTime.now());
         return transferRequestRepository.save(request);
+    }
+    
+    /**
+     * Create enhanced transfer request with location flexibility
+     */
+    public TransferRequest createEnhancedTransferRequest(TransferRequest request, Company company, User requestedBy) {
+        // Validate locations
+        validateLocations(request.getFromLocationType(), request.getFromLocationId(),
+                         request.getToLocationType(), request.getToLocationId());
+        
+        // Set common fields
+        request.setCompany(company);
+        request.setRequestedBy(requestedBy);
+        request.setRequestedAt(LocalDateTime.now());
+        request.setCreatedAt(LocalDateTime.now());
+        request.setUpdatedAt(LocalDateTime.now());
+        request.setStatus(TransferRequestStatus.PENDING);
+        request.setIsReceiptConfirmed(false);
+        
+        // Also set legacy fields for backward compatibility
+        if ("WAREHOUSE".equals(request.getFromLocationType())) {
+            warehouseRepository.findById(request.getFromLocationId()).ifPresent(request::setFromWarehouse);
+        }
+        if ("STORE".equals(request.getToLocationType())) {
+            storeRepository.findById(request.getToLocationId()).ifPresent(request::setToStore);
+        }
+        
+        return transferRequestRepository.save(request);
+    }
+    
+    /**
+     * Approve and send transfer request with carrier details (GM+ only)
+     */
+    public TransferRequest approveAndSend(UUID id, Integer approvedQuantity, String carrierName,
+                                         String carrierPhone, String carrierVehicle,
+                                         LocalDateTime estimatedDeliveryAt, String notes, User approvedBy) {
+        TransferRequest request = getTransferRequestById(id);
+        
+        if (request.getStatus() != TransferRequestStatus.PENDING) {
+            throw new IllegalStateException("Only pending requests can be approved and sent");
+        }
+        
+        // Validate approved quantity
+        if (approvedQuantity > request.getRequestedQuantity()) {
+            throw new IllegalArgumentException("Approved quantity cannot exceed requested quantity");
+        }
+        
+        // Update request
+        request.setStatus(TransferRequestStatus.IN_TRANSIT);
+        request.setApprovedQuantity(approvedQuantity);
+        request.setApprovedBy(approvedBy);
+        request.setApprovedAt(LocalDateTime.now());
+        request.setShippedAt(LocalDateTime.now());
+        
+        // Set carrier details
+        request.setCarrierName(carrierName);
+        request.setCarrierPhone(carrierPhone);
+        request.setCarrierVehicle(carrierVehicle);
+        request.setEstimatedDeliveryAt(estimatedDeliveryAt);
+        
+        // Add notes if provided
+        if (notes != null && !notes.isEmpty()) {
+            request.setNotes((request.getNotes() != null ? request.getNotes() + "\n" : "") + notes);
+        }
+        
+        request.setUpdatedAt(LocalDateTime.now());
+        
+        return transferRequestRepository.save(request);
+    }
+    
+    /**
+     * Confirm receipt of transfer
+     */
+    public TransferRequest confirmReceipt(UUID id, Integer receivedQuantity, String receiverName,
+                                         String receiptNotes, User receivedByUser) {
+        TransferRequest request = getTransferRequestById(id);
+        
+        if (request.getStatus() != TransferRequestStatus.IN_TRANSIT && 
+            request.getStatus() != TransferRequestStatus.DELIVERED) {
+            throw new IllegalStateException("Only in-transit or delivered transfers can be received");
+        }
+        
+        // Update receipt details
+        request.setReceivedQuantity(receivedQuantity);
+        request.setReceiverName(receiverName);
+        request.setReceiptNotes(receiptNotes);
+        request.setReceivedByUser(receivedByUser);
+        request.setReceivedAt(LocalDateTime.now());
+        request.setIsReceiptConfirmed(true);
+        
+        // Update status based on received quantity
+        if (receivedQuantity.equals(request.getApprovedQuantity())) {
+            request.setStatus(TransferRequestStatus.COMPLETED);
+            request.setCompletedAt(LocalDateTime.now());
+        } else if (receivedQuantity > 0 && receivedQuantity < request.getApprovedQuantity()) {
+            request.setStatus(TransferRequestStatus.PARTIALLY_RECEIVED);
+        } else {
+            // receivedQuantity is 0 or invalid - mark as received but not completed
+            request.setStatus(TransferRequestStatus.RECEIVED);
+        }
+        
+        request.setUpdatedAt(LocalDateTime.now());
+        
+        return transferRequestRepository.save(request);
+    }
+    
+    /**
+     * Cancel transfer request
+     */
+    public TransferRequest cancelTransfer(UUID id, String reason, User cancelledBy) {
+        TransferRequest request = getTransferRequestById(id);
+        
+        if (request.getStatus() == TransferRequestStatus.COMPLETED ||
+            request.getStatus() == TransferRequestStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot cancel completed or already cancelled transfers");
+        }
+        
+        request.setStatus(TransferRequestStatus.CANCELLED);
+        request.setUpdatedAt(LocalDateTime.now());
+        
+        if (reason != null && !reason.isEmpty()) {
+            request.setNotes((request.getNotes() != null ? request.getNotes() + "\n" : "") + 
+                           "Cancelled by " + cancelledBy.getUsername() + ": " + reason);
+        }
+        
+        return transferRequestRepository.save(request);
+    }
+    
+    /**
+     * Get transfers by location (from or to)
+     */
+    public List<TransferRequest> getTransfersByLocation(String locationType, UUID locationId) {
+        return transferRequestRepository.findByLocation(locationType, locationId);
+    }
+    
+    /**
+     * Get transfers from a location
+     */
+    public List<TransferRequest> getTransfersFromLocation(String locationType, UUID locationId) {
+        return transferRequestRepository.findByFromLocation(locationType, locationId);
+    }
+    
+    /**
+     * Get transfers to a location
+     */
+    public List<TransferRequest> getTransfersToLocation(String locationType, UUID locationId) {
+        return transferRequestRepository.findByToLocation(locationType, locationId);
+    }
+    
+    /**
+     * Validate that locations exist and are different
+     */
+    private void validateLocations(String fromType, UUID fromId, String toType, UUID toId) {
+        // Check that from and to are not the same
+        if (fromType.equals(toType) && fromId.equals(toId)) {
+            throw new IllegalArgumentException("Source and destination locations must be different");
+        }
+        
+        // Validate from location exists
+        if ("WAREHOUSE".equals(fromType)) {
+            warehouseRepository.findById(fromId)
+                .orElseThrow(() -> new ResourceNotFoundException("From warehouse not found with id: " + fromId));
+        } else if ("STORE".equals(fromType)) {
+            storeRepository.findById(fromId)
+                .orElseThrow(() -> new ResourceNotFoundException("From store not found with id: " + fromId));
+        } else {
+            throw new IllegalArgumentException("Invalid from location type: " + fromType);
+        }
+        
+        // Validate to location exists
+        if ("WAREHOUSE".equals(toType)) {
+            warehouseRepository.findById(toId)
+                .orElseThrow(() -> new ResourceNotFoundException("To warehouse not found with id: " + toId));
+        } else if ("STORE".equals(toType)) {
+            storeRepository.findById(toId)
+                .orElseThrow(() -> new ResourceNotFoundException("To store not found with id: " + toId));
+        } else {
+            throw new IllegalArgumentException("Invalid to location type: " + toType);
+        }
     }
 }

@@ -1,6 +1,6 @@
 package com.pos.inventsight.controller;
 
-import com.pos.inventsight.dto.ApiResponse;
+import com.pos.inventsight.dto.*;
 import com.pos.inventsight.exception.UnauthorizedException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
@@ -49,7 +49,66 @@ public class TransferRequestController {
     }
     
     /**
-     * POST /api/transfers - Create transfer request
+     * POST /api/transfers/request - Create enhanced transfer request
+     */
+    @PostMapping("/request")
+    public ResponseEntity<?> createEnhancedTransferRequest(@Valid @RequestBody CreateTransferRequestDTO requestData,
+                                                           Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            Company company = getUserCompany(currentUser);
+            
+            if (company == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "User is not associated with any company"));
+            }
+            
+            // Create transfer request with enhanced fields
+            TransferRequest request = new TransferRequest();
+            request.setFromLocationType(requestData.getFromLocationType());
+            request.setFromLocationId(requestData.getFromLocationId());
+            request.setToLocationType(requestData.getToLocationType());
+            request.setToLocationId(requestData.getToLocationId());
+            request.setProductId(requestData.getProductId());
+            request.setRequestedQuantity(requestData.getRequestedQuantity());
+            request.setItemName(requestData.getItemName());
+            request.setItemSku(requestData.getItemSku());
+            request.setReason(requestData.getReason());
+            request.setNotes(requestData.getNotes());
+            
+            // Set priority
+            if (requestData.getPriority() != null) {
+                try {
+                    request.setPriority(TransferRequestPriority.valueOf(requestData.getPriority().toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    request.setPriority(TransferRequestPriority.MEDIUM);
+                }
+            } else {
+                request.setPriority(TransferRequestPriority.MEDIUM);
+            }
+            
+            TransferRequest created = transferRequestService.createEnhancedTransferRequest(request, company, currentUser);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer request created");
+            response.put("transferId", created.getId());
+            response.put("request", created);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to create transfer request: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * POST /api/transfers - Create transfer request (legacy endpoint for backward compatibility)
      */
     @PostMapping
     public ResponseEntity<?> createTransferRequest(@Valid @RequestBody Map<String, Object> requestData,
@@ -284,6 +343,173 @@ public class TransferRequestController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to complete transfer request: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * POST /api/transfers/{id}/send - Approve and send items with carrier details (GM+ only)
+     */
+    @PostMapping("/{id}/send")
+    public ResponseEntity<?> approveAndSend(@PathVariable UUID id,
+                                           @Valid @RequestBody SendTransferRequestDTO sendRequest,
+                                           Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            Company company = getUserCompany(currentUser);
+            
+            // Check if user has GM+ permission
+            Optional<CompanyRole> roleOpt = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
+            if (roleOpt.isEmpty() || !roleOpt.get().canManageWarehouses()) {
+                throw new UnauthorizedException("Only General Manager and above can approve and send transfer requests");
+            }
+            
+            TransferRequest sent = transferRequestService.approveAndSend(
+                id,
+                sendRequest.getApprovedQuantity(),
+                sendRequest.getCarrierName(),
+                sendRequest.getCarrierPhone(),
+                sendRequest.getCarrierVehicle(),
+                sendRequest.getEstimatedDeliveryAt(),
+                sendRequest.getNotes(),
+                currentUser
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer approved and sent");
+            response.put("request", sent);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (UnauthorizedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to approve and send transfer: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * POST /api/transfers/{id}/receive - Confirm receipt of transfer
+     */
+    @PostMapping("/{id}/receive")
+    public ResponseEntity<?> confirmReceipt(@PathVariable UUID id,
+                                           @Valid @RequestBody ReceiveTransferDTO receiveRequest,
+                                           Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            TransferRequest received = transferRequestService.confirmReceipt(
+                id,
+                receiveRequest.getReceivedQuantity(),
+                receiveRequest.getReceiverName(),
+                receiveRequest.getReceiptNotes(),
+                currentUser
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer receipt confirmed");
+            response.put("request", received);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to confirm receipt: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * PUT /api/transfers/{id}/cancel - Cancel transfer request
+     */
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelTransfer(@PathVariable UUID id,
+                                           @RequestBody Map<String, String> requestData,
+                                           Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            String reason = requestData.get("reason");
+            TransferRequest cancelled = transferRequestService.cancelTransfer(id, reason, currentUser);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer request cancelled");
+            response.put("request", cancelled);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to cancel transfer: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * GET /api/transfers/history - Get transfer history with filtering
+     */
+    @GetMapping("/history")
+    public ResponseEntity<?> getTransferHistory(@RequestParam(required = false) UUID locationId,
+                                               @RequestParam(required = false) String locationType,
+                                               @RequestParam(required = false) String status,
+                                               Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            Company company = getUserCompany(currentUser);
+            
+            if (company == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "User is not associated with any company"));
+            }
+            
+            List<TransferRequest> transfers;
+            
+            if (locationId != null && locationType != null) {
+                transfers = transferRequestService.getTransfersByLocation(locationType, locationId);
+            } else if (status != null) {
+                TransferRequestStatus requestStatus = TransferRequestStatus.valueOf(status.toUpperCase());
+                transfers = transferRequestService.getTransferRequestsByStatus(company.getId(), requestStatus);
+            } else {
+                transfers = transferRequestService.getTransferRequestsByCompany(company.getId());
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("transfers", transfers);
+            response.put("count", transfers.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, "Invalid status value"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to fetch transfer history: " + e.getMessage()));
         }
     }
 }
