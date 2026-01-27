@@ -9,6 +9,10 @@ import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.service.TransferRequestService;
 import com.pos.inventsight.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -162,12 +166,14 @@ public class TransferRequestController {
     }
     
     /**
-     * GET /api/transfers - List transfer requests
+     * GET /api/transfers - List transfer requests with pagination
      */
     @GetMapping
     public ResponseEntity<?> getTransferRequests(@RequestParam(required = false) String status,
                                                 @RequestParam(required = false) UUID storeId,
                                                 @RequestParam(required = false) UUID warehouseId,
+                                                @RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "20") int size,
                                                 Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -179,23 +185,36 @@ public class TransferRequestController {
                     .body(new ApiResponse(false, "User is not associated with any company"));
             }
             
-            List<TransferRequest> requests;
+            // Create Pageable object with sorting by createdAt DESC (most recent first)
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+            
+            Page<TransferRequest> requestsPage;
             
             if (storeId != null) {
-                requests = transferRequestService.getTransferRequestsByStore(storeId);
+                requestsPage = transferRequestService.getTransferRequestsByStore(storeId, pageable);
             } else if (warehouseId != null) {
-                requests = transferRequestService.getTransferRequestsByWarehouse(warehouseId);
+                requestsPage = transferRequestService.getTransferRequestsByWarehouse(warehouseId, pageable);
             } else if (status != null) {
                 TransferRequestStatus requestStatus = TransferRequestStatus.valueOf(status.toUpperCase());
-                requests = transferRequestService.getTransferRequestsByStatus(company.getId(), requestStatus);
+                requestsPage = transferRequestService.getTransferRequestsByStatus(company.getId(), requestStatus, pageable);
             } else {
-                requests = transferRequestService.getTransferRequestsByCompany(company.getId());
+                requestsPage = transferRequestService.getTransferRequestsByCompany(company.getId(), pageable);
             }
             
+            // Build response with pagination metadata
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("requests", requests);
-            response.put("count", requests.size());
+            response.put("requests", requestsPage.getContent());
+            
+            Map<String, Object> pagination = new HashMap<>();
+            pagination.put("currentPage", requestsPage.getNumber());
+            pagination.put("pageSize", requestsPage.getSize());
+            pagination.put("totalElements", requestsPage.getTotalElements());
+            pagination.put("totalPages", requestsPage.getTotalPages());
+            pagination.put("hasNext", requestsPage.hasNext());
+            pagination.put("hasPrevious", requestsPage.hasPrevious());
+            
+            response.put("pagination", pagination);
             
             return ResponseEntity.ok(response);
             
