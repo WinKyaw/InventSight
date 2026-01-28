@@ -21,7 +21,7 @@ import java.util.UUID;
  * Public endpoints for fetching translations, admin endpoints for management.
  */
 @RestController
-@RequestMapping("/api/i18n")
+@RequestMapping("/i18n")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Internationalization", description = "Translation and language management")
 public class TranslationController {

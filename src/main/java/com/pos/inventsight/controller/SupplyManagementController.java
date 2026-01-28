@@ -28,7 +28,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/supply-management")
+@RequestMapping("/supply-management")
 @Tag(name = "Supply Management", description = "Supply management permissions")
 public class SupplyManagementController {
     

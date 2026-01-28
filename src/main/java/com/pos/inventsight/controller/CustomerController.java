@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/customers")
 @Tag(name = "Customers", description = "Customer management endpoints")
 public class CustomerController {
     

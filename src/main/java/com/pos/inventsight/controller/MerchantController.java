@@ -17,7 +17,7 @@ import jakarta.validation.Valid;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/merchants")
+@RequestMapping("/merchants")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class MerchantController {
     

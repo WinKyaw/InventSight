@@ -20,7 +20,7 @@ import jakarta.validation.Valid;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/marketplace/ads")
+@RequestMapping("/marketplace/ads")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class ProductAdController {
     

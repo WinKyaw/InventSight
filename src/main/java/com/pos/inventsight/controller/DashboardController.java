@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/dashboard")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class DashboardController {
     
