@@ -6,6 +6,8 @@ import com.pos.inventsight.repository.sql.TransferRequestRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -332,5 +334,35 @@ public class TransferRequestService {
         } else {
             throw new IllegalArgumentException("Invalid to location type: " + toType);
         }
+    }
+    
+    // ========== Paginated query methods ==========
+    
+    /**
+     * Get all transfer requests for a company (paginated)
+     */
+    public Page<TransferRequest> getTransferRequestsByCompany(UUID companyId, Pageable pageable) {
+        return transferRequestRepository.findByCompanyId(companyId, pageable);
+    }
+    
+    /**
+     * Get transfer requests by status (paginated)
+     */
+    public Page<TransferRequest> getTransferRequestsByStatus(UUID companyId, TransferRequestStatus status, Pageable pageable) {
+        return transferRequestRepository.findByCompanyIdAndStatus(companyId, status, pageable);
+    }
+    
+    /**
+     * Get transfer requests for a store (paginated)
+     */
+    public Page<TransferRequest> getTransferRequestsByStore(UUID storeId, Pageable pageable) {
+        return transferRequestRepository.findByStoreId(storeId, pageable);
+    }
+    
+    /**
+     * Get transfer requests for a warehouse (paginated)
+     */
+    public Page<TransferRequest> getTransferRequestsByWarehouse(UUID warehouseId, Pageable pageable) {
+        return transferRequestRepository.findByWarehouseId(warehouseId, pageable);
     }
 }
