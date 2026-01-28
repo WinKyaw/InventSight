@@ -437,17 +437,17 @@ public class ProductController {
     // GET /products/search - Search products
     @GetMapping("/search")
     public ResponseEntity<?> searchProducts(
-            @RequestParam String q,
+            @RequestParam String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication authentication) {
         try {
             String username = authentication.getName();
             System.out.println("🔍 InventSight - Searching products for user: " + username);
-            System.out.println("🔎 Search query: " + q);
+            System.out.println("🔎 Search query: " + query);
             
             Pageable pageable = PageRequest.of(page, size);
-            Page<Product> productsPage = productService.searchProducts(q, pageable);
+            Page<Product> productsPage = productService.searchProducts(query, pageable);
             
             List<ProductResponse> productResponses = productsPage.getContent().stream()
                 .map(this::convertToResponse)
@@ -455,7 +455,7 @@ public class ProductController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("products", productResponses);
-            response.put("query", q);
+            response.put("query", query);
             response.put("currentPage", productsPage.getNumber());
             response.put("totalItems", productsPage.getTotalElements());
             response.put("totalPages", productsPage.getTotalPages());
