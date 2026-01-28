@@ -1,14 +1,16 @@
 package com.pos.inventsight.model.sql;
 
 public enum TransferRequestStatus {
-    PENDING,           // Initial request created
-    APPROVED,          // GM+ approved the request
-    REJECTED,          // GM+ rejected the request
+    PENDING,           // Requested, awaiting approval
+    APPROVED,          // Approved, ready to ship
+    REJECTED,          // Request denied
     PREPARING,         // Items being prepared for shipment
-    IN_TRANSIT,        // Items shipped with carrier
-    DELIVERED,         // Items delivered (not yet received)
-    RECEIVED,          // Items received and confirmed
+    IN_TRANSIT,        // Currently being transported
+    DELIVERED,         // Arrived at destination, awaiting receipt confirmation
+    RECEIVED,          // Confirmed received
     PARTIALLY_RECEIVED, // Some items received
-    CANCELLED,         // Request cancelled
-    COMPLETED          // Transfer fully completed
+    COMPLETED,         // Fully processed and stocked
+    CANCELLED,         // Cancelled before shipping
+    DAMAGED,           // Arrived damaged
+    LOST               // Lost in transit
 }
