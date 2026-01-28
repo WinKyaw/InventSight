@@ -171,4 +171,94 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     
     @Query("SELECT p FROM Product p WHERE p.store.id = :storeId AND p.company.id IN :companyIds AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) AND p.isActive = true")
     Page<Product> findByStoreIdAndCompanyIdInAndNameContainingIgnoreCase(@Param("storeId") UUID storeId, @Param("companyIds") Set<UUID> companyIds, @Param("name") String name, Pageable pageable);
+    
+    /**
+     * Search products for transfer from a specific store
+     */
+    @Query("SELECT p FROM Product p " +
+           "WHERE p.store.id = :storeId " +
+           "AND p.company.id = :companyId " +
+           "AND p.isActive = true " +
+           "AND p.quantity > 0 " +
+           "AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.barcode) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Product> searchProductsForTransferFromStore(
+        @Param("storeId") UUID storeId,
+        @Param("companyId") UUID companyId,
+        @Param("query") String query,
+        Pageable pageable
+    );
+    
+    /**
+     * Search products for transfer from a specific warehouse
+     */
+    @Query("SELECT p FROM Product p " +
+           "WHERE p.warehouse.id = :warehouseId " +
+           "AND p.company.id = :companyId " +
+           "AND p.isActive = true " +
+           "AND p.quantity > 0 " +
+           "AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.barcode) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Product> searchProductsForTransferFromWarehouse(
+        @Param("warehouseId") UUID warehouseId,
+        @Param("companyId") UUID companyId,
+        @Param("query") String query,
+        Pageable pageable
+    );
+    
+    /**
+     * Calculate reserved quantity from store (in pending/approved transfers)
+     */
+    @Query("SELECT COALESCE(SUM(t.requestedQuantity), 0) " +
+           "FROM TransferRequest t " +
+           "WHERE t.productId = :productId " +
+           "AND t.fromStoreId = :locationId " +
+           "AND t.status IN ('PENDING', 'APPROVED')")
+    Integer getReservedQuantityFromStore(
+        @Param("productId") UUID productId,
+        @Param("locationId") UUID locationId
+    );
+    
+    /**
+     * Calculate in-transit quantity from store
+     */
+    @Query("SELECT COALESCE(SUM(t.approvedQuantity), 0) " +
+           "FROM TransferRequest t " +
+           "WHERE t.productId = :productId " +
+           "AND t.fromStoreId = :locationId " +
+           "AND t.status = 'IN_TRANSIT'")
+    Integer getInTransitQuantityFromStore(
+        @Param("productId") UUID productId,
+        @Param("locationId") UUID locationId
+    );
+    
+    /**
+     * Calculate reserved quantity from warehouse (in pending/approved transfers)
+     */
+    @Query("SELECT COALESCE(SUM(t.requestedQuantity), 0) " +
+           "FROM TransferRequest t " +
+           "WHERE t.productId = :productId " +
+           "AND t.fromWarehouse.id = :locationId " +
+           "AND t.status IN ('PENDING', 'APPROVED')")
+    Integer getReservedQuantityFromWarehouse(
+        @Param("productId") UUID productId,
+        @Param("locationId") UUID locationId
+    );
+    
+    /**
+     * Calculate in-transit quantity from warehouse
+     */
+    @Query("SELECT COALESCE(SUM(t.approvedQuantity), 0) " +
+           "FROM TransferRequest t " +
+           "WHERE t.productId = :productId " +
+           "AND t.fromWarehouse.id = :locationId " +
+           "AND t.status = 'IN_TRANSIT'")
+    Integer getInTransitQuantityFromWarehouse(
+        @Param("productId") UUID productId,
+        @Param("locationId") UUID locationId
+    );
 }

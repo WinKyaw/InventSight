@@ -696,4 +696,184 @@ public class ProductController {
                 .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
+    
+    // GET /api/products/search-for-transfer - Search products for inventory transfer
+    @GetMapping("/api/products/search-for-transfer")
+    public ResponseEntity<?> searchProductsForTransfer(
+            @RequestParam String query,
+            @RequestParam(required = false) String fromStoreId,
+            @RequestParam(required = false) String fromWarehouseId,
+            @RequestParam(required = false) String fromCompanyId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "quantity,desc") String sort,
+            Authentication authentication) {
+        
+        try {
+            String username = authentication.getName();
+            System.out.println("🔍 Transfer Search - User: " + username);
+            System.out.println("📦 Query: " + query);
+            System.out.println("📍 From Store: " + fromStoreId);
+            System.out.println("🏭 From Warehouse: " + fromWarehouseId);
+            System.out.println("🏢 From Company: " + fromCompanyId);
+            
+            // Validation
+            if (fromStoreId == null && fromWarehouseId == null) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Must specify either fromStoreId or fromWarehouseId"));
+            }
+            
+            if (fromStoreId != null && fromWarehouseId != null) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Cannot specify both fromStoreId and fromWarehouseId"));
+            }
+            
+            // Get current user and their company IDs
+            User currentUser = userService.getUserByUsername(username);
+            List<CompanyStoreUser> userMemberships = companyStoreUserRepository.findByUserAndIsActiveTrue(currentUser);
+            final Set<UUID> userCompanyIds;
+            
+            if (!userMemberships.isEmpty()) {
+                userCompanyIds = userMemberships.stream()
+                    .map(membership -> membership.getCompany().getId())
+                    .collect(Collectors.toSet());
+            } else {
+                List<UserStoreRole> userStoreRoles = userStoreRoleRepository.findByUserAndIsActiveTrue(currentUser);
+                if (userStoreRoles.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "You must be associated with a company to search products"));
+                }
+                userCompanyIds = userStoreRoles.stream()
+                    .map(role -> role.getStore())
+                    .filter(Objects::nonNull)
+                    .map(store -> store.getCompany())
+                    .filter(Objects::nonNull)
+                    .map(company -> company.getId())
+                    .collect(Collectors.toSet());
+            }
+            
+            if (userCompanyIds.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No valid company associations found"));
+            }
+            
+            // Determine search company (default to user's first company)
+            UUID searchCompanyId;
+            if (fromCompanyId != null) {
+                searchCompanyId = UUID.fromString(fromCompanyId);
+                // Multi-tenant security check
+                if (!userCompanyIds.contains(searchCompanyId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No permission to access this company"));
+                }
+            } else {
+                searchCompanyId = userCompanyIds.iterator().next();
+            }
+            
+            // Parse sort parameter
+            String[] sortParts = sort.split(",");
+            String sortField = sortParts[0];
+            Sort.Direction direction = sortParts.length > 1 && sortParts[1].equals("asc") 
+                ? Sort.Direction.ASC 
+                : Sort.Direction.DESC;
+            
+            Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+            
+            // Search products
+            Page<Product> productsPage;
+            String locationType;
+            UUID locationId;
+            
+            if (fromStoreId != null) {
+                locationId = UUID.fromString(fromStoreId);
+                locationType = "STORE";
+                productsPage = productRepository.searchProductsForTransferFromStore(
+                    locationId, searchCompanyId, query, pageable
+                );
+            } else {
+                locationId = UUID.fromString(fromWarehouseId);
+                locationType = "WAREHOUSE";
+                productsPage = productRepository.searchProductsForTransferFromWarehouse(
+                    locationId, searchCompanyId, query, pageable
+                );
+            }
+            
+            // Build response with availability info
+            List<Map<String, Object>> products = productsPage.getContent().stream()
+                .map(product -> {
+                    Integer reserved;
+                    Integer inTransit;
+                    
+                    if (locationType.equals("STORE")) {
+                        reserved = productRepository.getReservedQuantityFromStore(
+                            product.getId(), locationId
+                        );
+                        inTransit = productRepository.getInTransitQuantityFromStore(
+                            product.getId(), locationId
+                        );
+                    } else {
+                        reserved = productRepository.getReservedQuantityFromWarehouse(
+                            product.getId(), locationId
+                        );
+                        inTransit = productRepository.getInTransitQuantityFromWarehouse(
+                            product.getId(), locationId
+                        );
+                    }
+                    
+                    Integer available = product.getQuantity() - reserved - inTransit;
+                    
+                    Map<String, Object> location = new HashMap<>();
+                    location.put("id", locationId.toString());
+                    location.put("type", locationType);
+                    
+                    if (locationType.equals("STORE") && product.getStore() != null) {
+                        location.put("name", product.getStore().getStoreName());
+                    } else if (product.getWarehouse() != null) {
+                        location.put("name", product.getWarehouse().getName());
+                    } else {
+                        location.put("name", "Unknown Location");
+                    }
+                    location.put("companyId", searchCompanyId.toString());
+                    
+                    Map<String, Object> productMap = new HashMap<>();
+                    productMap.put("id", product.getId().toString());
+                    productMap.put("name", product.getName());
+                    productMap.put("sku", product.getSku() != null ? product.getSku() : "");
+                    productMap.put("quantity", product.getQuantity());
+                    productMap.put("reserved", reserved);
+                    productMap.put("inTransit", inTransit);
+                    productMap.put("availableForTransfer", Math.max(0, available));
+                    productMap.put("location", location);
+                    
+                    return productMap;
+                })
+                .collect(Collectors.toList());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("products", products);
+            response.put("pagination", Map.of(
+                "currentPage", productsPage.getNumber(),
+                "pageSize", productsPage.getSize(),
+                "totalElements", productsPage.getTotalElements(),
+                "totalPages", productsPage.getTotalPages(),
+                "hasNext", productsPage.hasNext(),
+                "hasPrevious", productsPage.hasPrevious()
+            ));
+            response.put("filters", Map.of(
+                "query", query,
+                "fromLocationId", locationId.toString(),
+                "fromLocationType", locationType,
+                "fromCompanyId", searchCompanyId.toString()
+            ));
+            
+            System.out.println("✅ Transfer Search - Found: " + productsPage.getTotalElements() + " products");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.out.println("❌ Transfer Search Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Search failed: " + e.getMessage()));
+        }
+    }
 }

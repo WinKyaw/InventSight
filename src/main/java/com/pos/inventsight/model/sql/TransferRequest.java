@@ -143,6 +143,78 @@ public class TransferRequest {
     @Column(name = "is_receipt_confirmed")
     private Boolean isReceiptConfirmed = false;
     
+    // === MULTI-TENANT COMPANY TRACKING ===
+    @Column(name = "from_company_id")
+    private UUID fromCompanyId;
+    
+    @Column(name = "to_company_id")
+    private UUID toCompanyId;
+    
+    // === ADDITIONAL LOCATION TRACKING ===
+    @Column(name = "from_store_id")
+    private UUID fromStoreId;
+    
+    @Column(name = "to_warehouse_id")
+    private UUID toWarehouseId;
+    
+    // === PEOPLE TRACKING ===
+    @Column(name = "requested_by_user_id")
+    private UUID requestedByUserId;
+    
+    @Column(name = "requested_by_name")
+    private String requestedByName;
+    
+    @Column(name = "approved_by_user_id")
+    private UUID approvedByUserId;
+    
+    @Column(name = "approved_by_name")
+    private String approvedByName;
+    
+    @Column(name = "carrier_user_id")
+    private UUID carrierUserId;
+    
+    @Column(name = "receiver_user_id")
+    private UUID receiverUserId;
+    
+    @Column(name = "handler_user_id")
+    private UUID handlerUserId;
+    
+    @Column(name = "handler_name")
+    private String handlerName;
+    
+    // === PRODUCT INFO ===
+    @Column(name = "product_name")
+    private String productName;
+    
+    @Column(name = "product_sku")
+    private String productSku;
+    
+    @Column(name = "damaged_quantity")
+    private Integer damagedQuantity;
+    
+    // === TRANSPORT & STATUS ===
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transport_method")
+    private TransportMethod transportMethod;
+    
+    // === PROOF & SIGNATURE ===
+    @Column(name = "receiver_signature_url", length = 500)
+    private String receiverSignatureUrl;
+    
+    @Column(name = "proof_of_delivery_url", length = 500)
+    private String proofOfDeliveryUrl;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "condition_on_arrival")
+    private ConditionStatus conditionOnArrival;
+    
+    // === AUDIT ===
+    @Column(name = "created_by")
+    private String createdBy;
+    
+    @Column(name = "updated_by")
+    private String updatedBy;
+    
     // Constructors
     public TransferRequest() {
     }
@@ -430,5 +502,189 @@ public class TransferRequest {
     
     public void setIsReceiptConfirmed(Boolean isReceiptConfirmed) {
         this.isReceiptConfirmed = isReceiptConfirmed;
+    }
+    
+    // Multi-tenant company tracking getters and setters
+    public UUID getFromCompanyId() {
+        return fromCompanyId;
+    }
+    
+    public void setFromCompanyId(UUID fromCompanyId) {
+        this.fromCompanyId = fromCompanyId;
+    }
+    
+    public UUID getToCompanyId() {
+        return toCompanyId;
+    }
+    
+    public void setToCompanyId(UUID toCompanyId) {
+        this.toCompanyId = toCompanyId;
+    }
+    
+    // Additional location tracking getters and setters
+    public UUID getFromStoreId() {
+        return fromStoreId;
+    }
+    
+    public void setFromStoreId(UUID fromStoreId) {
+        this.fromStoreId = fromStoreId;
+    }
+    
+    public UUID getToWarehouseId() {
+        return toWarehouseId;
+    }
+    
+    public void setToWarehouseId(UUID toWarehouseId) {
+        this.toWarehouseId = toWarehouseId;
+    }
+    
+    // People tracking getters and setters
+    public UUID getRequestedByUserId() {
+        return requestedByUserId;
+    }
+    
+    public void setRequestedByUserId(UUID requestedByUserId) {
+        this.requestedByUserId = requestedByUserId;
+    }
+    
+    public String getRequestedByName() {
+        return requestedByName;
+    }
+    
+    public void setRequestedByName(String requestedByName) {
+        this.requestedByName = requestedByName;
+    }
+    
+    public UUID getApprovedByUserId() {
+        return approvedByUserId;
+    }
+    
+    public void setApprovedByUserId(UUID approvedByUserId) {
+        this.approvedByUserId = approvedByUserId;
+    }
+    
+    public String getApprovedByName() {
+        return approvedByName;
+    }
+    
+    public void setApprovedByName(String approvedByName) {
+        this.approvedByName = approvedByName;
+    }
+    
+    public UUID getCarrierUserId() {
+        return carrierUserId;
+    }
+    
+    public void setCarrierUserId(UUID carrierUserId) {
+        this.carrierUserId = carrierUserId;
+    }
+    
+    public UUID getReceiverUserId() {
+        return receiverUserId;
+    }
+    
+    public void setReceiverUserId(UUID receiverUserId) {
+        this.receiverUserId = receiverUserId;
+    }
+    
+    public UUID getHandlerUserId() {
+        return handlerUserId;
+    }
+    
+    public void setHandlerUserId(UUID handlerUserId) {
+        this.handlerUserId = handlerUserId;
+    }
+    
+    public String getHandlerName() {
+        return handlerName;
+    }
+    
+    public void setHandlerName(String handlerName) {
+        this.handlerName = handlerName;
+    }
+    
+    // Product info getters and setters
+    public String getProductName() {
+        return productName;
+    }
+    
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+    
+    public String getProductSku() {
+        return productSku;
+    }
+    
+    public void setProductSku(String productSku) {
+        this.productSku = productSku;
+    }
+    
+    public Integer getDamagedQuantity() {
+        return damagedQuantity;
+    }
+    
+    public void setDamagedQuantity(Integer damagedQuantity) {
+        this.damagedQuantity = damagedQuantity;
+    }
+    
+    // Transport & status getters and setters
+    public TransportMethod getTransportMethod() {
+        return transportMethod;
+    }
+    
+    public void setTransportMethod(TransportMethod transportMethod) {
+        this.transportMethod = transportMethod;
+    }
+    
+    // Proof & signature getters and setters
+    public String getReceiverSignatureUrl() {
+        return receiverSignatureUrl;
+    }
+    
+    public void setReceiverSignatureUrl(String receiverSignatureUrl) {
+        this.receiverSignatureUrl = receiverSignatureUrl;
+    }
+    
+    public String getProofOfDeliveryUrl() {
+        return proofOfDeliveryUrl;
+    }
+    
+    public void setProofOfDeliveryUrl(String proofOfDeliveryUrl) {
+        this.proofOfDeliveryUrl = proofOfDeliveryUrl;
+    }
+    
+    public ConditionStatus getConditionOnArrival() {
+        return conditionOnArrival;
+    }
+    
+    public void setConditionOnArrival(ConditionStatus conditionOnArrival) {
+        this.conditionOnArrival = conditionOnArrival;
+    }
+    
+    // Audit getters and setters
+    public String getCreatedBy() {
+        return createdBy;
+    }
+    
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+    
+    public String getUpdatedBy() {
+        return updatedBy;
+    }
+    
+    public void setUpdatedBy(String updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+    
+    // Calculated field
+    @Transient
+    public Long getTransitTimeMinutes() {
+        if (shippedAt != null && receivedAt != null) {
+            return java.time.temporal.ChronoUnit.MINUTES.between(shippedAt, receivedAt);
+        }
+        return null;
     }
 }
