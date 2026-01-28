@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/user/active-store")
+@RequestMapping("/user/active-store")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class UserActiveStoreController {
     

@@ -15,7 +15,7 @@ import jakarta.validation.Valid;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/marketplace/orders")
+@RequestMapping("/marketplace/orders")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class MarketplaceOrderController {
     

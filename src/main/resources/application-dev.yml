@@ -56,7 +56,7 @@ spring:
 # Server Configuration
 server:
   servlet:
-    context-path: ""  # Remove /api prefix for development
+    context-path: /api  # Set /api prefix for all endpoints
         
   # Development Logging
 logging:

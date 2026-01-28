@@ -22,7 +22,7 @@ import jakarta.validation.Valid;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/transfers")
+@RequestMapping("/transfers")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class TransferRequestController {
     
@@ -53,7 +53,7 @@ public class TransferRequestController {
     }
     
     /**
-     * POST /api/transfers/request - Create enhanced transfer request
+     * POST /transfers/request - Create enhanced transfer request
      */
     @PostMapping("/request")
     public ResponseEntity<?> createEnhancedTransferRequest(@Valid @RequestBody CreateTransferRequestDTO requestData,
@@ -112,7 +112,7 @@ public class TransferRequestController {
     }
     
     /**
-     * POST /api/transfers - Create transfer request (legacy endpoint for backward compatibility)
+     * POST /transfers - Create transfer request (legacy endpoint for backward compatibility)
      */
     @PostMapping
     public ResponseEntity<?> createTransferRequest(@Valid @RequestBody Map<String, Object> requestData,
@@ -166,7 +166,7 @@ public class TransferRequestController {
     }
     
     /**
-     * GET /api/transfers - List transfer requests with pagination
+     * GET /transfers - List transfer requests with pagination
      */
     @GetMapping
     public ResponseEntity<?> getTransferRequests(@RequestParam(required = false) String status,
@@ -225,7 +225,7 @@ public class TransferRequestController {
     }
     
     /**
-     * GET /api/transfers/{id} - Get transfer details
+     * GET /transfers/{id} - Get transfer details
      */
     @GetMapping("/{id}")
     public ResponseEntity<?> getTransferRequestById(@PathVariable UUID id) {
@@ -248,7 +248,7 @@ public class TransferRequestController {
     }
     
     /**
-     * PUT /api/transfers/{id}/approve - Approve transfer (GM+ only)
+     * PUT /transfers/{id}/approve - Approve transfer (GM+ only)
      */
     @PutMapping("/{id}/approve")
     public ResponseEntity<?> approveTransferRequest(@PathVariable UUID id,
@@ -296,7 +296,7 @@ public class TransferRequestController {
     }
     
     /**
-     * PUT /api/transfers/{id}/reject - Reject transfer (GM+ only)
+     * PUT /transfers/{id}/reject - Reject transfer (GM+ only)
      */
     @PutMapping("/{id}/reject")
     public ResponseEntity<?> rejectTransferRequest(@PathVariable UUID id,
@@ -339,7 +339,7 @@ public class TransferRequestController {
     }
     
     /**
-     * PUT /api/transfers/{id}/complete - Mark as completed
+     * PUT /transfers/{id}/complete - Mark as completed
      */
     @PutMapping("/{id}/complete")
     public ResponseEntity<?> completeTransferRequest(@PathVariable UUID id) {
@@ -366,7 +366,7 @@ public class TransferRequestController {
     }
     
     /**
-     * POST /api/transfers/{id}/send - Approve and send items with carrier details (GM+ only)
+     * POST /transfers/{id}/send - Approve and send items with carrier details (GM+ only)
      */
     @PostMapping("/{id}/send")
     public ResponseEntity<?> approveAndSend(@PathVariable UUID id,
@@ -417,7 +417,7 @@ public class TransferRequestController {
     }
     
     /**
-     * POST /api/transfers/{id}/receive - Confirm receipt of transfer
+     * POST /transfers/{id}/receive - Confirm receipt of transfer
      */
     @PostMapping("/{id}/receive")
     public ResponseEntity<?> confirmReceipt(@PathVariable UUID id,
@@ -455,7 +455,7 @@ public class TransferRequestController {
     }
     
     /**
-     * PUT /api/transfers/{id}/cancel - Cancel transfer request
+     * PUT /transfers/{id}/cancel - Cancel transfer request
      */
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancelTransfer(@PathVariable UUID id,
@@ -488,7 +488,7 @@ public class TransferRequestController {
     }
     
     /**
-     * GET /api/transfers/history - Get transfer history with filtering
+     * GET /transfers/history - Get transfer history with filtering
      */
     @GetMapping("/history")
     public ResponseEntity<?> getTransferHistory(@RequestParam(required = false) UUID locationId,
