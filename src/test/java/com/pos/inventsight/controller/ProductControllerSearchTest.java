@@ -1,10 +1,7 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.model.sql.Product;
-import com.pos.inventsight.model.sql.Store;
-import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.service.ProductService;
-import com.pos.inventsight.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -326,7 +323,7 @@ public class ProductControllerSearchTest {
      * Test error handling for invalid UUID
      */
     @Test
-    void testSearchProducts_WithInvalidWarehouseId_ReturnsError() {
+    void testSearchProducts_WithInvalidWarehouseId_ReturnsBadRequest() {
         // Given: Invalid warehouse ID
         String searchQuery = "test";
         String invalidWarehouseId = "not-a-uuid";
@@ -339,7 +336,32 @@ public class ProductControllerSearchTest {
         ResponseEntity<?> response = controller.searchProducts(
             searchQuery, null, invalidWarehouseId, page, size, authentication);
         
-        // Then: Should return error
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        // Then: Should return BAD_REQUEST (400) for invalid UUID format
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    /**
+     * Test error handling when warehouse doesn't exist
+     */
+    @Test
+    void testSearchProducts_WithNonexistentWarehouseId_ReturnsNotFound() {
+        // Given: Valid UUID but warehouse doesn't exist
+        String searchQuery = "test";
+        UUID warehouseId = UUID.randomUUID();
+        int page = 0;
+        int size = 20;
+        
+        when(authentication.getName()).thenReturn("testuser");
+        
+        // Mock service to throw ResourceNotFoundException
+        when(productService.searchProductsByWarehouse(eq(warehouseId), eq(searchQuery), any(Pageable.class)))
+            .thenThrow(new com.pos.inventsight.exception.ResourceNotFoundException("Warehouse not found with ID: " + warehouseId));
+        
+        // When: Calling with nonexistent warehouse
+        ResponseEntity<?> response = controller.searchProducts(
+            searchQuery, null, warehouseId.toString(), page, size, authentication);
+        
+        // Then: Should return NOT_FOUND (404)
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 }

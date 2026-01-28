@@ -455,11 +455,25 @@ public class ProductController {
             
             // Use location filters if provided
             if (warehouseId != null) {
-                UUID warehouseUuid = UUID.fromString(warehouseId);
+                UUID warehouseUuid;
+                try {
+                    warehouseUuid = UUID.fromString(warehouseId);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("❌ Invalid warehouse ID format: " + warehouseId);
+                    return ResponseEntity.badRequest()
+                        .body(new ApiResponse(false, "Invalid warehouse ID format: " + warehouseId));
+                }
                 productsPage = productService.searchProductsByWarehouse(warehouseUuid, query, pageable);
                 System.out.println("📦 Searching in warehouse: " + warehouseId);
             } else if (storeId != null) {
-                UUID storeUuid = UUID.fromString(storeId);
+                UUID storeUuid;
+                try {
+                    storeUuid = UUID.fromString(storeId);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("❌ Invalid store ID format: " + storeId);
+                    return ResponseEntity.badRequest()
+                        .body(new ApiResponse(false, "Invalid store ID format: " + storeId));
+                }
                 productsPage = productService.searchProductsByStore(storeUuid, query, pageable);
                 System.out.println("🏪 Searching in store: " + storeId);
             } else {
@@ -492,6 +506,10 @@ public class ProductController {
             System.out.println("✅ InventSight - Search completed: " + productsPage.getTotalElements() + " results");
             return ResponseEntity.ok(response);
             
+        } catch (ResourceNotFoundException e) {
+            System.out.println("❌ InventSight - Resource not found: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
         } catch (Exception e) {
             System.out.println("❌ InventSight - Error searching products: " + e.getMessage());
             e.printStackTrace();

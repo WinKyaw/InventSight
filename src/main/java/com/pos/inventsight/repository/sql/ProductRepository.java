@@ -97,7 +97,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("SELECT p FROM Product p WHERE (p.name LIKE %:searchTerm% OR p.description LIKE %:searchTerm% OR p.category LIKE %:searchTerm% OR p.sku LIKE %:searchTerm%) AND p.isActive = true")
     Page<Product> searchProducts(@Param("searchTerm") String searchTerm, Pageable pageable);
     
-    @Query("SELECT p FROM Product p WHERE p.store = :store AND (p.name LIKE %:searchTerm% OR p.description LIKE %:searchTerm% OR p.category LIKE %:searchTerm% OR p.sku LIKE %:searchTerm%) AND p.isActive = true")
+    @Query("SELECT p FROM Product p WHERE p.store = :store AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(p.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) AND p.isActive = true")
     Page<Product> searchProductsByStore(@Param("store") Store store, @Param("searchTerm") String searchTerm, Pageable pageable);
     
     /**
