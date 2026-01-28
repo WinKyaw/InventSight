@@ -1,7 +1,10 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.service.ProductService;
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -17,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,6 +28,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Test class to verify the search endpoint uses "query" parameter correctly
+ * and accepts optional storeId and warehouseId parameters
  */
 public class ProductControllerSearchTest {
 
@@ -53,6 +58,7 @@ public class ProductControllerSearchTest {
 
     /**
      * Test that the search endpoint accepts "query" parameter and returns results
+     * (backward compatibility - no location parameters)
      */
     @Test
     void testSearchProducts_WithQueryParameter_ReturnsResults() {
@@ -72,12 +78,12 @@ public class ProductControllerSearchTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<Product> productPage = new PageImpl<>(products, pageable, products.size());
         
-        // Mock service call
+        // Mock service call - should use default searchProducts (no location)
         when(productService.searchProducts(eq(searchQuery), any(Pageable.class)))
             .thenReturn(productPage);
         
-        // When: Calling searchProducts with "query" parameter
-        ResponseEntity<?> response = controller.searchProducts(searchQuery, page, size, authentication);
+        // When: Calling searchProducts with "query" parameter only (no location)
+        ResponseEntity<?> response = controller.searchProducts(searchQuery, null, null, page, size, authentication);
         
         // Then: Should return successful response
         assertEquals(HttpStatus.OK, response.getStatusCode(), "Should return 200 OK");
@@ -94,6 +100,10 @@ public class ProductControllerSearchTest {
         assertEquals(20, responseBody.get("pageSize"), "Should return correct page size");
         assertEquals("InventSight", responseBody.get("system"), "Should return system name");
         
+        // Verify no location parameters in response
+        assertNull(responseBody.get("storeId"), "Should not contain storeId");
+        assertNull(responseBody.get("warehouseId"), "Should not contain warehouseId");
+        
         // Verify products are in response
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> returnedProducts = (List<Map<String, Object>>) responseBody.get("products");
@@ -101,6 +111,140 @@ public class ProductControllerSearchTest {
         
         // Verify service was called with correct parameters
         verify(productService).searchProducts(eq(searchQuery), any(Pageable.class));
+        verify(productService, never()).searchProductsByStore(any(UUID.class), anyString(), any(Pageable.class));
+        verify(productService, never()).searchProductsByWarehouse(any(UUID.class), anyString(), any(Pageable.class));
+    }
+
+    /**
+     * Test that search works with storeId parameter
+     */
+    @Test
+    void testSearchProducts_WithStoreId_SearchesInStore() {
+        // Given: A search query with storeId
+        String searchQuery = "soda";
+        UUID storeId = UUID.randomUUID();
+        int page = 0;
+        int size = 20;
+        
+        when(authentication.getName()).thenReturn("testuser");
+        
+        List<Product> products = new ArrayList<>();
+        products.add(createTestProduct("Soda", "DRINK-001"));
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> productPage = new PageImpl<>(products, pageable, products.size());
+        
+        // Mock service call for store search
+        when(productService.searchProductsByStore(eq(storeId), eq(searchQuery), any(Pageable.class)))
+            .thenReturn(productPage);
+        
+        // When: Calling searchProducts with storeId
+        ResponseEntity<?> response = controller.searchProducts(
+            searchQuery, storeId.toString(), null, page, size, authentication);
+        
+        // Then: Should return successful response
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        
+        assertEquals(searchQuery, responseBody.get("query"));
+        assertEquals(storeId.toString(), responseBody.get("storeId"), "Should include storeId in response");
+        assertNull(responseBody.get("warehouseId"), "Should not include warehouseId");
+        assertEquals(1L, responseBody.get("totalItems"));
+        
+        // Verify correct service method was called
+        verify(productService).searchProductsByStore(eq(storeId), eq(searchQuery), any(Pageable.class));
+        verify(productService, never()).searchProducts(anyString(), any(Pageable.class));
+        verify(productService, never()).searchProductsByWarehouse(any(UUID.class), anyString(), any(Pageable.class));
+    }
+
+    /**
+     * Test that search works with warehouseId parameter
+     */
+    @Test
+    void testSearchProducts_WithWarehouseId_SearchesInWarehouse() {
+        // Given: A search query with warehouseId
+        String searchQuery = "orange";
+        UUID warehouseId = UUID.randomUUID();
+        int page = 0;
+        int size = 20;
+        
+        when(authentication.getName()).thenReturn("testuser");
+        
+        List<Product> products = new ArrayList<>();
+        products.add(createTestProduct("Orange", "FRUIT-001"));
+        products.add(createTestProduct("Orange Juice", "DRINK-002"));
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> productPage = new PageImpl<>(products, pageable, products.size());
+        
+        // Mock service call for warehouse search
+        when(productService.searchProductsByWarehouse(eq(warehouseId), eq(searchQuery), any(Pageable.class)))
+            .thenReturn(productPage);
+        
+        // When: Calling searchProducts with warehouseId
+        ResponseEntity<?> response = controller.searchProducts(
+            searchQuery, null, warehouseId.toString(), page, size, authentication);
+        
+        // Then: Should return successful response
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        
+        assertEquals(searchQuery, responseBody.get("query"));
+        assertEquals(warehouseId.toString(), responseBody.get("warehouseId"), "Should include warehouseId in response");
+        assertNull(responseBody.get("storeId"), "Should not include storeId");
+        assertEquals(2L, responseBody.get("totalItems"));
+        
+        // Verify correct service method was called
+        verify(productService).searchProductsByWarehouse(eq(warehouseId), eq(searchQuery), any(Pageable.class));
+        verify(productService, never()).searchProducts(anyString(), any(Pageable.class));
+        verify(productService, never()).searchProductsByStore(any(UUID.class), anyString(), any(Pageable.class));
+    }
+
+    /**
+     * Test that warehouseId takes precedence over storeId when both are provided
+     */
+    @Test
+    void testSearchProducts_WithBothIds_PrefersWarehouse() {
+        // Given: Both storeId and warehouseId provided
+        String searchQuery = "test";
+        UUID storeId = UUID.randomUUID();
+        UUID warehouseId = UUID.randomUUID();
+        int page = 0;
+        int size = 20;
+        
+        when(authentication.getName()).thenReturn("testuser");
+        
+        List<Product> products = new ArrayList<>();
+        products.add(createTestProduct("Test Product", "TEST-001"));
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> productPage = new PageImpl<>(products, pageable, products.size());
+        
+        // Mock warehouse search
+        when(productService.searchProductsByWarehouse(eq(warehouseId), eq(searchQuery), any(Pageable.class)))
+            .thenReturn(productPage);
+        
+        // When: Calling with both IDs
+        ResponseEntity<?> response = controller.searchProducts(
+            searchQuery, storeId.toString(), warehouseId.toString(), page, size, authentication);
+        
+        // Then: Should use warehouse search
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        
+        assertEquals(warehouseId.toString(), responseBody.get("warehouseId"));
+        assertNull(responseBody.get("storeId"), "Should not include storeId when warehouse is used");
+        
+        // Verify warehouse search was used, not store
+        verify(productService).searchProductsByWarehouse(eq(warehouseId), eq(searchQuery), any(Pageable.class));
+        verify(productService, never()).searchProductsByStore(any(UUID.class), anyString(), any(Pageable.class));
+        verify(productService, never()).searchProducts(anyString(), any(Pageable.class));
     }
 
     /**
@@ -127,7 +271,7 @@ public class ProductControllerSearchTest {
             .thenReturn(productPage);
         
         // When
-        ResponseEntity<?> response = controller.searchProducts(searchQuery, page, size, authentication);
+        ResponseEntity<?> response = controller.searchProducts(searchQuery, null, null, page, size, authentication);
         
         // Then
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -161,7 +305,7 @@ public class ProductControllerSearchTest {
             .thenReturn(emptyPage);
         
         // When
-        ResponseEntity<?> response = controller.searchProducts(searchQuery, page, size, authentication);
+        ResponseEntity<?> response = controller.searchProducts(searchQuery, null, null, page, size, authentication);
         
         // Then
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -176,5 +320,26 @@ public class ProductControllerSearchTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> returnedProducts = (List<Map<String, Object>>) responseBody.get("products");
         assertTrue(returnedProducts.isEmpty(), "Products list should be empty");
+    }
+
+    /**
+     * Test error handling for invalid UUID
+     */
+    @Test
+    void testSearchProducts_WithInvalidWarehouseId_ReturnsError() {
+        // Given: Invalid warehouse ID
+        String searchQuery = "test";
+        String invalidWarehouseId = "not-a-uuid";
+        int page = 0;
+        int size = 20;
+        
+        when(authentication.getName()).thenReturn("testuser");
+        
+        // When: Calling with invalid UUID
+        ResponseEntity<?> response = controller.searchProducts(
+            searchQuery, null, invalidWarehouseId, page, size, authentication);
+        
+        // Then: Should return error
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }
 }

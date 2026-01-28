@@ -2,7 +2,10 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.Warehouse;
 import com.pos.inventsight.repository.sql.ProductRepository;
+import com.pos.inventsight.repository.sql.StoreRepository;
+import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.exception.InsufficientStockException;
 import org.slf4j.Logger;
@@ -28,6 +31,12 @@ public class ProductService {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private StoreRepository storeRepository;
+    
+    @Autowired
+    private WarehouseRepository warehouseRepository;
     
     @Autowired
     private UserService userService;
@@ -182,6 +191,28 @@ public class ProductService {
         }
         // Use tenant-aware query
         return productRepository.searchProductsByStore(currentStore, searchTerm, pageable);
+    }
+    
+    /**
+     * Search products in a specific store by UUID
+     */
+    public Page<Product> searchProductsByStore(UUID storeId, String searchTerm, Pageable pageable) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + storeId));
+        
+        System.out.println("🔍 Searching in store: " + store.getStoreName() + " (ID: " + storeId + ")");
+        return productRepository.searchProductsByStore(store, searchTerm, pageable);
+    }
+
+    /**
+     * Search products in a specific warehouse by UUID
+     */
+    public Page<Product> searchProductsByWarehouse(UUID warehouseId, String searchTerm, Pageable pageable) {
+        Warehouse warehouse = warehouseRepository.findById(warehouseId)
+            .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found with ID: " + warehouseId));
+        
+        System.out.println("🔍 Searching in warehouse: " + warehouse.getName() + " (ID: " + warehouseId + ")");
+        return productRepository.searchProductsByWarehouse(warehouse, searchTerm, pageable);
     }
     
     public List<Product> getProductsByCategory(String category) {

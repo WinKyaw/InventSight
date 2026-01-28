@@ -438,6 +438,8 @@ public class ProductController {
     @GetMapping("/search")
     public ResponseEntity<?> searchProducts(
             @RequestParam String query,
+            @RequestParam(required = false) String storeId,
+            @RequestParam(required = false) String warehouseId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication authentication) {
@@ -445,9 +447,26 @@ public class ProductController {
             String username = authentication.getName();
             System.out.println("🔍 InventSight - Searching products for user: " + username);
             System.out.println("🔎 Search query: " + query);
+            System.out.println("🏪 Store ID: " + storeId);
+            System.out.println("🏭 Warehouse ID: " + warehouseId);
             
             Pageable pageable = PageRequest.of(page, size);
-            Page<Product> productsPage = productService.searchProducts(query, pageable);
+            Page<Product> productsPage;
+            
+            // Use location filters if provided
+            if (warehouseId != null) {
+                UUID warehouseUuid = UUID.fromString(warehouseId);
+                productsPage = productService.searchProductsByWarehouse(warehouseUuid, query, pageable);
+                System.out.println("📦 Searching in warehouse: " + warehouseId);
+            } else if (storeId != null) {
+                UUID storeUuid = UUID.fromString(storeId);
+                productsPage = productService.searchProductsByStore(storeUuid, query, pageable);
+                System.out.println("🏪 Searching in store: " + storeId);
+            } else {
+                // Fallback to user's default store (backward compatibility)
+                productsPage = productService.searchProducts(query, pageable);
+                System.out.println("🏪 Searching in user's default store");
+            }
             
             List<ProductResponse> productResponses = productsPage.getContent().stream()
                 .map(this::convertToResponse)
@@ -463,11 +482,19 @@ public class ProductController {
             response.put("timestamp", LocalDateTime.now());
             response.put("system", "InventSight");
             
+            // Include location filter in response
+            if (warehouseId != null) {
+                response.put("warehouseId", warehouseId);
+            } else if (storeId != null) {
+                response.put("storeId", storeId);
+            }
+            
             System.out.println("✅ InventSight - Search completed: " + productsPage.getTotalElements() + " results");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             System.out.println("❌ InventSight - Error searching products: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to search products: " + e.getMessage()));
         }

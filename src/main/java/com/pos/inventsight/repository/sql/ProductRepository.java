@@ -100,6 +100,20 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("SELECT p FROM Product p WHERE p.store = :store AND (p.name LIKE %:searchTerm% OR p.description LIKE %:searchTerm% OR p.category LIKE %:searchTerm% OR p.sku LIKE %:searchTerm%) AND p.isActive = true")
     Page<Product> searchProductsByStore(@Param("store") Store store, @Param("searchTerm") String searchTerm, Pageable pageable);
     
+    /**
+     * Search products by warehouse (for inventory transfers)
+     */
+    @Query("SELECT p FROM Product p " +
+           "WHERE p.warehouse = :warehouse " +
+           "AND p.isActive = true " +
+           "AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(p.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    Page<Product> searchProductsByWarehouse(@Param("warehouse") Warehouse warehouse, 
+                                            @Param("searchTerm") String searchTerm, 
+                                            Pageable pageable);
+    
     @Query("SELECT p FROM Product p WHERE p.category = :category AND p.isActive = true")
     Page<Product> findByCategoryWithPaging(@Param("category") String category, Pageable pageable);
     
