@@ -173,6 +173,14 @@ public class ProductControllerTransferSearchTest {
         product.setWarehouse(warehouse);
         product.setStore(null); // Product is in warehouse, not store
         
+        // Create WarehouseInventory mock
+        // Sales reserved: 10, Transfer reserved: 8, Total reserved: 18
+        WarehouseInventory warehouseInventory = new WarehouseInventory();
+        warehouseInventory.setWarehouse(warehouse);
+        warehouseInventory.setProduct(product);
+        warehouseInventory.setCurrentQuantity(200);
+        warehouseInventory.setReservedQuantity(10); // Sales order reservations
+        
         List<Product> products = Collections.singletonList(product);
         Page<Product> productPage = new PageImpl<>(products, PageRequest.of(0, 20), products.size());
         
@@ -180,8 +188,12 @@ public class ProductControllerTransferSearchTest {
             eq(warehouseId), eq(companyId), eq(query), any(Pageable.class)))
             .thenReturn(productPage);
         
+        when(productRepository.findWarehouseInventory(product.getId(), warehouseId))
+            .thenReturn(Optional.of(warehouseInventory));
+        
         when(productRepository.getReservedQuantityFromWarehouse(any(UUID.class), eq(warehouseId)))
-            .thenReturn(10);
+            .thenReturn(8); // Transfer request reservations
+        
         when(productRepository.getInTransitQuantityFromWarehouse(any(UUID.class), eq(warehouseId)))
             .thenReturn(5);
         
@@ -201,9 +213,9 @@ public class ProductControllerTransferSearchTest {
         
         Map<String, Object> firstProduct = returnedProducts.get(0);
         assertEquals(200, firstProduct.get("quantity"));
-        assertEquals(10, firstProduct.get("reserved"));
+        assertEquals(18, firstProduct.get("reserved")); // 10 (sales) + 8 (transfers)
         assertEquals(5, firstProduct.get("inTransit"));
-        assertEquals(185, firstProduct.get("availableForTransfer")); // 200 - 10 - 5
+        assertEquals(177, firstProduct.get("availableForTransfer")); // 200 - 18 - 5
         
         @SuppressWarnings("unchecked")
         Map<String, Object> filters = (Map<String, Object>) responseBody.get("filters");
