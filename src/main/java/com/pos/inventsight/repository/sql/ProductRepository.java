@@ -5,6 +5,7 @@ import com.pos.inventsight.model.sql.PredefinedItem;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.model.sql.Warehouse;
+import com.pos.inventsight.model.sql.WarehouseInventory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -193,12 +194,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     
     /**
      * Search products for transfer from a specific warehouse
+     * Uses warehouse_inventory table to find products with stock
      */
     @Query("SELECT p FROM Product p " +
-           "WHERE p.warehouse.id = :warehouseId " +
-           "AND p.company.id = :companyId " +
+           "INNER JOIN WarehouseInventory wi ON wi.product.id = p.id " +
+           "WHERE wi.warehouse.id = :warehouseId " +
+           "AND wi.warehouse.company.id = :companyId " +
+           "AND wi.currentQuantity > 0 " +
            "AND p.isActive = true " +
-           "AND p.quantity > 0 " +
            "AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(p.barcode) LIKE LOWER(CONCAT('%', :query, '%')) " +
@@ -260,5 +263,17 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Integer getInTransitQuantityFromWarehouse(
         @Param("productId") UUID productId,
         @Param("locationId") UUID locationId
+    );
+    
+    /**
+     * Get warehouse inventory record for a product
+     * Used to retrieve quantity from warehouse_inventory table
+     */
+    @Query("SELECT wi FROM WarehouseInventory wi " +
+           "WHERE wi.product.id = :productId " +
+           "AND wi.warehouse.id = :warehouseId")
+    Optional<WarehouseInventory> findWarehouseInventory(
+        @Param("productId") UUID productId,
+        @Param("warehouseId") UUID warehouseId
     );
 }

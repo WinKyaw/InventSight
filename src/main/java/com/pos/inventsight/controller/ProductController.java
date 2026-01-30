@@ -10,6 +10,7 @@ import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.model.sql.CompanyStoreUser;
 import com.pos.inventsight.model.sql.UserStoreRole;
 import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.WarehouseInventory;
 import com.pos.inventsight.service.ProductService;
 import com.pos.inventsight.service.OneTimePermissionService;
 import com.pos.inventsight.service.SupplyManagementService;
@@ -39,6 +40,7 @@ import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -801,26 +803,42 @@ public class ProductController {
             // Build response with availability info
             List<Map<String, Object>> products = productsPage.getContent().stream()
                 .map(product -> {
+                    Integer quantity;
                     Integer reserved;
                     Integer inTransit;
                     
-                    if (locationType.equals("STORE")) {
+                    if (locationType.equals("WAREHOUSE")) {
+                        // ✅ Get quantity from warehouse_inventory table
+                        Optional<WarehouseInventory> inventoryOpt = 
+                            productRepository.findWarehouseInventory(product.getId(), locationId);
+                        
+                        if (inventoryOpt.isPresent()) {
+                            WarehouseInventory inventory = inventoryOpt.get();
+                            quantity = inventory.getCurrentQuantity();
+                            reserved = inventory.getReservedQuantity() != null 
+                                ? inventory.getReservedQuantity() : 0;
+                            
+                            // Get in-transit from transfer requests
+                            inTransit = productRepository.getInTransitQuantityFromWarehouse(
+                                product.getId(), locationId
+                            );
+                        } else {
+                            quantity = 0;
+                            reserved = 0;
+                            inTransit = 0;
+                        }
+                    } else {
+                        // Store: use product quantity directly
+                        quantity = product.getQuantity();
                         reserved = productRepository.getReservedQuantityFromStore(
                             product.getId(), locationId
                         );
                         inTransit = productRepository.getInTransitQuantityFromStore(
                             product.getId(), locationId
                         );
-                    } else {
-                        reserved = productRepository.getReservedQuantityFromWarehouse(
-                            product.getId(), locationId
-                        );
-                        inTransit = productRepository.getInTransitQuantityFromWarehouse(
-                            product.getId(), locationId
-                        );
                     }
                     
-                    Integer available = product.getQuantity() - reserved - inTransit;
+                    Integer available = Math.max(0, quantity - reserved - inTransit);
                     
                     Map<String, Object> location = new HashMap<>();
                     location.put("id", locationId.toString());
@@ -839,10 +857,10 @@ public class ProductController {
                     productMap.put("id", product.getId().toString());
                     productMap.put("name", product.getName());
                     productMap.put("sku", product.getSku() != null ? product.getSku() : "");
-                    productMap.put("quantity", product.getQuantity());
+                    productMap.put("quantity", quantity);
                     productMap.put("reserved", reserved);
                     productMap.put("inTransit", inTransit);
-                    productMap.put("availableForTransfer", Math.max(0, available));
+                    productMap.put("availableForTransfer", available);
                     productMap.put("location", location);
                     
                     return productMap;

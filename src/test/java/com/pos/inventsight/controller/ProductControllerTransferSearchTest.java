@@ -173,6 +173,13 @@ public class ProductControllerTransferSearchTest {
         product.setWarehouse(warehouse);
         product.setStore(null); // Product is in warehouse, not store
         
+        // Create WarehouseInventory mock
+        WarehouseInventory warehouseInventory = new WarehouseInventory();
+        warehouseInventory.setWarehouse(warehouse);
+        warehouseInventory.setProduct(product);
+        warehouseInventory.setCurrentQuantity(200);
+        warehouseInventory.setReservedQuantity(10);
+        
         List<Product> products = Collections.singletonList(product);
         Page<Product> productPage = new PageImpl<>(products, PageRequest.of(0, 20), products.size());
         
@@ -180,8 +187,9 @@ public class ProductControllerTransferSearchTest {
             eq(warehouseId), eq(companyId), eq(query), any(Pageable.class)))
             .thenReturn(productPage);
         
-        when(productRepository.getReservedQuantityFromWarehouse(any(UUID.class), eq(warehouseId)))
-            .thenReturn(10);
+        when(productRepository.findWarehouseInventory(product.getId(), warehouseId))
+            .thenReturn(Optional.of(warehouseInventory));
+        
         when(productRepository.getInTransitQuantityFromWarehouse(any(UUID.class), eq(warehouseId)))
             .thenReturn(5);
         
