@@ -199,7 +199,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("SELECT p FROM Product p " +
            "INNER JOIN WarehouseInventory wi ON wi.product.id = p.id " +
            "WHERE wi.warehouse.id = :warehouseId " +
-           "AND wi.warehouse.company.id = :companyId " +
+           "AND p.company.id = :companyId " +
            "AND wi.currentQuantity > 0 " +
            "AND p.isActive = true " +
            "AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +

@@ -815,8 +815,14 @@ public class ProductController {
                         if (inventoryOpt.isPresent()) {
                             WarehouseInventory inventory = inventoryOpt.get();
                             quantity = inventory.getCurrentQuantity();
-                            reserved = inventory.getReservedQuantity() != null 
+                            
+                            // Reserved = sales order reservations + transfer request reservations
+                            Integer salesReserved = inventory.getReservedQuantity() != null 
                                 ? inventory.getReservedQuantity() : 0;
+                            Integer transferReserved = productRepository.getReservedQuantityFromWarehouse(
+                                product.getId(), locationId
+                            );
+                            reserved = salesReserved + transferReserved;
                             
                             // Get in-transit from transfer requests
                             inTransit = productRepository.getInTransitQuantityFromWarehouse(
