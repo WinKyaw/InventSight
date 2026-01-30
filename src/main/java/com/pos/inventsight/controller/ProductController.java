@@ -276,7 +276,7 @@ public class ProductController {
     }
     
     // GET /products/{id} - Get product by ID
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}}")
     public ResponseEntity<?> getProductById(@PathVariable UUID id, Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -313,7 +313,7 @@ public class ProductController {
     }
     
     // PUT /products/{id} - Update product
-    @PutMapping("/{id}")
+    @PutMapping("/{id:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}}")
     public ResponseEntity<?> updateProduct(@PathVariable UUID id, 
                                          @Valid @RequestBody ProductRequest productRequest, 
                                          Authentication authentication) {
@@ -361,7 +361,7 @@ public class ProductController {
     }
     
     // DELETE /products/{id} - Delete product
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}}")
     public ResponseEntity<?> deleteProduct(@PathVariable UUID id, Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -405,7 +405,7 @@ public class ProductController {
     }
     
     // PUT /products/{id}/stock - Update product stock
-    @PutMapping("/{id}/stock")
+    @PutMapping("/{id:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}}/stock")
     public ResponseEntity<?> updateProductStock(@PathVariable UUID id, 
                                               @Valid @RequestBody StockUpdateRequest stockRequest, 
                                               Authentication authentication) {
@@ -504,7 +504,7 @@ public class ProductController {
     }
     
     // PUT /products/{id}/low-stock-threshold - Update product low stock threshold (GM+ only)
-    @PutMapping("/{id}/low-stock-threshold")
+    @PutMapping("/{id:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}}/low-stock-threshold")
     public ResponseEntity<?> updateLowStockThreshold(
             @PathVariable UUID id,
             @RequestParam Integer threshold,
@@ -671,7 +671,7 @@ public class ProductController {
      * Get product stock status (for debugging)
      * GET /products/{productId}/stock-status
      */
-    @GetMapping("/{productId}/stock-status")
+    @GetMapping("/{productId:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}}/stock-status")
     public ResponseEntity<?> getStockStatus(@PathVariable UUID productId) {
         try {
             Product product = productRepository.findById(productId)
@@ -698,7 +698,7 @@ public class ProductController {
     }
     
     // GET /api/products/search-for-transfer - Search products for inventory transfer
-    @GetMapping("/api/products/search-for-transfer")
+    @GetMapping("/search-for-transfer")
     public ResponseEntity<?> searchProductsForTransfer(
             @RequestParam String query,
             @RequestParam(required = false) String fromStoreId,
