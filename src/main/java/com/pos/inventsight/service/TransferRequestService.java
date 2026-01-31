@@ -5,6 +5,9 @@ import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.TransferRequestRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
+import com.pos.inventsight.repository.sql.ProductRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +22,8 @@ import java.util.UUID;
 @Transactional
 public class TransferRequestService {
     
+    private static final Logger logger = LoggerFactory.getLogger(TransferRequestService.class);
+    
     @Autowired
     private TransferRequestRepository transferRequestRepository;
     
@@ -28,12 +33,29 @@ public class TransferRequestService {
     @Autowired
     private StoreRepository storeRepository;
     
+    @Autowired
+    private ProductRepository productRepository;
+    
     /**
      * Create a new transfer request
      */
     public TransferRequest createTransferRequest(TransferRequest request, Company company, 
                                                  Warehouse warehouse, Store store, 
                                                  User requestedBy) {
+        // Fetch Product entity to populate denormalized fields
+        Product product = productRepository.findById(request.getProductId())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Product not found with ID: " + request.getProductId()
+            ));
+        
+        logger.debug("Creating transfer for product: {} (SKU: {})", product.getName(), product.getSku());
+        
+        // Populate product denormalized fields
+        request.setProductName(product.getName());
+        request.setProductSku(product.getSku());
+        request.setItemName(product.getName());  // Legacy field
+        request.setItemSku(product.getSku());    // Legacy field
+        
         request.setCompany(company);
         request.setFromWarehouse(warehouse);
         request.setToStore(store);
@@ -43,7 +65,14 @@ public class TransferRequestService {
         request.setUpdatedAt(LocalDateTime.now());
         request.setStatus(TransferRequestStatus.PENDING);
         
-        return transferRequestRepository.save(request);
+        TransferRequest savedRequest = transferRequestRepository.save(request);
+        
+        logger.info("Transfer request created: Product={} ({}), Quantity={}, From=WAREHOUSE:{}, To=STORE:{}", 
+            savedRequest.getProductName(), savedRequest.getProductSku(),
+            savedRequest.getRequestedQuantity(),
+            warehouse.getId(), store.getId());
+        
+        return savedRequest;
     }
     
     /**
@@ -165,6 +194,20 @@ public class TransferRequestService {
         validateLocations(request.getFromLocationType(), request.getFromLocationId(),
                          request.getToLocationType(), request.getToLocationId());
         
+        // Fetch Product entity to populate denormalized fields
+        Product product = productRepository.findById(request.getProductId())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Product not found with ID: " + request.getProductId()
+            ));
+        
+        logger.debug("Creating transfer for product: {} (SKU: {})", product.getName(), product.getSku());
+        
+        // Populate product denormalized fields
+        request.setProductName(product.getName());
+        request.setProductSku(product.getSku());
+        request.setItemName(product.getName());  // Legacy field
+        request.setItemSku(product.getSku());    // Legacy field
+        
         // Set common fields
         request.setCompany(company);
         request.setRequestedBy(requestedBy);
@@ -182,7 +225,15 @@ public class TransferRequestService {
             storeRepository.findById(request.getToLocationId()).ifPresent(request::setToStore);
         }
         
-        return transferRequestRepository.save(request);
+        TransferRequest savedRequest = transferRequestRepository.save(request);
+        
+        logger.info("Transfer request created: Product={} ({}), Quantity={}, From={}:{}, To={}:{}", 
+            savedRequest.getProductName(), savedRequest.getProductSku(),
+            savedRequest.getRequestedQuantity(),
+            savedRequest.getFromLocationType(), savedRequest.getFromLocationId(),
+            savedRequest.getToLocationType(), savedRequest.getToLocationId());
+        
+        return savedRequest;
     }
     
     /**
