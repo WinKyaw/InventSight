@@ -48,6 +48,8 @@ public class TransferRequestService {
                 "Product not found with ID: " + request.getProductId()
             ));
         
+        logger.debug("Creating transfer for product: {} (SKU: {})", product.getName(), product.getSku());
+        
         // Populate product denormalized fields
         request.setProductName(product.getName());
         request.setProductSku(product.getSku());
@@ -63,7 +65,14 @@ public class TransferRequestService {
         request.setUpdatedAt(LocalDateTime.now());
         request.setStatus(TransferRequestStatus.PENDING);
         
-        return transferRequestRepository.save(request);
+        TransferRequest savedRequest = transferRequestRepository.save(request);
+        
+        logger.info("Transfer request created: Product={} ({}), Quantity={}, From=WAREHOUSE:{}, To=STORE:{}", 
+            savedRequest.getProductName(), savedRequest.getProductSku(),
+            savedRequest.getRequestedQuantity(),
+            warehouse.getId(), store.getId());
+        
+        return savedRequest;
     }
     
     /**
