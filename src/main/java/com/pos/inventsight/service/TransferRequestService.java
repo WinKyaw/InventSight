@@ -6,6 +6,8 @@ import com.pos.inventsight.repository.sql.TransferRequestRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +21,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class TransferRequestService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(TransferRequestService.class);
     
     @Autowired
     private TransferRequestRepository transferRequestRepository;
@@ -187,7 +191,7 @@ public class TransferRequestService {
                 "Product not found with ID: " + request.getProductId()
             ));
         
-        System.out.println("📦 Creating transfer for product: " + product.getName());
+        logger.debug("Creating transfer for product: {} (SKU: {})", product.getName(), product.getSku());
         
         // Populate product denormalized fields
         request.setProductName(product.getName());
@@ -214,11 +218,11 @@ public class TransferRequestService {
         
         TransferRequest savedRequest = transferRequestRepository.save(request);
         
-        System.out.println("✅ Transfer request created successfully");
-        System.out.println("📦 Product: " + savedRequest.getProductName() + " (" + savedRequest.getProductSku() + ")");
-        System.out.println("📊 Quantity: " + savedRequest.getRequestedQuantity());
-        System.out.println("📍 From: " + savedRequest.getFromLocationType() + " " + savedRequest.getFromLocationId());
-        System.out.println("📍 To: " + savedRequest.getToLocationType() + " " + savedRequest.getToLocationId());
+        logger.info("Transfer request created: Product={} ({}), Quantity={}, From={}:{}, To={}:{}", 
+            savedRequest.getProductName(), savedRequest.getProductSku(),
+            savedRequest.getRequestedQuantity(),
+            savedRequest.getFromLocationType(), savedRequest.getFromLocationId(),
+            savedRequest.getToLocationType(), savedRequest.getToLocationId());
         
         return savedRequest;
     }
