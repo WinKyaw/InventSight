@@ -72,6 +72,12 @@ public interface TransferRequestRepository extends JpaRepository<TransferRequest
     @Query("SELECT tr FROM TransferRequest tr WHERE tr.toLocationType = :locationType AND tr.toLocationId = :locationId ORDER BY tr.createdAt DESC")
     List<TransferRequest> findByToLocation(@Param("locationType") String locationType, @Param("locationId") UUID locationId);
     
+    /**
+     * Find pending transfer requests by destination location
+     */
+    @Query("SELECT tr FROM TransferRequest tr WHERE tr.toLocationType = :locationType AND tr.toLocationId = :locationId AND tr.status = com.pos.inventsight.model.sql.TransferRequestStatus.PENDING ORDER BY tr.priority DESC, tr.createdAt ASC")
+    List<TransferRequest> findPendingByToLocation(@Param("locationType") String locationType, @Param("locationId") UUID locationId);
+    
     // ========== Paginated query methods ==========
     
     /**
