@@ -252,7 +252,7 @@ public class TransferRequestController {
      */
     @PutMapping("/{id}/approve")
     public ResponseEntity<?> approveTransferRequest(@PathVariable UUID id,
-                                                    @RequestBody Map<String, Integer> requestData,
+                                                    @Valid @RequestBody TransferApprovalRequest requestData,
                                                     Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -265,13 +265,13 @@ public class TransferRequestController {
                 throw new UnauthorizedException("Only General Manager and above can approve transfer requests");
             }
             
-            Integer approvedQuantity = requestData.get("approvedQuantity");
-            if (approvedQuantity == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiResponse(false, "Approved quantity is required"));
-            }
+            TransferRequest approved = transferRequestService.approveTransferRequest(
+                id, requestData.getApprovedQuantity(), currentUser);
             
-            TransferRequest approved = transferRequestService.approveTransferRequest(id, approvedQuantity, currentUser);
+            // Add notes if provided
+            if (requestData.getNotes() != null && !requestData.getNotes().isEmpty()) {
+                transferRequestService.addNotes(id, requestData.getNotes());
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -300,7 +300,7 @@ public class TransferRequestController {
      */
     @PutMapping("/{id}/reject")
     public ResponseEntity<?> rejectTransferRequest(@PathVariable UUID id,
-                                                   @RequestBody Map<String, String> requestData,
+                                                   @Valid @RequestBody TransferRejectionRequest requestData,
                                                    Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -313,8 +313,8 @@ public class TransferRequestController {
                 throw new UnauthorizedException("Only General Manager and above can reject transfer requests");
             }
             
-            String reason = requestData.get("reason");
-            TransferRequest rejected = transferRequestService.rejectTransferRequest(id, currentUser, reason);
+            TransferRequest rejected = transferRequestService.rejectTransferRequest(
+                id, currentUser, requestData.getReason());
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -339,16 +339,29 @@ public class TransferRequestController {
     }
     
     /**
-     * PUT /transfers/{id}/complete - Mark as completed
+     * PUT /transfers/{id}/complete - Mark as completed with inventory updates
      */
     @PutMapping("/{id}/complete")
-    public ResponseEntity<?> completeTransferRequest(@PathVariable UUID id) {
+    public ResponseEntity<?> completeTransferRequest(@PathVariable UUID id,
+                                                     @Valid @RequestBody TransferCompletionRequest requestData,
+                                                     Authentication authentication) {
         try {
-            TransferRequest completed = transferRequestService.completeTransferRequest(id);
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            TransferRequest completed = transferRequestService.completeTransferWithInventory(
+                id,
+                requestData.getReceivedQuantity(),
+                requestData.getDamagedQuantity(),
+                requestData.getConditionOnArrival(),
+                requestData.getReceiverName(),
+                requestData.getReceiptNotes(),
+                currentUser
+            );
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Transfer request completed");
+            response.put("message", "Transfer request completed and inventory updated");
             response.put("request", completed);
             
             return ResponseEntity.ok(response);
@@ -484,6 +497,74 @@ public class TransferRequestController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to cancel transfer: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * PUT /transfers/{id}/ship - Mark transfer as shipped (IN_TRANSIT)
+     */
+    @PutMapping("/{id}/ship")
+    public ResponseEntity<?> shipTransferRequest(@PathVariable UUID id,
+                                                 @Valid @RequestBody TransferShipmentRequest requestData,
+                                                 Authentication authentication) {
+        try {
+            TransferRequest shipped = transferRequestService.shipTransferRequest(
+                id,
+                requestData.getCarrierName(),
+                requestData.getCarrierPhone(),
+                requestData.getCarrierVehicle(),
+                requestData.getEstimatedDeliveryAt()
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer marked as shipped");
+            response.put("request", shipped);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to ship transfer: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * GET /transfers/pending-approval - Get pending transfers for current user's location
+     */
+    @GetMapping("/pending-approval")
+    public ResponseEntity<?> getPendingApprovals(@RequestParam String locationType,
+                                                 @RequestParam UUID locationId,
+                                                 Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            Company company = getUserCompany(currentUser);
+            
+            if (company == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "User is not associated with any company"));
+            }
+            
+            List<TransferRequest> pendingTransfers = 
+                transferRequestService.getPendingApprovalsForLocation(locationType, locationId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("transfers", pendingTransfers);
+            response.put("count", pendingTransfers.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to fetch pending approvals: " + e.getMessage()));
         }
     }
     
