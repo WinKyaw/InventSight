@@ -17,7 +17,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({
+    "hibernateLazyInitializer",
+    "handler",
+    "password"
+})
 public class User implements UserDetails {
     
     @Id
