@@ -30,8 +30,8 @@ public class TransferRequestNestedObjectSerializationTest {
         // Arrange
         Warehouse warehouse = new Warehouse();
         warehouse.setId(UUID.randomUUID());
-        warehouse.setName("၁၈ လမ်း");
-        warehouse.setLocation("၁၈ လမ်း");
+        warehouse.setName("၁၈ လမ်း Warehouse");
+        warehouse.setLocation("Yangon Downtown");
         warehouse.setWarehouseType(Warehouse.WarehouseType.GENERAL);
         warehouse.setIsActive(true);
         
@@ -44,9 +44,9 @@ public class TransferRequestNestedObjectSerializationTest {
         String json = objectMapper.writeValueAsString(request);
         
         // Assert
-        assertTrue(json.contains("\"name\":\"၁၈ လမ်း\""), 
+        assertTrue(json.contains("\"name\":\"၁၈ လမ်း Warehouse\""), 
             "Warehouse name should be serialized");
-        assertTrue(json.contains("\"location\":\"၁၈ လမ်း\""), 
+        assertTrue(json.contains("\"location\":\"Yangon Downtown\""), 
             "Warehouse location should be serialized");
         assertTrue(json.contains("\"warehouseType\":\"GENERAL\""), 
             "Warehouse type should be serialized");

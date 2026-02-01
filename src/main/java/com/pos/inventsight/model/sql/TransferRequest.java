@@ -9,6 +9,19 @@ import org.hibernate.annotations.GenericGenerator;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * TransferRequest entity representing inventory transfer requests between locations.
+ * 
+ * Note on EAGER Fetch Strategy:
+ * All @ManyToOne relationships use EAGER fetch to ensure nested objects (Warehouse, Store, User, Company)
+ * are fully loaded and serialized in API responses. This provides complete object details (names, addresses, etc.)
+ * instead of just IDs in JSON responses.
+ * 
+ * Performance Consideration:
+ * EAGER fetch may cause N+1 queries when loading lists of TransferRequests. For high-volume operations,
+ * consider using @EntityGraph, query-specific fetch joins, or DTOs with selective field projection.
+ * The current approach prioritizes API response completeness for typical use cases.
+ */
 @Entity
 @Table(name = "transfer_requests")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
