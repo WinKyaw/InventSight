@@ -9,6 +9,19 @@ import org.hibernate.annotations.GenericGenerator;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * TransferRequest entity representing inventory transfer requests between locations.
+ * 
+ * Note on EAGER Fetch Strategy:
+ * All @ManyToOne relationships use EAGER fetch to ensure nested objects (Warehouse, Store, User, Company)
+ * are fully loaded and serialized in API responses. This provides complete object details (names, addresses, etc.)
+ * instead of just IDs in JSON responses.
+ * 
+ * Performance Consideration:
+ * EAGER fetch may cause N+1 queries when loading lists of TransferRequests. For high-volume operations,
+ * consider using @EntityGraph, query-specific fetch joins, or DTOs with selective field projection.
+ * The current approach prioritizes API response completeness for typical use cases.
+ */
 @Entity
 @Table(name = "transfer_requests")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -20,23 +33,69 @@ public class TransferRequest {
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
     private UUID id;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "company_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "users",
+        "stores",
+        "products",
+        "createdAt",
+        "updatedAt"
+    })
     private Company company;
     
     @Column(name = "product_id", nullable = false)
     private UUID productId;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "from_warehouse_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "company",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+    })
     private Warehouse fromWarehouse;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "from_store_id")
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "company",
+        "createdAt",
+        "updatedAt"
+    })
+    private Store fromStore;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "to_store_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "company",
+        "createdAt",
+        "updatedAt"
+    })
     private Store toStore;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "to_warehouse_id")
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "company",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+    })
+    private Warehouse toWarehouse;
     
     @NotNull
     @Min(1)
@@ -61,17 +120,39 @@ public class TransferRequest {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "requested_by", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "password",
+        "role",
+        "subscriptionLevel",
+        "tenantId",
+        "defaultTenantId",
+        "createdAt",
+        "updatedAt",
+        "lastLogin"
+    })
     private User requestedBy;
     
     @Column(name = "requested_at")
     private LocalDateTime requestedAt = LocalDateTime.now();
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "approved_by")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "password",
+        "role",
+        "subscriptionLevel",
+        "tenantId",
+        "defaultTenantId",
+        "createdAt",
+        "updatedAt",
+        "lastLogin"
+    })
     private User approvedBy;
     
     @Column(name = "approved_at")
@@ -123,9 +204,20 @@ public class TransferRequest {
     private LocalDateTime estimatedDeliveryAt;
     
     // Receipt tracking
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "received_by_user_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler",
+        "password",
+        "role",
+        "subscriptionLevel",
+        "tenantId",
+        "defaultTenantId",
+        "createdAt",
+        "updatedAt",
+        "lastLogin"
+    })
     private User receivedByUser;
     
     @Column(name = "receiver_name", length = 200)
@@ -252,12 +344,28 @@ public class TransferRequest {
         this.fromWarehouse = fromWarehouse;
     }
     
+    public Store getFromStore() {
+        return fromStore;
+    }
+    
+    public void setFromStore(Store fromStore) {
+        this.fromStore = fromStore;
+    }
+    
     public Store getToStore() {
         return toStore;
     }
     
     public void setToStore(Store toStore) {
         this.toStore = toStore;
+    }
+    
+    public Warehouse getToWarehouse() {
+        return toWarehouse;
+    }
+    
+    public void setToWarehouse(Warehouse toWarehouse) {
+        this.toWarehouse = toWarehouse;
     }
     
     public Integer getRequestedQuantity() {
