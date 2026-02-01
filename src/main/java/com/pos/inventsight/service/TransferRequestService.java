@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -488,7 +489,7 @@ public class TransferRequestService {
         }
         
         // Update status based on received quantity
-        if (receivedQuantity.equals(request.getApprovedQuantity())) {
+        if (Objects.equals(receivedQuantity, request.getApprovedQuantity())) {
             request.setStatus(TransferRequestStatus.COMPLETED);
             request.setCompletedAt(LocalDateTime.now());
         } else if (receivedQuantity > 0 && receivedQuantity < request.getApprovedQuantity()) {
@@ -542,13 +543,14 @@ public class TransferRequestService {
         UUID fromId = request.getFromLocationId();
         
         if ("WAREHOUSE".equals(fromType)) {
-            // Deduct from warehouse inventory
+            // TODO: Implement warehouse inventory deduction
+            // Deduct from warehouse inventory - requires WarehouseInventoryService injection
             Warehouse warehouse = warehouseRepository.findById(fromId)
                 .orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
             
             // Note: Warehouse inventory is managed separately in WarehouseInventory table
             // This would need WarehouseInventoryService injected to properly update
-            logger.info("Would deduct {} units of product {} from warehouse {}", 
+            logger.warn("Warehouse inventory deduction not fully implemented. Would deduct {} units of product {} from warehouse {}", 
                        quantity, product.getId(), warehouse.getId());
             
         } else if ("STORE".equals(fromType)) {
@@ -573,13 +575,14 @@ public class TransferRequestService {
         UUID toId = request.getToLocationId();
         
         if ("WAREHOUSE".equals(toType)) {
-            // Add to warehouse inventory
+            // TODO: Implement warehouse inventory addition
+            // Add to warehouse inventory - requires WarehouseInventoryService injection
             Warehouse warehouse = warehouseRepository.findById(toId)
                 .orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
             
             // Note: Warehouse inventory is managed separately in WarehouseInventory table
             // This would need WarehouseInventoryService injected to properly update
-            logger.info("Would add {} units of product {} to warehouse {}", 
+            logger.warn("Warehouse inventory addition not fully implemented. Would add {} units of product {} to warehouse {}", 
                        quantity, product.getId(), warehouse.getId());
             
         } else if ("STORE".equals(toType)) {
