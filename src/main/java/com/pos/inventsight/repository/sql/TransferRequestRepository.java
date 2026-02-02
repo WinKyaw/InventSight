@@ -107,9 +107,10 @@ public interface TransferRequestRepository extends JpaRepository<TransferRequest
     /**
      * Find pending transfers for specific locations (stores or warehouses)
      */
-    @Query("SELECT tr FROM TransferRequest tr WHERE tr.status = com.pos.inventsight.model.sql.TransferRequestStatus.PENDING AND " +
+    @Query("SELECT tr FROM TransferRequest tr WHERE " +
            "((tr.toLocationType = 'STORE' AND tr.toLocationId IN :storeIds) OR " +
-           "(tr.toLocationType = 'WAREHOUSE' AND tr.toLocationId IN :warehouseIds)) " +
+           "(tr.toLocationType = 'WAREHOUSE' AND tr.toLocationId IN :warehouseIds)) AND " +
+           "tr.status = :status " +
            "ORDER BY tr.priority DESC, tr.createdAt ASC")
     List<TransferRequest> findPendingTransfersForLocations(
         @Param("storeIds") List<UUID> storeIds,

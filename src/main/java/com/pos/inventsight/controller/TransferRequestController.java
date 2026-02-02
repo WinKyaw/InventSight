@@ -721,15 +721,21 @@ public class TransferRequestController {
                           (currentUser.getRole().name().equals("ADMIN") || 
                            currentUser.getRole().name().equals("GM"));
             
-            // For simplicity, get all stores and warehouses for the company
-            // In a real implementation, you'd filter based on user permissions
-            List<Store> userStores = storeRepository.findAll();
-            List<Warehouse> userWarehouses = warehouseRepository.findAll();
+            // Get all stores and warehouses for the user's company only
+            // Note: In a production system, this should be filtered by user permissions
+            // For now, we filter by company to prevent cross-company data exposure
+            List<Store> companyStores = storeRepository.findAll().stream()
+                .filter(store -> store.getCompany() != null && store.getCompany().getId().equals(company.getId()))
+                .toList();
+            
+            List<Warehouse> companyWarehouses = warehouseRepository.findAll().stream()
+                .filter(warehouse -> warehouse.getCompany() != null && warehouse.getCompany().getId().equals(company.getId()))
+                .toList();
             
             List<TransferRequest> pendingTransfers = transferRequestService.getPendingApprovalsForUser(
                 company.getId(),
-                userStores,
-                userWarehouses,
+                companyStores,
+                companyWarehouses,
                 isGM
             );
             

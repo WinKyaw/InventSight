@@ -662,7 +662,11 @@ public class TransferRequestService {
         transfer.setCarrierUserId(carrier.getId());
         transfer.setEstimatedDeliveryAt(estimatedDeliveryAt);
         transfer.setShippedAt(LocalDateTime.now());
-        transfer.setProofOfDeliveryUrl(qrCodeData); // Store QR in proof field temporarily
+        
+        // Store QR code temporarily in proofOfDeliveryUrl field
+        // Note: This field serves dual purpose - QR code during transit, proof URL after delivery
+        // The QR code is replaced with actual proof URL when markAsDelivered() is called
+        transfer.setProofOfDeliveryUrl(qrCodeData);
         transfer.setUpdatedAt(LocalDateTime.now());
         
         TransferRequest saved = transferRequestRepository.save(transfer);
@@ -769,31 +773,40 @@ public class TransferRequestService {
      * Update inventory when transfer is completed - with warehouse inventory support
      */
     private void updateInventoryForTransferCompletion(TransferRequest transfer) {
-        Integer quantityToTransfer = transfer.getReceivedQuantity();
+        Integer receivedQty = transfer.getReceivedQuantity();
         Integer damagedQty = transfer.getDamagedQuantity() != null ? transfer.getDamagedQuantity() : 0;
-        Integer goodQuantity = quantityToTransfer - damagedQty;
+        Integer goodQuantity = receivedQty - damagedQty;
         
-        if (goodQuantity <= 0) {
-            logger.warn("No good quantity to transfer for transfer {}", transfer.getId());
+        if (goodQuantity < 0) {
+            throw new IllegalStateException("Damaged quantity cannot exceed received quantity");
+        }
+        
+        // Deduct the originally approved quantity from source location
+        // This represents what was actually shipped out
+        Integer shippedQuantity = transfer.getApprovedQuantity();
+        if (shippedQuantity == null || shippedQuantity <= 0) {
+            logger.warn("No approved quantity to deduct for transfer {}", transfer.getId());
             return;
         }
         
-        // Deduct from source location
+        // Deduct from source location (what was shipped)
         if ("WAREHOUSE".equals(transfer.getFromLocationType())) {
-            deductFromWarehouseInventory(transfer.getFromLocationId(), transfer.getProductId(), transfer.getApprovedQuantity());
+            deductFromWarehouseInventory(transfer.getFromLocationId(), transfer.getProductId(), shippedQuantity);
         } else if ("STORE".equals(transfer.getFromLocationType())) {
-            deductFromStoreInventory(transfer.getProductId(), transfer.getApprovedQuantity());
+            deductFromStoreInventory(transfer.getProductId(), shippedQuantity);
         }
         
-        // Add to destination location
-        if ("WAREHOUSE".equals(transfer.getToLocationType())) {
-            addToWarehouseInventory(transfer.getToLocationId(), transfer.getProductId(), goodQuantity);
-        } else if ("STORE".equals(transfer.getToLocationType())) {
-            addToStoreInventory(transfer.getProductId(), goodQuantity);
+        // Add to destination location (only good items, excluding damaged)
+        if (goodQuantity > 0) {
+            if ("WAREHOUSE".equals(transfer.getToLocationType())) {
+                addToWarehouseInventory(transfer.getToLocationId(), transfer.getProductId(), goodQuantity);
+            } else if ("STORE".equals(transfer.getToLocationType())) {
+                addToStoreInventory(transfer.getProductId(), goodQuantity);
+            }
         }
         
-        logger.info("Inventory updated for transfer {}: deducted {} from source, added {} to destination", 
-                   transfer.getId(), transfer.getApprovedQuantity(), goodQuantity);
+        logger.info("Inventory updated for transfer {}: deducted {} from source, added {} to destination (damaged: {})", 
+                   transfer.getId(), shippedQuantity, goodQuantity, damagedQty);
     }
     
     /**
