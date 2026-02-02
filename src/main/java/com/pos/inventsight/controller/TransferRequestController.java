@@ -468,18 +468,184 @@ public class TransferRequestController {
     }
     
     /**
-     * PUT /transfers/{id}/cancel - Cancel transfer request
+     * PUT /transfers/{id}/ready - Mark transfer as ready for pickup
+     */
+    @PutMapping("/{id}/ready")
+    public ResponseEntity<?> markAsReady(
+        @PathVariable UUID id,
+        @Valid @RequestBody MarkReadyDTO readyData,
+        Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            TransferRequest transfer = transferRequestService.markAsReady(
+                id,
+                readyData.getPackedBy(),
+                readyData.getNotes(),
+                currentUser
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer marked as ready for pickup");
+            response.put("request", transfer);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to mark transfer as ready: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * PUT /transfers/{id}/pickup - Pickup and start delivery
+     */
+    @PutMapping("/{id}/pickup")
+    public ResponseEntity<?> pickupTransfer(
+        @PathVariable UUID id,
+        @Valid @RequestBody PickupTransferDTO pickupData,
+        Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            // Generate QR code for delivery verification
+            String qrCodeData = transferRequestService.generateDeliveryQRCode(id, currentUser);
+            
+            TransferRequest transfer = transferRequestService.pickupTransfer(
+                id,
+                pickupData.getCarrierName(),
+                pickupData.getCarrierPhone(),
+                pickupData.getCarrierVehicle(),
+                pickupData.getEstimatedDeliveryAt(),
+                qrCodeData,
+                currentUser
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer picked up and in transit");
+            response.put("request", transfer);
+            response.put("deliveryQRCode", qrCodeData);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to pickup transfer: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * PUT /transfers/{id}/deliver - Mark as delivered
+     */
+    @PutMapping("/{id}/deliver")
+    public ResponseEntity<?> markAsDelivered(
+        @PathVariable UUID id,
+        @Valid @RequestBody DeliverTransferDTO deliveryData,
+        Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            TransferRequest transfer = transferRequestService.markAsDelivered(
+                id,
+                deliveryData.getProofOfDeliveryUrl(),
+                deliveryData.getConditionOnArrival(),
+                currentUser
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer marked as delivered");
+            response.put("request", transfer);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to mark as delivered: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * PUT /transfers/{id}/receive - Confirm receipt and complete transfer
+     */
+    @PutMapping("/{id}/receive")
+    public ResponseEntity<?> receiveTransfer(
+        @PathVariable UUID id,
+        @Valid @RequestBody ReceiveTransferDTO receiptData,
+        Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
+            // Verify QR code if provided
+            if (receiptData.getDeliveryQRCode() != null && !receiptData.getDeliveryQRCode().isEmpty()) {
+                boolean isValid = transferRequestService.verifyDeliveryQRCode(
+                    id, 
+                    receiptData.getDeliveryQRCode()
+                );
+                
+                if (!isValid) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(false, "Invalid delivery QR code"));
+                }
+            }
+            
+            TransferRequest transfer = transferRequestService.receiveTransfer(
+                id,
+                receiptData.getReceivedQuantity(),
+                receiptData.getDamagedQuantity(),
+                receiptData.getReceiverName(),
+                receiptData.getReceiverSignatureUrl(),
+                receiptData.getReceiptNotes(),
+                currentUser
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transfer completed and inventory updated");
+            response.put("request", transfer);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to complete transfer: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * PUT /transfers/{id}/cancel - Cancel transfer request (enhanced with DTO)
      */
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancelTransfer(@PathVariable UUID id,
-                                           @RequestBody Map<String, String> requestData,
+                                           @Valid @RequestBody CancelTransferDTO cancellationData,
                                            Authentication authentication) {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
-            String reason = requestData.get("reason");
-            TransferRequest cancelled = transferRequestService.cancelTransfer(id, reason, currentUser);
+            TransferRequest cancelled = transferRequestService.cancelTransfer(
+                id, 
+                cancellationData.getReason(), 
+                currentUser
+            );
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -539,9 +705,7 @@ public class TransferRequestController {
      * GET /transfers/pending-approval - Get pending transfers for current user's location
      */
     @GetMapping("/pending-approval")
-    public ResponseEntity<?> getPendingApprovals(@RequestParam String locationType,
-                                                 @RequestParam UUID locationId,
-                                                 Authentication authentication) {
+    public ResponseEntity<?> getPendingApprovals(Authentication authentication) {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
@@ -552,12 +716,32 @@ public class TransferRequestController {
                     .body(new ApiResponse(false, "User is not associated with any company"));
             }
             
-            List<TransferRequest> pendingTransfers = 
-                transferRequestService.getPendingApprovalsForLocation(locationType, locationId);
+            // Check if user is GM or Admin - they see all pending transfers
+            boolean isGM = currentUser.getRole() != null && 
+                          (currentUser.getRole().name().equals("ADMIN") || 
+                           currentUser.getRole().name().equals("GM"));
+            
+            // Get all stores and warehouses for the user's company only
+            // Note: In a production system, this should be filtered by user permissions
+            // For now, we filter by company to prevent cross-company data exposure
+            List<Store> companyStores = storeRepository.findAll().stream()
+                .filter(store -> store.getCompany() != null && store.getCompany().getId().equals(company.getId()))
+                .toList();
+            
+            List<Warehouse> companyWarehouses = warehouseRepository.findAll().stream()
+                .filter(warehouse -> warehouse.getCompany() != null && warehouse.getCompany().getId().equals(company.getId()))
+                .toList();
+            
+            List<TransferRequest> pendingTransfers = transferRequestService.getPendingApprovalsForUser(
+                company.getId(),
+                companyStores,
+                companyWarehouses,
+                isGM
+            );
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("transfers", pendingTransfers);
+            response.put("requests", pendingTransfers);
             response.put("count", pendingTransfers.size());
             
             return ResponseEntity.ok(response);

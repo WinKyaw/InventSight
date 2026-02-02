@@ -103,4 +103,18 @@ public interface TransferRequestRepository extends JpaRepository<TransferRequest
      */
     @Query("SELECT tr FROM TransferRequest tr WHERE tr.fromWarehouse.id = :warehouseId")
     Page<TransferRequest> findByWarehouseId(@Param("warehouseId") UUID warehouseId, Pageable pageable);
+    
+    /**
+     * Find pending transfers for specific locations (stores or warehouses)
+     */
+    @Query("SELECT tr FROM TransferRequest tr WHERE " +
+           "((tr.toLocationType = 'STORE' AND tr.toLocationId IN :storeIds) OR " +
+           "(tr.toLocationType = 'WAREHOUSE' AND tr.toLocationId IN :warehouseIds)) AND " +
+           "tr.status = :status " +
+           "ORDER BY tr.priority DESC, tr.createdAt ASC")
+    List<TransferRequest> findPendingTransfersForLocations(
+        @Param("storeIds") List<UUID> storeIds,
+        @Param("warehouseIds") List<UUID> warehouseIds,
+        @Param("status") TransferRequestStatus status
+    );
 }

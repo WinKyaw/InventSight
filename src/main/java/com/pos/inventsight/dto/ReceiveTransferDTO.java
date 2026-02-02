@@ -18,6 +18,12 @@ public class ReceiveTransferDTO {
     
     private Boolean damageReported;
     
+    private Integer damagedQuantity;
+    
+    private String receiverSignatureUrl;
+    
+    private String deliveryQRCode;
+    
     // Constructors
     public ReceiveTransferDTO() {
     }
@@ -53,5 +59,29 @@ public class ReceiveTransferDTO {
     
     public void setDamageReported(Boolean damageReported) {
         this.damageReported = damageReported;
+    }
+    
+    public Integer getDamagedQuantity() {
+        return damagedQuantity;
+    }
+    
+    public void setDamagedQuantity(Integer damagedQuantity) {
+        this.damagedQuantity = damagedQuantity;
+    }
+    
+    public String getReceiverSignatureUrl() {
+        return receiverSignatureUrl;
+    }
+    
+    public void setReceiverSignatureUrl(String receiverSignatureUrl) {
+        this.receiverSignatureUrl = receiverSignatureUrl;
+    }
+    
+    public String getDeliveryQRCode() {
+        return deliveryQRCode;
+    }
+    
+    public void setDeliveryQRCode(String deliveryQRCode) {
+        this.deliveryQRCode = deliveryQRCode;
     }
 }
