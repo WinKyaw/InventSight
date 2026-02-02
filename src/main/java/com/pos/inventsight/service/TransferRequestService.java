@@ -6,6 +6,7 @@ import com.pos.inventsight.repository.sql.TransferRequestRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
+import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,9 @@ public class TransferRequestService {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private WarehouseInventoryRepository warehouseInventoryRepository;
     
     /**
      * Create a new transfer request
@@ -596,6 +600,305 @@ public class TransferRequestService {
             
             logger.info("Added {} units of product {} to store {}", 
                        quantity, product.getId(), store.getId());
+        }
+    }
+    
+    /**
+     * Mark transfer as ready for pickup
+     */
+    public TransferRequest markAsReady(UUID transferId, String packedBy, String notes, User handler) {
+        TransferRequest transfer = getTransferRequestById(transferId);
+        
+        if (transfer.getStatus() != TransferRequestStatus.APPROVED) {
+            throw new IllegalStateException("Only APPROVED transfers can be marked as ready");
+        }
+        
+        transfer.setStatus(TransferRequestStatus.READY);
+        transfer.setHandlerName(packedBy);
+        transfer.setHandlerUserId(handler.getId());
+        if (notes != null && !notes.isEmpty()) {
+            transfer.setNotes((transfer.getNotes() != null ? transfer.getNotes() + "\n" : "") + notes);
+        }
+        transfer.setUpdatedAt(LocalDateTime.now());
+        
+        TransferRequest saved = transferRequestRepository.save(transfer);
+        
+        logger.info("Transfer {} marked as READY by handler: {}", transferId, packedBy);
+        
+        return saved;
+    }
+    
+    /**
+     * Generate QR code for delivery verification
+     */
+    public String generateDeliveryQRCode(UUID transferId, User deliveryPerson) {
+        try {
+            String data = transferId.toString() + ":" + deliveryPerson.getId().toString() + ":" + System.currentTimeMillis();
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(data.getBytes());
+            return java.util.Base64.getEncoder().encodeToString(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate QR code", e);
+        }
+    }
+    
+    /**
+     * Pickup and start delivery
+     */
+    public TransferRequest pickupTransfer(UUID transferId, String carrierName, String carrierPhone,
+                                         String carrierVehicle, LocalDateTime estimatedDeliveryAt,
+                                         String qrCodeData, User carrier) {
+        TransferRequest transfer = getTransferRequestById(transferId);
+        
+        if (transfer.getStatus() != TransferRequestStatus.READY && 
+            transfer.getStatus() != TransferRequestStatus.APPROVED) {
+            throw new IllegalStateException("Only READY or APPROVED transfers can be picked up");
+        }
+        
+        transfer.setStatus(TransferRequestStatus.IN_TRANSIT);
+        transfer.setCarrierName(carrierName);
+        transfer.setCarrierPhone(carrierPhone);
+        transfer.setCarrierVehicle(carrierVehicle);
+        transfer.setCarrierUserId(carrier.getId());
+        transfer.setEstimatedDeliveryAt(estimatedDeliveryAt);
+        transfer.setShippedAt(LocalDateTime.now());
+        transfer.setProofOfDeliveryUrl(qrCodeData); // Store QR in proof field temporarily
+        transfer.setUpdatedAt(LocalDateTime.now());
+        
+        TransferRequest saved = transferRequestRepository.save(transfer);
+        
+        logger.info("Transfer {} picked up by carrier: {} and marked IN_TRANSIT", transferId, carrierName);
+        
+        return saved;
+    }
+    
+    /**
+     * Mark as delivered
+     */
+    public TransferRequest markAsDelivered(UUID transferId, String proofUrl, String condition, User carrier) {
+        TransferRequest transfer = getTransferRequestById(transferId);
+        
+        if (transfer.getStatus() != TransferRequestStatus.IN_TRANSIT) {
+            throw new IllegalStateException("Only IN_TRANSIT transfers can be marked as delivered");
+        }
+        
+        transfer.setStatus(TransferRequestStatus.DELIVERED);
+        
+        // Set condition if provided
+        if (condition != null && !condition.isEmpty()) {
+            try {
+                transfer.setConditionOnArrival(ConditionStatus.valueOf(condition.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Invalid condition status: {}, ignoring", condition);
+            }
+        }
+        
+        // Update proof of delivery if a new URL is provided
+        if (proofUrl != null && !proofUrl.isEmpty()) {
+            // Keep the QR code and append proof URL in notes
+            String notes = transfer.getNotes() != null ? transfer.getNotes() + "\n" : "";
+            notes += "Proof of delivery: " + proofUrl;
+            transfer.setNotes(notes);
+        }
+        
+        transfer.setReceivedAt(LocalDateTime.now());
+        transfer.setUpdatedAt(LocalDateTime.now());
+        
+        TransferRequest saved = transferRequestRepository.save(transfer);
+        
+        logger.info("Transfer {} marked as DELIVERED", transferId);
+        
+        return saved;
+    }
+    
+    /**
+     * Verify delivery QR code
+     */
+    public boolean verifyDeliveryQRCode(UUID transferId, String qrCode) {
+        TransferRequest transfer = getTransferRequestById(transferId);
+        String storedQR = transfer.getProofOfDeliveryUrl();
+        return storedQR != null && storedQR.equals(qrCode);
+    }
+    
+    /**
+     * Receive and complete transfer with QR verification
+     */
+    public TransferRequest receiveTransfer(UUID transferId, Integer receivedQuantity, Integer damagedQuantity,
+                                          String receiverName, String signatureUrl, String notes, User receiver) {
+        TransferRequest transfer = getTransferRequestById(transferId);
+        
+        if (transfer.getStatus() != TransferRequestStatus.DELIVERED) {
+            throw new IllegalStateException("Only DELIVERED transfers can be received");
+        }
+        
+        // Validate quantities
+        if (receivedQuantity == null || receivedQuantity < 0) {
+            throw new IllegalArgumentException("Received quantity must be non-negative");
+        }
+        
+        if (damagedQuantity != null && damagedQuantity < 0) {
+            throw new IllegalArgumentException("Damaged quantity must be non-negative");
+        }
+        
+        // Update transfer
+        transfer.setStatus(TransferRequestStatus.COMPLETED);
+        transfer.setReceivedQuantity(receivedQuantity);
+        transfer.setDamagedQuantity(damagedQuantity != null ? damagedQuantity : 0);
+        transfer.setReceiverName(receiverName);
+        transfer.setReceiverSignatureUrl(signatureUrl);
+        transfer.setReceiptNotes(notes);
+        transfer.setReceivedByUser(receiver);
+        transfer.setReceiverUserId(receiver.getId());
+        transfer.setCompletedAt(LocalDateTime.now());
+        transfer.setIsReceiptConfirmed(true);
+        transfer.setReceivedAt(LocalDateTime.now());
+        transfer.setUpdatedAt(LocalDateTime.now());
+        
+        // Update inventory - use enhanced version with warehouse support
+        updateInventoryForTransferCompletion(transfer);
+        
+        TransferRequest saved = transferRequestRepository.save(transfer);
+        
+        logger.info("Transfer {} received and completed: received={}, damaged={}", 
+                   transferId, receivedQuantity, damagedQuantity);
+        
+        return saved;
+    }
+    
+    /**
+     * Update inventory when transfer is completed - with warehouse inventory support
+     */
+    private void updateInventoryForTransferCompletion(TransferRequest transfer) {
+        Integer quantityToTransfer = transfer.getReceivedQuantity();
+        Integer damagedQty = transfer.getDamagedQuantity() != null ? transfer.getDamagedQuantity() : 0;
+        Integer goodQuantity = quantityToTransfer - damagedQty;
+        
+        if (goodQuantity <= 0) {
+            logger.warn("No good quantity to transfer for transfer {}", transfer.getId());
+            return;
+        }
+        
+        // Deduct from source location
+        if ("WAREHOUSE".equals(transfer.getFromLocationType())) {
+            deductFromWarehouseInventory(transfer.getFromLocationId(), transfer.getProductId(), transfer.getApprovedQuantity());
+        } else if ("STORE".equals(transfer.getFromLocationType())) {
+            deductFromStoreInventory(transfer.getProductId(), transfer.getApprovedQuantity());
+        }
+        
+        // Add to destination location
+        if ("WAREHOUSE".equals(transfer.getToLocationType())) {
+            addToWarehouseInventory(transfer.getToLocationId(), transfer.getProductId(), goodQuantity);
+        } else if ("STORE".equals(transfer.getToLocationType())) {
+            addToStoreInventory(transfer.getProductId(), goodQuantity);
+        }
+        
+        logger.info("Inventory updated for transfer {}: deducted {} from source, added {} to destination", 
+                   transfer.getId(), transfer.getApprovedQuantity(), goodQuantity);
+    }
+    
+    /**
+     * Deduct inventory from warehouse
+     */
+    private void deductFromWarehouseInventory(UUID warehouseId, UUID productId, Integer quantity) {
+        WarehouseInventory inventory = warehouseInventoryRepository
+            .findByWarehouseIdAndProductId(warehouseId, productId)
+            .orElseThrow(() -> new RuntimeException("Source warehouse inventory not found"));
+        
+        Integer currentQty = inventory.getCurrentQuantity() != null ? inventory.getCurrentQuantity() : 0;
+        if (currentQty < quantity) {
+            throw new IllegalStateException("Insufficient inventory in warehouse. Available: " + currentQty + ", Required: " + quantity);
+        }
+        
+        inventory.setCurrentQuantity(currentQty - quantity);
+        warehouseInventoryRepository.save(inventory);
+        
+        logger.info("Deducted {} units from warehouse {} for product {}", quantity, warehouseId, productId);
+    }
+    
+    /**
+     * Add inventory to warehouse
+     */
+    private void addToWarehouseInventory(UUID warehouseId, UUID productId, Integer quantity) {
+        WarehouseInventory inventory = warehouseInventoryRepository
+            .findByWarehouseIdAndProductId(warehouseId, productId)
+            .orElseGet(() -> {
+                // Create new inventory record if it doesn't exist
+                WarehouseInventory newInventory = new WarehouseInventory();
+                Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                    .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+                Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+                newInventory.setWarehouse(warehouse);
+                newInventory.setProduct(product);
+                newInventory.setCurrentQuantity(0);
+                newInventory.setReservedQuantity(0);
+                return newInventory;
+            });
+        
+        Integer currentQty = inventory.getCurrentQuantity() != null ? inventory.getCurrentQuantity() : 0;
+        inventory.setCurrentQuantity(currentQty + quantity);
+        warehouseInventoryRepository.save(inventory);
+        
+        logger.info("Added {} units to warehouse {} for product {}", quantity, warehouseId, productId);
+    }
+    
+    /**
+     * Deduct inventory from store (product quantity)
+     */
+    private void deductFromStoreInventory(UUID productId, Integer quantity) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+        
+        Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
+        if (currentQty < quantity) {
+            throw new IllegalStateException("Insufficient product inventory. Available: " + currentQty + ", Required: " + quantity);
+        }
+        
+        product.setQuantity(currentQty - quantity);
+        productRepository.save(product);
+        
+        logger.info("Deducted {} units from store inventory for product {}", quantity, productId);
+    }
+    
+    /**
+     * Add inventory to store (product quantity)
+     */
+    private void addToStoreInventory(UUID productId, Integer quantity) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+        
+        Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
+        product.setQuantity(currentQty + quantity);
+        productRepository.save(product);
+        
+        logger.info("Added {} units to store inventory for product {}", quantity, productId);
+    }
+    
+    /**
+     * Get pending approvals for user based on their locations and role
+     */
+    public List<TransferRequest> getPendingApprovalsForUser(UUID companyId, List<Store> userStores,
+                                                            List<Warehouse> userWarehouses, boolean isGM) {
+        if (isGM) {
+            // GM sees all pending transfers in company
+            return transferRequestRepository.findByCompanyIdAndStatus(
+                companyId,
+                TransferRequestStatus.PENDING
+            );
+        } else {
+            // Regular users see pending transfers to their locations
+            List<UUID> storeIds = userStores.stream().map(Store::getId).toList();
+            List<UUID> warehouseIds = userWarehouses.stream().map(Warehouse::getId).toList();
+            
+            if (storeIds.isEmpty() && warehouseIds.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            
+            return transferRequestRepository.findPendingTransfersForLocations(
+                storeIds,
+                warehouseIds,
+                TransferRequestStatus.PENDING
+            );
         }
     }
 }
