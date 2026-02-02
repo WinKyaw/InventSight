@@ -243,10 +243,10 @@ public class TransferRequest {
     private UUID toCompanyId;
     
     // === ADDITIONAL LOCATION TRACKING ===
-    @Column(name = "from_store_id")
+    @Column(name = "from_store_id", insertable = false, updatable = false)
     private UUID fromStoreId;
     
-    @Column(name = "to_warehouse_id")
+    @Column(name = "to_warehouse_id", insertable = false, updatable = false)
     private UUID toWarehouseId;
     
     // === PEOPLE TRACKING ===
