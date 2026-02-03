@@ -7,6 +7,7 @@ import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.service.TransferRequestService;
+import com.pos.inventsight.service.TransferPermissionService;
 import com.pos.inventsight.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,9 @@ public class TransferRequestController {
     
     @Autowired
     private TransferRequestService transferRequestService;
+    
+    @Autowired
+    private TransferPermissionService transferPermissionService;
     
     @Autowired
     private UserService userService;
@@ -201,10 +205,24 @@ public class TransferRequestController {
                 requestsPage = transferRequestService.getTransferRequestsByCompany(company.getId(), pageable);
             }
             
+            // Add available actions to each transfer
+            List<Map<String, Object>> requestsWithActions = requestsPage.getContent().stream()
+                .map(transfer -> {
+                    Map<String, Object> transferMap = new HashMap<>();
+                    transferMap.put("transfer", transfer);
+                    
+                    // Calculate available actions for this user
+                    List<String> actions = transferPermissionService.getAvailableActions(transfer, currentUser);
+                    transferMap.put("availableActions", actions);
+                    
+                    return transferMap;
+                })
+                .collect(java.util.stream.Collectors.toList());
+            
             // Build response with pagination metadata
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("requests", requestsPage.getContent());
+            response.put("requests", requestsWithActions);
             
             Map<String, Object> pagination = new HashMap<>();
             pagination.put("currentPage", requestsPage.getNumber());
@@ -228,13 +246,20 @@ public class TransferRequestController {
      * GET /transfers/{id} - Get transfer details
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getTransferRequestById(@PathVariable UUID id) {
+    public ResponseEntity<?> getTransferRequestById(@PathVariable UUID id, Authentication authentication) {
         try {
+            String username = authentication.getName();
+            User currentUser = userService.getUserByUsername(username);
+            
             TransferRequest request = transferRequestService.getTransferRequestById(id);
+            
+            // Calculate available actions for this user
+            List<String> availableActions = transferPermissionService.getAvailableActions(request, currentUser);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("request", request);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -257,12 +282,13 @@ public class TransferRequestController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = getUserCompany(currentUser);
             
-            // Check if user has GM+ permission
-            Optional<CompanyRole> roleOpt = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
-            if (roleOpt.isEmpty() || !roleOpt.get().canManageWarehouses()) {
-                throw new UnauthorizedException("Only General Manager and above can approve transfer requests");
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission using TransferPermissionService
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "approve")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to approve this transfer"));
             }
             
             TransferRequest approved = transferRequestService.approveTransferRequest(
@@ -273,16 +299,17 @@ public class TransferRequestController {
                 transferRequestService.addNotes(id, requestData.getNotes());
             }
             
+            // Calculate new available actions after approval
+            List<String> availableActions = transferPermissionService.getAvailableActions(approved, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer request approved");
             response.put("request", approved);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
-        } catch (UnauthorizedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiResponse(false, e.getMessage()));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse(false, e.getMessage()));
@@ -305,27 +332,29 @@ public class TransferRequestController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = getUserCompany(currentUser);
             
-            // Check if user has GM+ permission
-            Optional<CompanyRole> roleOpt = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
-            if (roleOpt.isEmpty() || !roleOpt.get().canManageWarehouses()) {
-                throw new UnauthorizedException("Only General Manager and above can reject transfer requests");
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission using TransferPermissionService
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "reject")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to reject this transfer"));
             }
             
             TransferRequest rejected = transferRequestService.rejectTransferRequest(
                 id, currentUser, requestData.getReason());
             
+            // Calculate new available actions after rejection
+            List<String> availableActions = transferPermissionService.getAvailableActions(rejected, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer request rejected");
             response.put("request", rejected);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
-        } catch (UnauthorizedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiResponse(false, e.getMessage()));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse(false, e.getMessage()));
@@ -359,10 +388,14 @@ public class TransferRequestController {
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(completed, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer request completed and inventory updated");
             response.put("request", completed);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -388,12 +421,13 @@ public class TransferRequestController {
         try {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
-            Company company = getUserCompany(currentUser);
             
-            // Check if user has GM+ permission
-            Optional<CompanyRole> roleOpt = companyStoreUserRepository.findUserRoleInCompany(currentUser, company);
-            if (roleOpt.isEmpty() || !roleOpt.get().canManageWarehouses()) {
-                throw new UnauthorizedException("Only General Manager and above can approve and send transfer requests");
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission - this combines approve + send
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "approve")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to approve and send this transfer"));
             }
             
             TransferRequest sent = transferRequestService.approveAndSend(
@@ -407,16 +441,17 @@ public class TransferRequestController {
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(sent, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer approved and sent");
             response.put("request", sent);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
-        } catch (UnauthorizedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiResponse(false, e.getMessage()));
         } catch (IllegalStateException | IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse(false, e.getMessage()));
@@ -440,6 +475,14 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "receive")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to receive this transfer"));
+            }
+            
             TransferRequest received = transferRequestService.confirmReceipt(
                 id,
                 receiveRequest.getReceivedQuantity(),
@@ -448,10 +491,14 @@ public class TransferRequestController {
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(received, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer receipt confirmed");
             response.put("request", received);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -479,17 +526,29 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
-            TransferRequest transfer = transferRequestService.markAsReady(
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "markReady")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to mark this transfer as ready"));
+            }
+            
+            TransferRequest ready = transferRequestService.markAsReady(
                 id,
                 readyData.getPackedBy(),
                 readyData.getNotes(),
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(ready, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer marked as ready for pickup");
-            response.put("request", transfer);
+            response.put("request", ready);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -514,10 +573,18 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "startDelivery")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to start delivery for this transfer"));
+            }
+            
             // Generate QR code for delivery verification
             String qrCodeData = transferRequestService.generateDeliveryQRCode(id, currentUser);
             
-            TransferRequest transfer = transferRequestService.pickupTransfer(
+            TransferRequest pickedUp = transferRequestService.pickupTransfer(
                 id,
                 pickupData.getCarrierName(),
                 pickupData.getCarrierPhone(),
@@ -527,11 +594,15 @@ public class TransferRequestController {
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(pickedUp, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer picked up and in transit");
-            response.put("request", transfer);
+            response.put("request", pickedUp);
             response.put("deliveryQRCode", qrCodeData);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -556,17 +627,29 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
-            TransferRequest transfer = transferRequestService.markAsDelivered(
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "markDelivered")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to mark this transfer as delivered"));
+            }
+            
+            TransferRequest delivered = transferRequestService.markAsDelivered(
                 id,
                 deliveryData.getProofOfDeliveryUrl(),
                 deliveryData.getConditionOnArrival(),
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(delivered, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer marked as delivered");
-            response.put("request", transfer);
+            response.put("request", delivered);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -591,6 +674,14 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "receive")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to receive this transfer"));
+            }
+            
             // Verify QR code if provided
             if (receiptData.getDeliveryQRCode() != null && !receiptData.getDeliveryQRCode().isEmpty()) {
                 boolean isValid = transferRequestService.verifyDeliveryQRCode(
@@ -604,7 +695,7 @@ public class TransferRequestController {
                 }
             }
             
-            TransferRequest transfer = transferRequestService.receiveTransfer(
+            TransferRequest received = transferRequestService.receiveTransfer(
                 id,
                 receiptData.getReceivedQuantity(),
                 receiptData.getDamagedQuantity(),
@@ -614,10 +705,14 @@ public class TransferRequestController {
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(received, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer completed and inventory updated");
-            response.put("request", transfer);
+            response.put("request", received);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
@@ -641,16 +736,28 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
+            TransferRequest transfer = transferRequestService.getTransferRequestById(id);
+            
+            // Validate permission
+            if (!transferPermissionService.canPerformAction(transfer, currentUser, "cancel")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You do not have permission to cancel this transfer"));
+            }
+            
             TransferRequest cancelled = transferRequestService.cancelTransfer(
                 id, 
                 cancellationData.getReason(), 
                 currentUser
             );
             
+            // Calculate new available actions
+            List<String> availableActions = transferPermissionService.getAvailableActions(cancelled, currentUser);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Transfer request cancelled");
             response.put("request", cancelled);
+            response.put("availableActions", availableActions);
             
             return ResponseEntity.ok(response);
             
