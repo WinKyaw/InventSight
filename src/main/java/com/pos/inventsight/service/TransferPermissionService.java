@@ -58,8 +58,8 @@ public class TransferPermissionService {
                 actions.add("reject");
             }
             
-            // Requester can cancel their own pending transfers
-            if (isRequester) {
+            // Anyone who can act on PENDING (GM+ or requester) can cancel
+            if (isGMPlus || isRequester) {
                 actions.add("cancel");
             }
         }
@@ -96,14 +96,13 @@ public class TransferPermissionService {
             }
         }
 
-        // GM+ can cancel at any stage except COMPLETED/CANCELLED/REJECTED
+        // GM+ can cancel at any non-PENDING stage except COMPLETED/CANCELLED/REJECTED
         if (isGMPlus && 
+            status != TransferRequestStatus.PENDING &&  // Already handled in PENDING section
             status != TransferRequestStatus.COMPLETED && 
             status != TransferRequestStatus.CANCELLED &&
             status != TransferRequestStatus.REJECTED) {
-            if (!actions.contains("cancel")) {
-                actions.add("cancel");
-            }
+            actions.add("cancel");
         }
 
         return actions;
