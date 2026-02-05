@@ -300,6 +300,16 @@ public class TransferRequest {
     @Column(name = "condition_on_arrival")
     private ConditionStatus conditionOnArrival;
     
+    // === PACKING INFO ===
+    @Column(name = "packed_by")
+    private String packedBy;
+    
+    @Column(name = "packed_at")
+    private LocalDateTime packedAt;
+    
+    @Column(name = "packing_notes", length = 1000)
+    private String packingNotes;
+    
     // === AUDIT ===
     @Column(name = "created_by")
     private String createdBy;
@@ -785,6 +795,31 @@ public class TransferRequest {
     
     public void setUpdatedBy(String updatedBy) {
         this.updatedBy = updatedBy;
+    }
+    
+    // Packing info getters and setters
+    public String getPackedBy() {
+        return packedBy;
+    }
+    
+    public void setPackedBy(String packedBy) {
+        this.packedBy = packedBy;
+    }
+    
+    public LocalDateTime getPackedAt() {
+        return packedAt;
+    }
+    
+    public void setPackedAt(LocalDateTime packedAt) {
+        this.packedAt = packedAt;
+    }
+    
+    public String getPackingNotes() {
+        return packingNotes;
+    }
+    
+    public void setPackingNotes(String packingNotes) {
+        this.packingNotes = packingNotes;
     }
     
     // Calculated field

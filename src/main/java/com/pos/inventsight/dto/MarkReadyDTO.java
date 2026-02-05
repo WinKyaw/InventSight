@@ -1,14 +1,11 @@
 package com.pos.inventsight.dto;
 
-import jakarta.validation.constraints.NotBlank;
-
 /**
  * DTO for marking a transfer as ready for pickup
  */
 public class MarkReadyDTO {
     
-    @NotBlank(message = "Packed by name is required")
-    private String packedBy;
+    private String packedBy; // Optional - uses currentUser.getFullName() if not provided
     
     private String notes;
     
