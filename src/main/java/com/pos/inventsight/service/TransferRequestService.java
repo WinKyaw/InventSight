@@ -661,8 +661,8 @@ public class TransferRequestService {
                 }
                 
                 WarehouseInventory inventory = inventoryOpt.get();
-                int available = inventory.getAvailableQuantity(); // Excludes held, damaged, expired
-                return available >= transfer.getApprovedQuantity();
+                int availableQuantity = inventory.getAvailableQuantity(); // Excludes held, damaged, expired
+                return availableQuantity >= transfer.getApprovedQuantity();
                 
             } else if ("STORE".equals(transfer.getFromLocationType())) {
                 // Check store inventory (stored in Product.quantity)
@@ -683,13 +683,13 @@ public class TransferRequestService {
                     return false;
                 }
                 
-                Integer available = product.getQuantity();
-                return available != null && available >= transfer.getApprovedQuantity();
+                Integer availableQuantity = product.getQuantity();
+                return availableQuantity != null && availableQuantity >= transfer.getApprovedQuantity();
             }
             
             return false;
         } catch (Exception e) {
-            logger.error("Error checking inventory availability: {}", e.getMessage());
+            logger.error("Error checking inventory availability", e);
             return false;
         }
     }
