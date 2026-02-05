@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -613,19 +614,84 @@ public class TransferRequestService {
             throw new IllegalStateException("Only APPROVED transfers can be marked as ready");
         }
         
-        transfer.setStatus(TransferRequestStatus.READY);
-        transfer.setHandlerName(packedBy);
-        transfer.setHandlerUserId(handler.getId());
-        if (notes != null && !notes.isEmpty()) {
-            transfer.setNotes((transfer.getNotes() != null ? transfer.getNotes() + "\n" : "") + notes);
+        // Check inventory availability
+        boolean inventoryAvailable = checkInventoryAvailability(transfer);
+        if (!inventoryAvailable) {
+            throw new IllegalStateException("Insufficient inventory available to fulfill this transfer");
         }
+        
+        transfer.setStatus(TransferRequestStatus.READY);
+        transfer.setPackedBy(packedBy != null ? packedBy : handler.getFullName());
+        transfer.setPackedAt(LocalDateTime.now());
+        
+        if (notes != null && !notes.isEmpty()) {
+            transfer.setPackingNotes(notes);
+        }
+        
+        // Also set legacy handler fields for backward compatibility
+        transfer.setHandlerName(packedBy != null ? packedBy : handler.getFullName());
+        transfer.setHandlerUserId(handler.getId());
         transfer.setUpdatedAt(LocalDateTime.now());
         
         TransferRequest saved = transferRequestRepository.save(transfer);
         
-        logger.info("Transfer {} marked as READY by handler: {}", transferId, packedBy);
+        logger.info("Transfer {} marked as READY by {}", transferId, saved.getPackedBy());
         
         return saved;
+    }
+    
+    /**
+     * Check if inventory is available for the transfer
+     */
+    private boolean checkInventoryAvailability(TransferRequest transfer) {
+        try {
+            // Get available inventory at source location
+            if ("WAREHOUSE".equals(transfer.getFromLocationType())) {
+                // Check warehouse inventory
+                Optional<WarehouseInventory> inventoryOpt = warehouseInventoryRepository
+                    .findByWarehouseIdAndProductId(
+                        transfer.getFromLocationId(),
+                        transfer.getProductId()
+                    );
+                
+                if (!inventoryOpt.isPresent()) {
+                    logger.warn("No inventory record found for product {} at warehouse {}", 
+                        transfer.getProductId(), transfer.getFromLocationId());
+                    return false;
+                }
+                
+                WarehouseInventory inventory = inventoryOpt.get();
+                int available = inventory.getAvailableQuantity(); // Excludes held, damaged, expired
+                return available >= transfer.getApprovedQuantity();
+                
+            } else if ("STORE".equals(transfer.getFromLocationType())) {
+                // Check store inventory (stored in Product.quantity)
+                Optional<Product> productOpt = productRepository.findById(transfer.getProductId());
+                
+                if (!productOpt.isPresent()) {
+                    logger.warn("Product {} not found", transfer.getProductId());
+                    return false;
+                }
+                
+                Product product = productOpt.get();
+                
+                // Verify product belongs to the source store
+                if (product.getStore() == null || 
+                    !product.getStore().getId().equals(transfer.getFromLocationId())) {
+                    logger.warn("Product {} is not at store {}", 
+                        transfer.getProductId(), transfer.getFromLocationId());
+                    return false;
+                }
+                
+                Integer available = product.getQuantity();
+                return available != null && available >= transfer.getApprovedQuantity();
+            }
+            
+            return false;
+        } catch (Exception e) {
+            logger.error("Error checking inventory availability: {}", e.getMessage());
+            return false;
+        }
     }
     
     /**
@@ -650,9 +716,9 @@ public class TransferRequestService {
                                          String qrCodeData, User carrier) {
         TransferRequest transfer = getTransferRequestById(transferId);
         
-        if (transfer.getStatus() != TransferRequestStatus.READY && 
-            transfer.getStatus() != TransferRequestStatus.APPROVED) {
-            throw new IllegalStateException("Only READY or APPROVED transfers can be picked up");
+        // Only allow pickup from READY status (enforces proper workflow)
+        if (transfer.getStatus() != TransferRequestStatus.READY) {
+            throw new IllegalStateException("Only READY transfers can be picked up. Current status: " + transfer.getStatus());
         }
         
         transfer.setStatus(TransferRequestStatus.IN_TRANSIT);
