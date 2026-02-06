@@ -272,6 +272,25 @@ public class TransferRequestService {
         request.setApprovedAt(LocalDateTime.now());
         request.setShippedAt(LocalDateTime.now());
         
+        // ✅ DEDUCT FROM SOURCE WAREHOUSE/STORE IMMEDIATELY (direct APPROVED → IN_TRANSIT)
+        if ("WAREHOUSE".equals(request.getFromLocationType())) {
+            deductFromWarehouseInventory(
+                request.getFromLocationId(), 
+                request.getProductId(), 
+                approvedQuantity, 
+                request
+            );
+            logger.info("✅ Deducted {} units from warehouse {} for transfer {} (approve and send)", 
+                approvedQuantity, 
+                request.getFromLocationId(), 
+                id);
+        } else if ("STORE".equals(request.getFromLocationType())) {
+            deductFromStoreInventory(request.getProductId(), approvedQuantity);
+            logger.info("✅ Deducted {} units from store for transfer {} (approve and send)", 
+                approvedQuantity, 
+                id);
+        }
+        
         // Set carrier details
         request.setCarrierName(carrierName);
         request.setCarrierPhone(carrierPhone);
@@ -727,6 +746,25 @@ public class TransferRequestService {
             throw new IllegalStateException("Only READY transfers can be picked up. Current status: " + transfer.getStatus());
         }
         
+        // ✅ DEDUCT FROM SOURCE WAREHOUSE/STORE BEFORE MARKING IN_TRANSIT
+        if ("WAREHOUSE".equals(transfer.getFromLocationType())) {
+            deductFromWarehouseInventory(
+                transfer.getFromLocationId(), 
+                transfer.getProductId(), 
+                transfer.getApprovedQuantity(), 
+                transfer
+            );
+            logger.info("✅ Deducted {} units from warehouse {} for transfer {}", 
+                transfer.getApprovedQuantity(), 
+                transfer.getFromLocationId(), 
+                transferId);
+        } else if ("STORE".equals(transfer.getFromLocationType())) {
+            deductFromStoreInventory(transfer.getProductId(), transfer.getApprovedQuantity());
+            logger.info("✅ Deducted {} units from store for transfer {}", 
+                transfer.getApprovedQuantity(), 
+                transferId);
+        }
+        
         transfer.setStatus(TransferRequestStatus.IN_TRANSIT);
         transfer.setCarrierName(carrierName);
         transfer.setCarrierPhone(carrierPhone);
@@ -743,7 +781,8 @@ public class TransferRequestService {
         
         TransferRequest saved = transferRequestRepository.save(transfer);
         
-        logger.info("Transfer {} picked up by carrier: {} and marked IN_TRANSIT", transferId, carrierName);
+        logger.info("Transfer {} picked up by carrier: {} and marked IN_TRANSIT with inventory deducted", 
+            transferId, carrierName);
         
         return saved;
     }
@@ -853,32 +892,23 @@ public class TransferRequestService {
             throw new IllegalStateException("Damaged quantity cannot exceed received quantity");
         }
         
-        // Deduct the originally approved quantity from source location
-        // This represents what was actually shipped out
-        Integer shippedQuantity = transfer.getApprovedQuantity();
-        if (shippedQuantity == null || shippedQuantity <= 0) {
-            logger.warn("No approved quantity to deduct for transfer {}", transfer.getId());
-            return;
-        }
-        
-        // Deduct from source location (what was shipped)
-        if ("WAREHOUSE".equals(transfer.getFromLocationType())) {
-            deductFromWarehouseInventory(transfer.getFromLocationId(), transfer.getProductId(), shippedQuantity, transfer);
-        } else if ("STORE".equals(transfer.getFromLocationType())) {
-            deductFromStoreInventory(transfer.getProductId(), shippedQuantity);
-        }
+        // ✅ SOURCE DEDUCTION ALREADY HAPPENED AT IN_TRANSIT STATUS
+        // We only need to ADD to destination here
         
         // Add to destination location (only good items, excluding damaged)
         if (goodQuantity > 0) {
             if ("WAREHOUSE".equals(transfer.getToLocationType())) {
                 addToWarehouseInventory(transfer.getToLocationId(), transfer.getProductId(), goodQuantity);
+                logger.info("✅ Added {} units to destination warehouse {}", 
+                    goodQuantity, transfer.getToLocationId());
             } else if ("STORE".equals(transfer.getToLocationType())) {
                 addToStoreInventory(transfer.getProductId(), goodQuantity, transfer);
+                logger.info("✅ Added {} units to destination store with restock record", goodQuantity);
             }
         }
         
-        logger.info("Inventory updated for transfer {}: deducted {} from source, added {} to destination (damaged: {})", 
-                   transfer.getId(), shippedQuantity, goodQuantity, damagedQty);
+        logger.info("Inventory completion for transfer {}: added {} to destination (damaged: {})", 
+                   transfer.getId(), goodQuantity, damagedQty);
     }
     
     /**
