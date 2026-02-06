@@ -319,7 +319,7 @@ public class TransferRequestInventoryDeductionTimingTest {
         // Then - should only add good items to destination (90 = 95 - 5)
         verify(productRepository, times(1)).save(testProduct);
         assertEquals(140, testProduct.getQuantity(), 
-            "Store should receive 90 good units (50 original + 90 added, excluding 5 damaged)");
+            "Store should receive 90 good units (50 original + 90 good units from 95 received - 5 damaged)");
         
         // And should create restock record
         verify(additionRepository, times(1)).save(any(StoreInventoryAddition.class));
@@ -350,6 +350,8 @@ public class TransferRequestInventoryDeductionTimingTest {
         destWarehouse.setId(destinationWarehouseId);
         destWarehouse.setName("Destination Warehouse");
         
+        // Use lenient() because updateInventoryForTransferCompletion() only adds to destination
+        // and doesn't query source warehouse (already deducted at IN_TRANSIT)
         lenient().when(warehouseInventoryRepository.findByWarehouseIdAndProductId(
             destinationWarehouseId, testProduct.getId()))
             .thenReturn(Optional.of(destInventory));
