@@ -28,6 +28,7 @@ import java.util.UUID;
 public class TransferRequestService {
     
     private static final Logger logger = LoggerFactory.getLogger(TransferRequestService.class);
+    private static final int TRANSFER_ID_PREFIX_LENGTH = 8;
     
     @Autowired
     private TransferRequestRepository transferRequestRepository;
@@ -966,8 +967,8 @@ public class TransferRequestService {
             quantity
         );
         restockRecord.setTransactionType(StoreInventoryAddition.TransactionType.TRANSFER_IN);
-        restockRecord.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, 8));
-        restockRecord.setNotes("Received from transfer request #" + transfer.getId().toString().substring(0, 8) + 
+        restockRecord.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
+        restockRecord.setNotes("Received from transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH) + 
                               (transfer.getFromWarehouse() != null ? " from warehouse: " + transfer.getFromWarehouse().getName() : ""));
         restockRecord.setCreatedBy(transfer.getReceivedByUser() != null ? 
             transfer.getReceivedByUser().getUsername() : "system");
@@ -997,7 +998,7 @@ public class TransferRequestService {
             product.getName(),
             product.getSku(),
             warehouse.getName(),
-            transfer.getId().toString().substring(0, 8)
+            transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH)
         );
         
         // Log to activity log service if available
