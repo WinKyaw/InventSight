@@ -7,6 +7,7 @@ import com.pos.inventsight.repository.sql.WarehouseRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
+import com.pos.inventsight.repository.sql.StoreInventoryAdditionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -41,6 +43,9 @@ public class TransferRequestService {
     
     @Autowired
     private WarehouseInventoryRepository warehouseInventoryRepository;
+    
+    @Autowired
+    private StoreInventoryAdditionRepository additionRepository;
     
     /**
      * Create a new transfer request
@@ -857,7 +862,7 @@ public class TransferRequestService {
         
         // Deduct from source location (what was shipped)
         if ("WAREHOUSE".equals(transfer.getFromLocationType())) {
-            deductFromWarehouseInventory(transfer.getFromLocationId(), transfer.getProductId(), shippedQuantity);
+            deductFromWarehouseInventory(transfer.getFromLocationId(), transfer.getProductId(), shippedQuantity, transfer);
         } else if ("STORE".equals(transfer.getFromLocationType())) {
             deductFromStoreInventory(transfer.getProductId(), shippedQuantity);
         }
@@ -867,7 +872,7 @@ public class TransferRequestService {
             if ("WAREHOUSE".equals(transfer.getToLocationType())) {
                 addToWarehouseInventory(transfer.getToLocationId(), transfer.getProductId(), goodQuantity);
             } else if ("STORE".equals(transfer.getToLocationType())) {
-                addToStoreInventory(transfer.getProductId(), goodQuantity);
+                addToStoreInventory(transfer.getProductId(), goodQuantity, transfer);
             }
         }
         
@@ -878,7 +883,7 @@ public class TransferRequestService {
     /**
      * Deduct inventory from warehouse
      */
-    private void deductFromWarehouseInventory(UUID warehouseId, UUID productId, Integer quantity) {
+    private void deductFromWarehouseInventory(UUID warehouseId, UUID productId, Integer quantity, TransferRequest transfer) {
         WarehouseInventory inventory = warehouseInventoryRepository
             .findByWarehouseIdAndProductId(warehouseId, productId)
             .orElseThrow(() -> new RuntimeException("Source warehouse inventory not found"));
@@ -890,6 +895,9 @@ public class TransferRequestService {
         
         inventory.setCurrentQuantity(currentQty - quantity);
         warehouseInventoryRepository.save(inventory);
+        
+        // Log warehouse shipment
+        logWarehouseShipment(warehouseId, productId, quantity, transfer);
         
         logger.info("Deducted {} units from warehouse {} for product {}", quantity, warehouseId, productId);
     }
@@ -942,15 +950,58 @@ public class TransferRequestService {
     /**
      * Add inventory to store (product quantity)
      */
-    private void addToStoreInventory(UUID productId, Integer quantity) {
+    private void addToStoreInventory(UUID productId, Integer quantity, TransferRequest transfer) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new RuntimeException("Product not found"));
         
+        // Update product quantity
         Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
         product.setQuantity(currentQty + quantity);
         productRepository.save(product);
         
-        logger.info("Added {} units to store inventory for product {}", quantity, productId);
+        // Create restock history record using existing StoreInventoryAddition entity
+        StoreInventoryAddition restockRecord = new StoreInventoryAddition(
+            product.getStore(),
+            product,
+            quantity
+        );
+        restockRecord.setTransactionType(StoreInventoryAddition.TransactionType.TRANSFER_IN);
+        restockRecord.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, 8));
+        restockRecord.setNotes("Received from transfer request #" + transfer.getId().toString().substring(0, 8) + 
+                              (transfer.getFromWarehouse() != null ? " from warehouse: " + transfer.getFromWarehouse().getName() : ""));
+        restockRecord.setCreatedBy(transfer.getReceivedByUser() != null ? 
+            transfer.getReceivedByUser().getUsername() : "system");
+        restockRecord.setReceiptDate(LocalDate.now());
+        restockRecord.setStatus(StoreInventoryAddition.TransactionStatus.COMPLETED);
+        
+        additionRepository.save(restockRecord);
+        
+        logger.info("✅ Added {} units to store inventory for product {} and created restock history record from transfer {}", 
+            quantity, productId, transfer.getId());
+    }
+    
+    /**
+     * Log warehouse shipment transaction
+     */
+    private void logWarehouseShipment(UUID warehouseId, UUID productId, Integer quantity, TransferRequest transfer) {
+        // Log warehouse shipment in activity log
+        Warehouse warehouse = warehouseRepository.findById(warehouseId)
+            .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+        
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+        
+        String activity = String.format(
+            "Shipped %d units of %s (SKU: %s) from warehouse %s via transfer #%s",
+            quantity,
+            product.getName(),
+            product.getSku(),
+            warehouse.getName(),
+            transfer.getId().toString().substring(0, 8)
+        );
+        
+        // Log to activity log service if available
+        logger.info("📦 Warehouse shipment: {}", activity);
     }
     
     /**
