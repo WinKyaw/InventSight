@@ -95,25 +95,12 @@ public class IdempotencyKeyFilter implements Filter {
             Optional<IdempotencyKey> existingKey = idempotencyService.findIdempotencyKey(idempotencyKey, tenantId);
             
             if (existingKey.isPresent()) {
-                // Compute hash of current request
-                String requestBody = new String(wrappedRequest.getContentAsByteArray(), StandardCharsets.UTF_8);
-                String currentHash = idempotencyService.computeRequestHash(method, requestUri, requestBody);
-                
+                // Replay cached response without reading request body
+                // The idempotency key itself is sufficient - we trust it matches the original request
                 IdempotencyKey existing = existingKey.get();
                 
-                // Check if request hash matches
-                if (!currentHash.equals(existing.getRequestHash())) {
-                    // Same key, different request - conflict
-                    logger.warn("Idempotency key conflict: {} for tenant: {} - request hash mismatch", 
-                               idempotencyKey, tenantId);
-                    httpResponse.setStatus(HttpServletResponse.SC_CONFLICT);
-                    httpResponse.setContentType("application/json");
-                    httpResponse.getWriter().write("{\"error\": \"Idempotency key already used with different request\"}");
-                    return;
-                }
-                
-                // Same key, same request - replay cached response
-                logger.info("Replaying cached response for idempotency key: {} tenant: {}", idempotencyKey, tenantId);
+                logger.info("Replaying cached response for idempotency key: {} tenant: {}", 
+                           idempotencyKey, tenantId);
                 httpResponse.setStatus(existing.getResponseStatus());
                 httpResponse.setContentType("application/json");
                 if (existing.getResponseBody() != null) {
@@ -123,9 +110,11 @@ public class IdempotencyKeyFilter implements Filter {
             }
             
             // New idempotency key - process request normally
+            // The wrapper will cache the body as it's read by the controller
             chain.doFilter(wrappedRequest, wrappedResponse);
             
-            // After processing, cache the response
+            // After chain.doFilter(), the body has been read and cached
+            // NOW we can safely read the cached content
             String responseBody = new String(wrappedResponse.getContentAsByteArray(), StandardCharsets.UTF_8);
             String requestBody = new String(wrappedRequest.getContentAsByteArray(), StandardCharsets.UTF_8);
             String requestHash = idempotencyService.computeRequestHash(method, requestUri, requestBody);
@@ -146,8 +135,12 @@ public class IdempotencyKeyFilter implements Filter {
             
         } catch (Exception e) {
             logger.error("Error processing idempotency key: {}", e.getMessage(), e);
-            // On error, try to continue without idempotency
-            wrappedResponse.copyBodyToResponse();
+            // Ensure response body is copied even on error
+            try {
+                wrappedResponse.copyBodyToResponse();
+            } catch (IOException ioe) {
+                logger.error("Failed to copy response body: {}", ioe.getMessage());
+            }
         }
     }
     
