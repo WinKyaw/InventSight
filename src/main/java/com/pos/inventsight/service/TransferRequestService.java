@@ -1005,43 +1005,82 @@ public class TransferRequestService {
     
     /**
      * Add inventory to store (product quantity) and create restock history
+     * Handles both new and existing store products correctly
      */
     private void addToStoreInventory(UUID productId, Integer quantity, TransferRequest transfer) {
-        // ✅ Get the destination store from the transfer
+        // Get destination store from transfer
         Store destinationStore = storeRepository.findById(transfer.getToLocationId())
             .orElseThrow(() -> new RuntimeException("Destination store not found with ID: " + transfer.getToLocationId()));
         
-        // ✅ Get the product - this should be the store's product
-        Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new RuntimeException("Product not found"));
+        // Get the source product (from warehouse or another store)
+        Product sourceProduct = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
         
-        // ✅ CRITICAL: Verify product belongs to destination store, or associate it
-        if (product.getStore() == null) {
-            // Product from warehouse - associate with store
-            product.setStore(destinationStore);
-            logger.info("Associated product {} with store {}", product.getName(), destinationStore.getStoreName());
-        } else if (!product.getStore().getId().equals(destinationStore.getId())) {
-            logger.warn("Product {} belongs to different store ({}), expected store: {}", 
-                product.getName(), product.getStore().getStoreName(), destinationStore.getStoreName());
-            // Still update it - this might be intentional for multi-store products
+        // ✅ CRITICAL FIX: Find existing store product by SKU and store
+        // This prevents duplicate (sku, store_id) constraint violations
+        Product storeProduct = productRepository.findBySkuAndStoreId(sourceProduct.getSku(), destinationStore.getId())
+            .orElse(null);
+        
+        if (storeProduct != null) {
+            // ✅ Store product already exists - just update quantity
+            logger.info("Found existing store product: {} (SKU: {}) at store {}", 
+                storeProduct.getName(), storeProduct.getSku(), destinationStore.getStoreName());
+            
+            Integer currentQty = storeProduct.getQuantity() != null ? storeProduct.getQuantity() : 0;
+            Integer newQty = currentQty + quantity;
+            storeProduct.setQuantity(newQty);
+            productRepository.save(storeProduct);
+            
+            logger.info("✅ Updated existing product {} quantity: {} → {} at store {}", 
+                storeProduct.getName(), currentQty, newQty, destinationStore.getStoreName());
+            
+        } else {
+            // ✅ No store product exists - create new one from source product
+            logger.info("No existing store product found for SKU: {} - creating new product at store {}", 
+                sourceProduct.getSku(), destinationStore.getStoreName());
+            
+            storeProduct = new Product();
+            
+            // Copy attributes from source product
+            storeProduct.setName(sourceProduct.getName());
+            storeProduct.setSku(sourceProduct.getSku());
+            storeProduct.setBarcode(sourceProduct.getBarcode());
+            storeProduct.setCategory(sourceProduct.getCategory());
+            storeProduct.setDescription(sourceProduct.getDescription());
+            storeProduct.setUnit(sourceProduct.getUnit());
+            storeProduct.setPrice(sourceProduct.getPrice());
+            storeProduct.setRetailPrice(sourceProduct.getRetailPrice());
+            storeProduct.setOriginalPrice(sourceProduct.getOriginalPrice());
+            storeProduct.setOwnerSetSellPrice(sourceProduct.getOwnerSetSellPrice());
+            storeProduct.setCostPrice(sourceProduct.getCostPrice());
+            storeProduct.setLowStockThreshold(sourceProduct.getLowStockThreshold());
+            storeProduct.setReorderLevel(sourceProduct.getReorderLevel());
+            storeProduct.setMaxQuantity(sourceProduct.getMaxQuantity());
+            storeProduct.setPredefinedItem(sourceProduct.getPredefinedItem());
+            storeProduct.setPredefinedItemSku(sourceProduct.getPredefinedItemSku());
+            
+            // Set store-specific fields
+            storeProduct.setStore(destinationStore);
+            storeProduct.setCompany(sourceProduct.getCompany());
+            storeProduct.setQuantity(quantity);  // Initial quantity from transfer
+            storeProduct.setWarehouse(null);  // Clear warehouse reference
+            storeProduct.setIsActive(true);
+            storeProduct.setCreatedBy(transfer.getReceivedByUser() != null ? 
+                transfer.getReceivedByUser().getUsername() : "system");
+            
+            storeProduct = productRepository.save(storeProduct);
+            
+            logger.info("✅ Created new store product: {} (SKU: {}) with quantity {} at store {}", 
+                storeProduct.getName(), storeProduct.getSku(), quantity, destinationStore.getStoreName());
         }
-        
-        // ✅ Update product quantity
-        Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
-        Integer newQty = currentQty + quantity;
-        product.setQuantity(newQty);
-        productRepository.save(product);
-        
-        logger.info("✅ Updated product {} quantity: {} → {} at store {}", 
-            product.getName(), currentQty, newQty, destinationStore.getStoreName());
         
         // Build transfer source description for notes
         String sourceDescription = getTransferSourceDescription(transfer);
         
-        // ✅ Create restock history record (already working correctly)
+        // ✅ Create restock history record (using the correct store product)
         StoreInventoryAddition restockRecord = new StoreInventoryAddition(
-            destinationStore,  // ✅ Store from transfer, not from product
-            product,
+            destinationStore,
+            storeProduct,  // ✅ Use store product, not source product!
             quantity
         );
         restockRecord.setTransactionType(StoreInventoryAddition.TransactionType.TRANSFER_IN);
