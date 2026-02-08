@@ -43,6 +43,9 @@ public class TransferRequestInventoryTrackingTest {
     @Mock
     private StoreInventoryAdditionRepository additionRepository;
 
+    @Mock
+    private WarehouseInventoryWithdrawalRepository withdrawalRepository;
+
     @InjectMocks
     private TransferRequestService transferRequestService;
 
@@ -185,6 +188,12 @@ public class TransferRequestInventoryTrackingTest {
         warehouseInventory.setProduct(testProduct);
         warehouseInventory.setCurrentQuantity(200);
 
+        // Set up approved user for transfer
+        User approvedUser = new User();
+        approvedUser.setId(UUID.randomUUID());
+        approvedUser.setUsername("approver");
+        testTransfer.setApprovedBy(approvedUser);
+
         when(warehouseInventoryRepository.findByWarehouseIdAndProductId(
             testWarehouse.getId(), testProduct.getId()))
             .thenReturn(Optional.of(warehouseInventory));
@@ -192,6 +201,14 @@ public class TransferRequestInventoryTrackingTest {
             .thenReturn(Optional.of(testWarehouse));
         when(productRepository.findById(testProduct.getId()))
             .thenReturn(Optional.of(testProduct));
+
+        // Capture the WarehouseInventoryWithdrawal that gets saved
+        WarehouseInventoryWithdrawal[] capturedWithdrawal = new WarehouseInventoryWithdrawal[1];
+        when(withdrawalRepository.save(any(WarehouseInventoryWithdrawal.class)))
+            .thenAnswer(invocation -> {
+                capturedWithdrawal[0] = invocation.getArgument(0);
+                return capturedWithdrawal[0];
+            });
 
         // When - simulate deducting from warehouse
         try {
@@ -213,6 +230,36 @@ public class TransferRequestInventoryTrackingTest {
         verify(warehouseRepository, times(1)).findById(testWarehouse.getId());
         // Verify product repository was called to get product for logging
         verify(productRepository, times(1)).findById(testProduct.getId());
+        
+        // ✅ NEW: Verify warehouse withdrawal record was created
+        assertNotNull(capturedWithdrawal[0], "Warehouse withdrawal record should be created");
+        assertEquals(testWarehouse, capturedWithdrawal[0].getWarehouse(), 
+            "Withdrawal record should be for the correct warehouse");
+        assertEquals(testProduct, capturedWithdrawal[0].getProduct(), 
+            "Withdrawal record should be for the correct product");
+        assertEquals(testTransfer.getApprovedQuantity(), capturedWithdrawal[0].getQuantity(), 
+            "Withdrawal record should have the correct quantity");
+        assertEquals(WarehouseInventoryWithdrawal.TransactionType.TRANSFER_OUT, 
+            capturedWithdrawal[0].getTransactionType(), 
+            "Withdrawal record should be marked as TRANSFER_OUT");
+        assertTrue(capturedWithdrawal[0].getReferenceNumber().startsWith("TRANSFER-"), 
+            "Reference number should start with TRANSFER-");
+        assertTrue(capturedWithdrawal[0].getNotes().contains("Outbound transfer"), 
+            "Notes should mention outbound transfer");
+        assertTrue(capturedWithdrawal[0].getNotes().contains(testStore.getStoreName()), 
+            "Notes should include destination store name");
+        assertEquals(testStore.getStoreName(), capturedWithdrawal[0].getDestination(), 
+            "Destination should be the store name");
+        assertEquals(approvedUser.getUsername(), capturedWithdrawal[0].getCreatedBy(), 
+            "Created by should be the approving user");
+        assertEquals(WarehouseInventoryWithdrawal.TransactionStatus.COMPLETED, 
+            capturedWithdrawal[0].getStatus(), 
+            "Status should be COMPLETED");
+        assertEquals(LocalDate.now(), capturedWithdrawal[0].getWithdrawalDate(), 
+            "Withdrawal date should be today");
+        
+        // Verify withdrawal record was saved
+        verify(withdrawalRepository, times(1)).save(any(WarehouseInventoryWithdrawal.class));
     }
 
     @Test
