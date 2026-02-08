@@ -303,6 +303,8 @@ public class TransferRequestInventoryDeductionTimingTest {
         
         when(productRepository.findById(testProduct.getId()))
             .thenReturn(Optional.of(testProduct));
+        when(storeRepository.findById(testStore.getId()))
+            .thenReturn(Optional.of(testStore));
         when(additionRepository.save(any(StoreInventoryAddition.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
 
