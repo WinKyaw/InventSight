@@ -30,6 +30,7 @@ public class TransferRequestService {
     
     private static final Logger logger = LoggerFactory.getLogger(TransferRequestService.class);
     private static final int TRANSFER_ID_PREFIX_LENGTH = 8;
+    private static final String SYSTEM_USER = "system";
     
     @Autowired
     private TransferRequestRepository transferRequestRepository;
@@ -948,7 +949,7 @@ public class TransferRequestService {
         withdrawal.setDestination(transfer.getToStore() != null ? transfer.getToStore().getStoreName() : "Store");
         withdrawal.setNotes("Outbound transfer to " + (transfer.getToStore() != null ? transfer.getToStore().getStoreName() : "store") +
                            " - Transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
-        withdrawal.setCreatedBy(transfer.getApprovedBy() != null ? transfer.getApprovedBy().getUsername() : "system");
+        withdrawal.setCreatedBy(transfer.getApprovedBy() != null ? transfer.getApprovedBy().getUsername() : SYSTEM_USER);
         withdrawal.setWithdrawalDate(LocalDate.now());
         withdrawal.setStatus(WarehouseInventoryWithdrawal.TransactionStatus.COMPLETED);
         
@@ -1042,6 +1043,10 @@ public class TransferRequestService {
             storeProduct = new Product();
             
             // Copy attributes from source product
+            // Note: Explicit copying is intentional here (instead of BeanUtils.copyProperties)
+            // to ensure we only copy specific fields and maintain full control over what gets
+            // transferred to the new store product. This prevents accidental copying of IDs,
+            // timestamps, or other fields that should be unique to the new entity.
             storeProduct.setName(sourceProduct.getName());
             storeProduct.setSku(sourceProduct.getSku());
             storeProduct.setBarcode(sourceProduct.getBarcode());
@@ -1066,7 +1071,7 @@ public class TransferRequestService {
             storeProduct.setWarehouse(null);  // Clear warehouse reference
             storeProduct.setIsActive(true);
             storeProduct.setCreatedBy(transfer.getReceivedByUser() != null ? 
-                transfer.getReceivedByUser().getUsername() : "system");
+                transfer.getReceivedByUser().getUsername() : SYSTEM_USER);
             
             storeProduct = productRepository.save(storeProduct);
             
@@ -1087,7 +1092,7 @@ public class TransferRequestService {
         restockRecord.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
         restockRecord.setNotes("Received from transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH) + sourceDescription);
         restockRecord.setCreatedBy(transfer.getReceivedByUser() != null ? 
-            transfer.getReceivedByUser().getUsername() : "system");
+            transfer.getReceivedByUser().getUsername() : SYSTEM_USER);
         restockRecord.setReceiptDate(LocalDate.now());
         restockRecord.setStatus(StoreInventoryAddition.TransactionStatus.COMPLETED);
         
