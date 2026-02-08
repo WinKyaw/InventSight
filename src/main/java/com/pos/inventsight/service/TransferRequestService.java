@@ -988,12 +988,15 @@ public class TransferRequestService {
         // Get the destination store from the transfer's toLocationId
         // This is the correct source - transfer knows the destination store
         Store destinationStore = storeRepository.findById(transfer.getToLocationId())
-            .orElseThrow(() -> new RuntimeException("Destination store not found with ID: " + transfer.getToLocationId()));
+            .orElseThrow(() -> new RuntimeException("Destination store not found for transfer to location ID: " + transfer.getToLocationId()));
         
         // Update product quantity
         Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
         product.setQuantity(currentQty + quantity);
         productRepository.save(product);
+        
+        // Build transfer source description for notes
+        String sourceDescription = getTransferSourceDescription(transfer);
         
         // Create restock history record using the destination store from transfer
         StoreInventoryAddition restockRecord = new StoreInventoryAddition(
@@ -1003,9 +1006,7 @@ public class TransferRequestService {
         );
         restockRecord.setTransactionType(StoreInventoryAddition.TransactionType.TRANSFER_IN);
         restockRecord.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
-        restockRecord.setNotes("Received from transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH) + 
-                              (transfer.getFromWarehouse() != null ? " from warehouse: " + transfer.getFromWarehouse().getName() : 
-                               " from store: " + (transfer.getFromStore() != null ? transfer.getFromStore().getStoreName() : "Unknown")));
+        restockRecord.setNotes("Received from transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH) + sourceDescription);
         restockRecord.setCreatedBy(transfer.getReceivedByUser() != null ? 
             transfer.getReceivedByUser().getUsername() : "system");
         restockRecord.setReceiptDate(LocalDate.now());
@@ -1015,6 +1016,19 @@ public class TransferRequestService {
         
         logger.info("✅ Added {} units to store {} inventory for product {} and created restock history record from transfer {}", 
             quantity, destinationStore.getStoreName(), productId, transfer.getId());
+    }
+    
+    /**
+     * Get the source location description for transfer notes
+     */
+    private String getTransferSourceDescription(TransferRequest transfer) {
+        if (transfer.getFromWarehouse() != null) {
+            return " from warehouse: " + transfer.getFromWarehouse().getName();
+        } else if (transfer.getFromStore() != null) {
+            return " from store: " + transfer.getFromStore().getStoreName();
+        } else {
+            return " from Unknown";
+        }
     }
     
     /**
