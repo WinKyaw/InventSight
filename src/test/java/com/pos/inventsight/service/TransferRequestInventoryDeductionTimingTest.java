@@ -43,6 +43,9 @@ public class TransferRequestInventoryDeductionTimingTest {
     @Mock
     private StoreInventoryAdditionRepository additionRepository;
 
+    @Mock
+    private WarehouseInventoryWithdrawalRepository withdrawalRepository;
+
     @InjectMocks
     private TransferRequestService transferRequestService;
 
