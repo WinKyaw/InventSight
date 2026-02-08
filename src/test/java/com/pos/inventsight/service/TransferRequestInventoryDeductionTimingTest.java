@@ -306,6 +306,9 @@ public class TransferRequestInventoryDeductionTimingTest {
         
         when(productRepository.findById(testProduct.getId()))
             .thenReturn(Optional.of(testProduct));
+        // Mock findBySkuAndStoreId to return the existing store product
+        when(productRepository.findBySkuAndStoreId(testProduct.getSku(), testStore.getId()))
+            .thenReturn(Optional.of(testProduct));
         when(storeRepository.findById(testStore.getId()))
             .thenReturn(Optional.of(testStore));
         when(additionRepository.save(any(StoreInventoryAddition.class)))

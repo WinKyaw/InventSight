@@ -117,6 +117,9 @@ public class TransferRequestInventoryTrackingTest {
 
         lenient().when(productRepository.findById(testProduct.getId()))
             .thenReturn(Optional.of(testProduct));
+        // Mock findBySkuAndStoreId to return the existing store product
+        lenient().when(productRepository.findBySkuAndStoreId(testProduct.getSku(), testStore.getId()))
+            .thenReturn(Optional.of(testProduct));
         lenient().when(warehouseInventoryRepository.findByWarehouseIdAndProductId(
             testWarehouse.getId(), testProduct.getId()))
             .thenReturn(Optional.of(warehouseInventory));
@@ -274,6 +277,9 @@ public class TransferRequestInventoryTrackingTest {
         warehouseInventory.setCurrentQuantity(200);
 
         lenient().when(productRepository.findById(testProduct.getId()))
+            .thenReturn(Optional.of(testProduct));
+        // Mock findBySkuAndStoreId to return the existing store product
+        lenient().when(productRepository.findBySkuAndStoreId(testProduct.getSku(), testStore.getId()))
             .thenReturn(Optional.of(testProduct));
         lenient().when(warehouseInventoryRepository.findByWarehouseIdAndProductId(
             testWarehouse.getId(), testProduct.getId()))
