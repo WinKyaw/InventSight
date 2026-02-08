@@ -9,6 +9,8 @@ import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.service.TransferRequestService;
 import com.pos.inventsight.service.TransferPermissionService;
 import com.pos.inventsight.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +28,8 @@ import java.util.*;
 @RequestMapping("/transfers")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class TransferRequestController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(TransferRequestController.class);
     
     @Autowired
     private TransferRequestService transferRequestService;
@@ -674,6 +678,10 @@ public class TransferRequestController {
             String username = authentication.getName();
             User currentUser = userService.getUserByUsername(username);
             
+            // ✅ Log entry point with key parameters
+            logger.info("🔍 RECEIVE TRANSFER ENDPOINT - transferId: {}, receivedQty: {}, user: {}", 
+                id, receiptData.getReceivedQuantity(), username);
+            
             TransferRequest transfer = transferRequestService.getTransferRequestById(id);
             
             // Validate permission
@@ -695,6 +703,8 @@ public class TransferRequestController {
                 }
             }
             
+            logger.debug("Processing transfer receipt for transfer: {}", id);
+            
             TransferRequest received = transferRequestService.receiveTransfer(
                 id,
                 receiptData.getReceivedQuantity(),
@@ -705,6 +715,8 @@ public class TransferRequestController {
                 currentUser
             );
             
+            logger.info("✅ Transfer receipt service completed - Building response for transfer: {}", id);
+            
             // Calculate new available actions
             List<String> availableActions = transferPermissionService.getAvailableActions(received, currentUser);
             
@@ -714,12 +726,46 @@ public class TransferRequestController {
             response.put("request", received);
             response.put("availableActions", availableActions);
             
+            logger.info("✅ TRANSFER RECEIPT SUCCESS - Returning 200 OK for transfer: {}", id);
             return ResponseEntity.ok(response);
             
         } catch (IllegalStateException | IllegalArgumentException e) {
+            // ✅ Enhanced validation error logging
+            logger.error("❌ Validation error in receiveTransfer - transferId: {}, error: {}", 
+                id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse(false, e.getMessage()));
         } catch (Exception e) {
+            // ✅ COMPREHENSIVE EXCEPTION LOGGING
+            logger.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            logger.error("❌❌❌ EXCEPTION in receiveTransfer endpoint");
+            logger.error("Transfer ID: {}", id);
+            logger.error("Received Quantity: {}", receiptData.getReceivedQuantity());
+            logger.error("Exception Type: {}", e.getClass().getName());
+            logger.error("Exception Message: {}", e.getMessage());
+            logger.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            // ✅ Log the complete stack trace
+            logger.error("Full Stack Trace:", e);
+            
+            // ✅ Log all nested causes to find root cause
+            Throwable cause = e.getCause();
+            int depth = 1;
+            while (cause != null) {
+                logger.error("❌ Caused By #{}: {}", depth, cause.getClass().getName());
+                logger.error("   Message: {}", cause.getMessage());
+                
+                // Log stack trace for each cause
+                if (depth <= 3) {  // Limit to first 3 levels to avoid log spam
+                    logger.error("   Stack Trace:", cause);
+                }
+                
+                cause = cause.getCause();
+                depth++;
+            }
+            
+            logger.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to complete transfer: " + e.getMessage()));
         }
