@@ -8,6 +8,7 @@ import com.pos.inventsight.repository.sql.StoreRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
 import com.pos.inventsight.repository.sql.StoreInventoryAdditionRepository;
+import com.pos.inventsight.repository.sql.WarehouseInventoryWithdrawalRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,9 @@ public class TransferRequestService {
     
     @Autowired
     private StoreInventoryAdditionRepository additionRepository;
+    
+    @Autowired
+    private WarehouseInventoryWithdrawalRepository withdrawalRepository;
     
     /**
      * Create a new transfer request
@@ -912,7 +916,7 @@ public class TransferRequestService {
     }
     
     /**
-     * Deduct inventory from warehouse
+     * Deduct inventory from warehouse and create withdrawal log
      */
     private void deductFromWarehouseInventory(UUID warehouseId, UUID productId, Integer quantity, TransferRequest transfer) {
         WarehouseInventory inventory = warehouseInventoryRepository
@@ -927,10 +931,31 @@ public class TransferRequestService {
         inventory.setCurrentQuantity(currentQty - quantity);
         warehouseInventoryRepository.save(inventory);
         
-        // Log warehouse shipment
-        logWarehouseShipment(warehouseId, productId, quantity, transfer);
+        // ✅ CREATE WAREHOUSE WITHDRAWAL RECORD (shows in "Sales" tab)
+        Warehouse warehouse = warehouseRepository.findById(warehouseId)
+            .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
         
-        logger.info("Deducted {} units from warehouse {} for product {}", quantity, warehouseId, productId);
+        WarehouseInventoryWithdrawal withdrawal = new WarehouseInventoryWithdrawal(
+            warehouse,
+            product,
+            quantity,
+            "Transfer to " + (transfer.getToStore() != null ? transfer.getToStore().getStoreName() : "store")
+        );
+        withdrawal.setTransactionType(WarehouseInventoryWithdrawal.TransactionType.TRANSFER_OUT);
+        withdrawal.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
+        withdrawal.setDestination(transfer.getToStore() != null ? transfer.getToStore().getStoreName() : "Store");
+        withdrawal.setNotes("Outbound transfer to " + (transfer.getToStore() != null ? transfer.getToStore().getStoreName() : "store") +
+                           " - Transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
+        withdrawal.setCreatedBy(transfer.getApprovedBy() != null ? transfer.getApprovedBy().getUsername() : "system");
+        withdrawal.setWithdrawalDate(LocalDate.now());
+        withdrawal.setStatus(WarehouseInventoryWithdrawal.TransactionStatus.COMPLETED);
+        
+        withdrawalRepository.save(withdrawal);
+        
+        logger.info("✅ Deducted {} units from warehouse {} and created withdrawal log for transfer {}", 
+            quantity, warehouseId, transfer.getId());
     }
     
     /**
@@ -982,25 +1007,40 @@ public class TransferRequestService {
      * Add inventory to store (product quantity) and create restock history
      */
     private void addToStoreInventory(UUID productId, Integer quantity, TransferRequest transfer) {
+        // ✅ Get the destination store from the transfer
+        Store destinationStore = storeRepository.findById(transfer.getToLocationId())
+            .orElseThrow(() -> new RuntimeException("Destination store not found with ID: " + transfer.getToLocationId()));
+        
+        // ✅ Get the product - this should be the store's product
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new RuntimeException("Product not found"));
         
-        // Get the destination store from the transfer's toLocationId
-        // This is the correct source - transfer knows the destination store
-        Store destinationStore = storeRepository.findById(transfer.getToLocationId())
-            .orElseThrow(() -> new RuntimeException("Destination store not found for transfer to location ID: " + transfer.getToLocationId()));
+        // ✅ CRITICAL: Verify product belongs to destination store, or associate it
+        if (product.getStore() == null) {
+            // Product from warehouse - associate with store
+            product.setStore(destinationStore);
+            logger.info("Associated product {} with store {}", product.getName(), destinationStore.getStoreName());
+        } else if (!product.getStore().getId().equals(destinationStore.getId())) {
+            logger.warn("Product {} belongs to different store ({}), expected store: {}", 
+                product.getName(), product.getStore().getStoreName(), destinationStore.getStoreName());
+            // Still update it - this might be intentional for multi-store products
+        }
         
-        // Update product quantity
+        // ✅ Update product quantity
         Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
-        product.setQuantity(currentQty + quantity);
+        Integer newQty = currentQty + quantity;
+        product.setQuantity(newQty);
         productRepository.save(product);
+        
+        logger.info("✅ Updated product {} quantity: {} → {} at store {}", 
+            product.getName(), currentQty, newQty, destinationStore.getStoreName());
         
         // Build transfer source description for notes
         String sourceDescription = getTransferSourceDescription(transfer);
         
-        // Create restock history record using the destination store from transfer
+        // ✅ Create restock history record (already working correctly)
         StoreInventoryAddition restockRecord = new StoreInventoryAddition(
-            destinationStore,
+            destinationStore,  // ✅ Store from transfer, not from product
             product,
             quantity
         );
@@ -1014,8 +1054,7 @@ public class TransferRequestService {
         
         additionRepository.save(restockRecord);
         
-        logger.info("✅ Added {} units to store {} inventory for product {} and created restock history record from transfer {}", 
-            quantity, destinationStore.getStoreName(), productId, transfer.getId());
+        logger.info("✅ Created restock record for {} units at store {}", quantity, destinationStore.getStoreName());
     }
     
     /**
