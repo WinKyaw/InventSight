@@ -119,6 +119,8 @@ public class TransferRequestInventoryTrackingTest {
             .thenReturn(Optional.of(warehouseInventory));
         lenient().when(warehouseRepository.findById(testWarehouse.getId()))
             .thenReturn(Optional.of(testWarehouse));
+        lenient().when(storeRepository.findById(testStore.getId()))
+            .thenReturn(Optional.of(testStore));
 
         // Capture the StoreInventoryAddition that gets saved
         StoreInventoryAddition[] capturedAddition = new StoreInventoryAddition[1];
@@ -231,6 +233,8 @@ public class TransferRequestInventoryTrackingTest {
             .thenReturn(Optional.of(warehouseInventory));
         lenient().when(warehouseRepository.findById(testWarehouse.getId()))
             .thenReturn(Optional.of(testWarehouse));
+        lenient().when(storeRepository.findById(testStore.getId()))
+            .thenReturn(Optional.of(testStore));
 
         StoreInventoryAddition[] capturedAddition = new StoreInventoryAddition[1];
         when(additionRepository.save(any(StoreInventoryAddition.class)))
