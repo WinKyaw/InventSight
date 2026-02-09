@@ -33,6 +33,9 @@ public class TransferRequestProductInfoTest {
     @Mock
     private StoreRepository storeRepository;
     
+    @Mock
+    private TransferLocationRepository transferLocationRepository;
+    
     @InjectMocks
     private TransferRequestService transferRequestService;
     
@@ -84,6 +87,15 @@ public class TransferRequestProductInfoTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(warehouseRepository.findById(fromLocationId)).thenReturn(Optional.of(warehouse));
         when(storeRepository.findById(toLocationId)).thenReturn(Optional.of(store));
+        
+        // Mock TransferLocationRepository
+        TransferLocation fromTransferLocation = new TransferLocation(warehouse);
+        TransferLocation toTransferLocation = new TransferLocation(store);
+        when(transferLocationRepository.findByWarehouseId(fromLocationId)).thenReturn(Optional.empty());
+        when(transferLocationRepository.findByStoreId(toLocationId)).thenReturn(Optional.empty());
+        when(transferLocationRepository.save(any(TransferLocation.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        
         when(transferRequestRepository.save(any(TransferRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
         
         // Act
@@ -133,6 +145,10 @@ public class TransferRequestProductInfoTest {
         when(productRepository.findById(invalidProductId)).thenReturn(Optional.empty());
         when(warehouseRepository.findById(fromLocationId)).thenReturn(Optional.of(warehouse));
         when(storeRepository.findById(toLocationId)).thenReturn(Optional.of(store));
+        
+        // Mock TransferLocationRepository for validation
+        when(transferLocationRepository.findByWarehouseId(fromLocationId)).thenReturn(Optional.empty());
+        when(transferLocationRepository.findByStoreId(toLocationId)).thenReturn(Optional.empty());
         
         // Act & Assert
         ResourceNotFoundException exception = assertThrows(
