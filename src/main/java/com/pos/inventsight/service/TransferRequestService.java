@@ -9,6 +9,7 @@ import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
 import com.pos.inventsight.repository.sql.StoreInventoryAdditionRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryWithdrawalRepository;
+import com.pos.inventsight.repository.sql.TransferLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,9 @@ public class TransferRequestService {
     
     @Autowired
     private WarehouseInventoryWithdrawalRepository withdrawalRepository;
+    
+    @Autowired
+    private TransferLocationRepository transferLocationRepository;
     
     /**
      * Create a new transfer request
@@ -211,6 +215,18 @@ public class TransferRequestService {
         validateLocations(request.getFromLocationType(), request.getFromLocationId(),
                          request.getToLocationType(), request.getToLocationId());
         
+        // ✅ Create or find TransferLocation for source
+        TransferLocation fromLocation = createTransferLocation(
+            request.getFromLocationType(),
+            request.getFromLocationId()
+        );
+        
+        // ✅ Create or find TransferLocation for destination
+        TransferLocation toLocation = createTransferLocation(
+            request.getToLocationType(),
+            request.getToLocationId()
+        );
+        
         // Fetch Product entity to populate denormalized fields
         Product product = productRepository.findById(request.getProductId())
             .orElseThrow(() -> new ResourceNotFoundException(
@@ -234,11 +250,20 @@ public class TransferRequestService {
         request.setStatus(TransferRequestStatus.PENDING);
         request.setIsReceiptConfirmed(false);
         
-        // Also set legacy fields for backward compatibility
+        // ✅ Set new transfer location relationships
+        request.setFromTransferLocation(fromLocation);
+        request.setToTransferLocation(toLocation);
+        
+        // Keep legacy fields for backward compatibility (will deprecate in v0.3.0)
         if ("WAREHOUSE".equals(request.getFromLocationType())) {
             warehouseRepository.findById(request.getFromLocationId()).ifPresent(request::setFromWarehouse);
+        } else if ("STORE".equals(request.getFromLocationType())) {
+            storeRepository.findById(request.getFromLocationId()).ifPresent(request::setFromStore);
         }
-        if ("STORE".equals(request.getToLocationType())) {
+        
+        if ("WAREHOUSE".equals(request.getToLocationType())) {
+            warehouseRepository.findById(request.getToLocationId()).ifPresent(request::setToWarehouse);
+        } else if ("STORE".equals(request.getToLocationType())) {
             storeRepository.findById(request.getToLocationId()).ifPresent(request::setToStore);
         }
         
@@ -247,8 +272,8 @@ public class TransferRequestService {
         logger.info("Transfer request created: Product={} ({}), Quantity={}, From={}:{}, To={}:{}", 
             savedRequest.getProductName(), savedRequest.getProductSku(),
             savedRequest.getRequestedQuantity(),
-            savedRequest.getFromLocationType(), savedRequest.getFromLocationId(),
-            savedRequest.getToLocationType(), savedRequest.getToLocationId());
+            savedRequest.getFromLocationTypeNew(), savedRequest.getFromLocationIdNew(),
+            savedRequest.getToLocationTypeNew(), savedRequest.getToLocationIdNew());
         
         return savedRequest;
     }
@@ -1136,6 +1161,38 @@ public class TransferRequestService {
         
         // Log to activity log service if available
         logger.info("📦 Warehouse shipment: {}", activity);
+    }
+    
+    /**
+     * Create or find TransferLocation for given type and ID
+     */
+    private TransferLocation createTransferLocation(String locationType, UUID locationId) {
+        switch (locationType) {
+            case "WAREHOUSE":
+                Warehouse warehouse = warehouseRepository.findById(locationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found: " + locationId));
+                
+                // Find existing or create new
+                return transferLocationRepository.findByWarehouseId(locationId)
+                    .orElseGet(() -> {
+                        TransferLocation location = new TransferLocation(warehouse);
+                        return transferLocationRepository.save(location);
+                    });
+            
+            case "STORE":
+                Store store = storeRepository.findById(locationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + locationId));
+                
+                // Find existing or create new
+                return transferLocationRepository.findByStoreId(locationId)
+                    .orElseGet(() -> {
+                        TransferLocation location = new TransferLocation(store);
+                        return transferLocationRepository.save(location);
+                    });
+            
+            default:
+                throw new IllegalArgumentException("Invalid location type: " + locationType);
+        }
     }
     
     /**
