@@ -46,7 +46,11 @@ INSERT INTO transfer_locations (location_type, warehouse_id)
 SELECT DISTINCT 'WAREHOUSE', from_warehouse_id
 FROM transfer_requests
 WHERE from_warehouse_id IS NOT NULL
-ON CONFLICT DO NOTHING;
+  AND NOT EXISTS (
+    SELECT 1 FROM transfer_locations tl 
+    WHERE tl.warehouse_id = transfer_requests.from_warehouse_id 
+      AND tl.location_type = 'WAREHOUSE'
+  );
 
 -- For destination warehouses
 INSERT INTO transfer_locations (location_type, warehouse_id)
@@ -64,7 +68,11 @@ INSERT INTO transfer_locations (location_type, store_id)
 SELECT DISTINCT 'STORE', from_store_id
 FROM transfer_requests
 WHERE from_store_id IS NOT NULL
-ON CONFLICT DO NOTHING;
+  AND NOT EXISTS (
+    SELECT 1 FROM transfer_locations tl 
+    WHERE tl.store_id = transfer_requests.from_store_id 
+      AND tl.location_type = 'STORE'
+  );
 
 -- For destination stores
 INSERT INTO transfer_locations (location_type, store_id)
