@@ -88,13 +88,16 @@ public class TransferRequestProductInfoTest {
         when(warehouseRepository.findById(fromLocationId)).thenReturn(Optional.of(warehouse));
         when(storeRepository.findById(toLocationId)).thenReturn(Optional.of(store));
         
-        // Mock TransferLocationRepository
-        TransferLocation fromTransferLocation = new TransferLocation(warehouse);
-        TransferLocation toTransferLocation = new TransferLocation(store);
-        when(transferLocationRepository.findByWarehouseId(fromLocationId)).thenReturn(Optional.empty());
-        when(transferLocationRepository.findByStoreId(toLocationId)).thenReturn(Optional.empty());
+        // Mock TransferLocationRepository - using new route-based model
+        TransferLocation route = new TransferLocation(
+            fromLocationId, "WAREHOUSE", "Main Warehouse",
+            toLocationId, "STORE", "Downtown Store"
+        );
+        when(transferLocationRepository.findByFromAndTo(
+            fromLocationId, "WAREHOUSE", toLocationId, "STORE"
+        )).thenReturn(Optional.empty());
         when(transferLocationRepository.save(any(TransferLocation.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+            .thenReturn(route);
         
         when(transferRequestRepository.save(any(TransferRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
         
@@ -146,9 +149,10 @@ public class TransferRequestProductInfoTest {
         when(warehouseRepository.findById(fromLocationId)).thenReturn(Optional.of(warehouse));
         when(storeRepository.findById(toLocationId)).thenReturn(Optional.of(store));
         
-        // Mock TransferLocationRepository for validation
-        when(transferLocationRepository.findByWarehouseId(fromLocationId)).thenReturn(Optional.empty());
-        when(transferLocationRepository.findByStoreId(toLocationId)).thenReturn(Optional.empty());
+        // Mock TransferLocationRepository for validation - using new route-based model
+        when(transferLocationRepository.findByFromAndTo(
+            fromLocationId, "WAREHOUSE", toLocationId, "STORE"
+        )).thenReturn(Optional.empty());
         
         // Act & Assert
         ResourceNotFoundException exception = assertThrows(
