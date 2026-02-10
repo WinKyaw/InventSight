@@ -9,11 +9,17 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Polymorphic location reference for transfers.
- * Represents a location that can be a WAREHOUSE, STORE, or MERCHANT (future).
+ * Transfer route representing a complete transfer path from one location to another.
+ * Refactored in V39 to represent routes (from → to) instead of single locations.
  * 
- * This design enforces that exactly ONE location type is set via database constraints
- * and entity-level validation.
+ * A TransferLocation now encapsulates:
+ * - Source location (from_id, from_location_type, from_name)
+ * - Destination location (to_id, to_location_type, to_name)
+ * 
+ * This design:
+ * - Simplifies transfer_requests (1 FK instead of 2)
+ * - Enables route-level caching and reuse
+ * - Denormalizes names for performance
  */
 @Entity
 @Table(name = "transfer_locations")
@@ -26,39 +32,29 @@ public class TransferLocation {
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
     private UUID id;
 
-    @NotNull(message = "Location type is required")
-    @Enumerated(EnumType.STRING)
-    @Column(name = "location_type", nullable = false, length = 20)
-    private LocationType locationType;
+    // === SOURCE LOCATION ===
+    @NotNull(message = "Source location ID is required")
+    @Column(name = "from_id", nullable = false, columnDefinition = "UUID")
+    private UUID fromId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "warehouse_id")
-    @JsonIgnoreProperties({
-        "hibernateLazyInitializer",
-        "handler",
-        "company",
-        "createdAt",
-        "updatedAt",
-        "createdBy",
-        "updatedBy"
-    })
-    private Warehouse warehouse;
+    @NotNull(message = "Source location type is required")
+    @Column(name = "from_location_type", nullable = false, length = 20)
+    private String fromLocationType; // "WAREHOUSE", "STORE", or "MERCHANT"
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
-    @JsonIgnoreProperties({
-        "hibernateLazyInitializer",
-        "handler",
-        "company",
-        "createdAt",
-        "updatedAt",
-        "createdBy",
-        "updatedBy"
-    })
-    private Store store;
+    @Column(name = "from_name", length = 255)
+    private String fromName; // Denormalized for quick access
 
-    @Column(name = "merchant_id", columnDefinition = "UUID")
-    private UUID merchantId; // Future: will be FK to merchants table
+    // === DESTINATION LOCATION ===
+    @NotNull(message = "Destination location ID is required")
+    @Column(name = "to_id", nullable = false, columnDefinition = "UUID")
+    private UUID toId;
+
+    @NotNull(message = "Destination location type is required")
+    @Column(name = "to_location_type", nullable = false, length = 20)
+    private String toLocationType; // "WAREHOUSE", "STORE", or "MERCHANT"
+
+    @Column(name = "to_name", length = 255)
+    private String toName; // Denormalized for quick access
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -67,23 +63,49 @@ public class TransferLocation {
     public TransferLocation() {
     }
 
-    public TransferLocation(Warehouse warehouse) {
-        this.locationType = LocationType.WAREHOUSE;
-        this.warehouse = warehouse;
-    }
-
-    public TransferLocation(Store store) {
-        this.locationType = LocationType.STORE;
-        this.store = store;
+    public TransferLocation(UUID fromId, String fromLocationType, String fromName,
+                           UUID toId, String toLocationType, String toName) {
+        this.fromId = fromId;
+        this.fromLocationType = fromLocationType;
+        this.fromName = fromName;
+        this.toId = toId;
+        this.toLocationType = toLocationType;
+        this.toName = toName;
+        this.createdAt = LocalDateTime.now();
     }
 
     // Static factory methods
-    public static TransferLocation forWarehouse(Warehouse warehouse) {
-        return new TransferLocation(warehouse);
+    public static TransferLocation createRoute(UUID fromId, String fromLocationType, String fromName,
+                                              UUID toId, String toLocationType, String toName) {
+        return new TransferLocation(fromId, fromLocationType, fromName, toId, toLocationType, toName);
     }
 
-    public static TransferLocation forStore(Store store) {
-        return new TransferLocation(store);
+    public static TransferLocation createRoute(Warehouse fromWarehouse, Store toStore) {
+        return new TransferLocation(
+            fromWarehouse.getId(), "WAREHOUSE", fromWarehouse.getName(),
+            toStore.getId(), "STORE", toStore.getStoreName()
+        );
+    }
+
+    public static TransferLocation createRoute(Store fromStore, Warehouse toWarehouse) {
+        return new TransferLocation(
+            fromStore.getId(), "STORE", fromStore.getStoreName(),
+            toWarehouse.getId(), "WAREHOUSE", toWarehouse.getName()
+        );
+    }
+
+    public static TransferLocation createRoute(Store fromStore, Store toStore) {
+        return new TransferLocation(
+            fromStore.getId(), "STORE", fromStore.getStoreName(),
+            toStore.getId(), "STORE", toStore.getStoreName()
+        );
+    }
+
+    public static TransferLocation createRoute(Warehouse fromWarehouse, Warehouse toWarehouse) {
+        return new TransferLocation(
+            fromWarehouse.getId(), "WAREHOUSE", fromWarehouse.getName(),
+            toWarehouse.getId(), "WAREHOUSE", toWarehouse.getName()
+        );
     }
 
     // Getters and Setters
@@ -95,51 +117,52 @@ public class TransferLocation {
         this.id = id;
     }
 
-    public LocationType getLocationType() {
-        return locationType;
+    public UUID getFromId() {
+        return fromId;
     }
 
-    public void setLocationType(LocationType locationType) {
-        this.locationType = locationType;
+    public void setFromId(UUID fromId) {
+        this.fromId = fromId;
     }
 
-    public Warehouse getWarehouse() {
-        return warehouse;
+    public String getFromLocationType() {
+        return fromLocationType;
     }
 
-    public void setWarehouse(Warehouse warehouse) {
-        this.warehouse = warehouse;
-        if (warehouse != null) {
-            this.locationType = LocationType.WAREHOUSE;
-            this.store = null;
-            this.merchantId = null;
-        }
+    public void setFromLocationType(String fromLocationType) {
+        this.fromLocationType = fromLocationType;
     }
 
-    public Store getStore() {
-        return store;
+    public String getFromName() {
+        return fromName;
     }
 
-    public void setStore(Store store) {
-        this.store = store;
-        if (store != null) {
-            this.locationType = LocationType.STORE;
-            this.warehouse = null;
-            this.merchantId = null;
-        }
+    public void setFromName(String fromName) {
+        this.fromName = fromName;
     }
 
-    public UUID getMerchantId() {
-        return merchantId;
+    public UUID getToId() {
+        return toId;
     }
 
-    public void setMerchantId(UUID merchantId) {
-        this.merchantId = merchantId;
-        if (merchantId != null) {
-            this.locationType = LocationType.MERCHANT;
-            this.warehouse = null;
-            this.store = null;
-        }
+    public void setToId(UUID toId) {
+        this.toId = toId;
+    }
+
+    public String getToLocationType() {
+        return toLocationType;
+    }
+
+    public void setToLocationType(String toLocationType) {
+        this.toLocationType = toLocationType;
+    }
+
+    public String getToName() {
+        return toName;
+    }
+
+    public void setToName(String toName) {
+        this.toName = toName;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -150,53 +173,25 @@ public class TransferLocation {
         this.createdAt = createdAt;
     }
 
-    // Helper methods
-    public UUID getLocationId() {
-        switch (locationType) {
-            case WAREHOUSE:
-                return warehouse != null ? warehouse.getId() : null;
-            case STORE:
-                return store != null ? store.getId() : null;
-            case MERCHANT:
-                return merchantId;
-            default:
-                return null;
-        }
-    }
-
-    public String getLocationName() {
-        switch (locationType) {
-            case WAREHOUSE:
-                return warehouse != null ? warehouse.getName() : "Unknown Warehouse";
-            case STORE:
-                return store != null ? store.getStoreName() : "Unknown Store";
-            case MERCHANT:
-                return "Merchant #" + merchantId;
-            default:
-                return "Unknown Location";
-        }
-    }
-
     /**
-     * Validate that exactly ONE location is set before persisting
+     * Validate that source and destination are different before persisting
      */
     @PrePersist
     @PreUpdate
     public void validate() {
-        int count = 0;
-        if (warehouse != null) count++;
-        if (store != null) count++;
-        if (merchantId != null) count++;
+        if (fromId == null || toId == null) {
+            throw new IllegalStateException("TransferLocation must have both source and destination set");
+        }
         
-        if (count != 1) {
-            throw new IllegalStateException("TransferLocation must have exactly ONE location set");
+        if (fromId.equals(toId) && fromLocationType != null && fromLocationType.equals(toLocationType)) {
+            throw new IllegalStateException("TransferLocation source and destination must be different");
         }
     }
 
-    // Enum for location types
-    public enum LocationType {
-        WAREHOUSE,
-        STORE,
-        MERCHANT
+    @Override
+    public String toString() {
+        return String.format("TransferLocation[%s:%s (%s) → %s:%s (%s)]",
+            fromLocationType, fromId, fromName,
+            toLocationType, toId, toName);
     }
 }

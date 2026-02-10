@@ -180,22 +180,14 @@ public class TransferRequest {
     @Column(name = "to_location_id")
     private UUID toLocationId;
     
-    // ===== NEW POLYMORPHIC LOCATION RELATIONSHIPS (v0.2.1) =====
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "from_transfer_location_id")
+    // ===== TRANSFER LOCATION (v39 - Route-based model) =====
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "transfer_location_id")
     @JsonIgnoreProperties({
         "hibernateLazyInitializer",
         "handler"
     })
-    private TransferLocation fromTransferLocation;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "to_transfer_location_id")
-    @JsonIgnoreProperties({
-        "hibernateLazyInitializer",
-        "handler"
-    })
-    private TransferLocation toTransferLocation;
+    private TransferLocation transferLocation;
     
     // Item details
     @Column(name = "item_name")
@@ -839,42 +831,38 @@ public class TransferRequest {
         this.packingNotes = packingNotes;
     }
     
-    // ===== NEW POLYMORPHIC LOCATION GETTERS/SETTERS (v0.2.1) =====
-    public TransferLocation getFromTransferLocation() {
-        return fromTransferLocation;
+    // ===== TRANSFER LOCATION GETTERS/SETTERS (v39) =====
+    public TransferLocation getTransferLocation() {
+        return transferLocation;
     }
 
-    public void setFromTransferLocation(TransferLocation fromTransferLocation) {
-        this.fromTransferLocation = fromTransferLocation;
+    public void setTransferLocation(TransferLocation transferLocation) {
+        this.transferLocation = transferLocation;
     }
 
-    public TransferLocation getToTransferLocation() {
-        return toTransferLocation;
-    }
-
-    public void setToTransferLocation(TransferLocation toTransferLocation) {
-        this.toTransferLocation = toTransferLocation;
-    }
-
-    // Helper methods for backward compatibility and convenience
+    // Helper methods for backward compatibility
     public String getFromLocationTypeNew() {
-        return fromTransferLocation != null && fromTransferLocation.getLocationType() != null 
-            ? fromTransferLocation.getLocationType().name() 
-            : null;
+        return transferLocation != null ? transferLocation.getFromLocationType() : null;
     }
 
     public UUID getFromLocationIdNew() {
-        return fromTransferLocation != null ? fromTransferLocation.getLocationId() : null;
+        return transferLocation != null ? transferLocation.getFromId() : null;
+    }
+
+    public String getFromLocationNameNew() {
+        return transferLocation != null ? transferLocation.getFromName() : null;
     }
 
     public String getToLocationTypeNew() {
-        return toTransferLocation != null && toTransferLocation.getLocationType() != null 
-            ? toTransferLocation.getLocationType().name() 
-            : null;
+        return transferLocation != null ? transferLocation.getToLocationType() : null;
     }
 
     public UUID getToLocationIdNew() {
-        return toTransferLocation != null ? toTransferLocation.getLocationId() : null;
+        return transferLocation != null ? transferLocation.getToId() : null;
+    }
+
+    public String getToLocationNameNew() {
+        return transferLocation != null ? transferLocation.getToName() : null;
     }
     
     // Calculated field

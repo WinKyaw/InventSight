@@ -215,16 +215,10 @@ public class TransferRequestService {
         validateLocations(request.getFromLocationType(), request.getFromLocationId(),
                          request.getToLocationType(), request.getToLocationId());
         
-        // ✅ Create or find TransferLocation for source
-        TransferLocation fromLocation = createTransferLocation(
-            request.getFromLocationType(),
-            request.getFromLocationId()
-        );
-        
-        // ✅ Create or find TransferLocation for destination
-        TransferLocation toLocation = createTransferLocation(
-            request.getToLocationType(),
-            request.getToLocationId()
+        // ✅ Create or find TransferLocation route (from → to)
+        TransferLocation route = findOrCreateTransferRoute(
+            request.getFromLocationType(), request.getFromLocationId(),
+            request.getToLocationType(), request.getToLocationId()
         );
         
         // Fetch Product entity to populate denormalized fields
@@ -250,11 +244,10 @@ public class TransferRequestService {
         request.setStatus(TransferRequestStatus.PENDING);
         request.setIsReceiptConfirmed(false);
         
-        // ✅ Set new transfer location relationships
-        request.setFromTransferLocation(fromLocation);
-        request.setToTransferLocation(toLocation);
+        // ✅ Set new transfer location relationship
+        request.setTransferLocation(route);
         
-        // Keep legacy fields for backward compatibility (will deprecate in v0.3.0)
+        // Keep legacy fields for backward compatibility (will deprecate in future version)
         if ("WAREHOUSE".equals(request.getFromLocationType())) {
             warehouseRepository.findById(request.getFromLocationId()).ifPresent(request::setFromWarehouse);
         } else if ("STORE".equals(request.getFromLocationType())) {
@@ -269,7 +262,7 @@ public class TransferRequestService {
         
         TransferRequest savedRequest = transferRequestRepository.save(request);
         
-        logger.info("Transfer request created: Product={} ({}), Quantity={}, From={}:{}, To={}:{}", 
+        logger.info("Transfer request created: Product={} ({}), Quantity={}, Route={}:{} → {}:{}", 
             savedRequest.getProductName(), savedRequest.getProductSku(),
             savedRequest.getRequestedQuantity(),
             savedRequest.getFromLocationTypeNew(), savedRequest.getFromLocationIdNew(),
@@ -1164,31 +1157,52 @@ public class TransferRequestService {
     }
     
     /**
-     * Create or find TransferLocation for given type and ID
+     * Find or create TransferLocation route for given from/to locations
      */
-    private TransferLocation createTransferLocation(String locationType, UUID locationId) {
+    private TransferLocation findOrCreateTransferRoute(String fromType, UUID fromId, 
+                                                      String toType, UUID toId) {
+        // Try to find existing route
+        Optional<TransferLocation> existing = transferLocationRepository.findByFromAndTo(
+            fromId, fromType, toId, toType
+        );
+        
+        if (existing.isPresent()) {
+            logger.debug("Found existing transfer route: {}", existing.get());
+            return existing.get();
+        }
+        
+        // Create new route with denormalized names
+        String fromName = getLocationName(fromType, fromId);
+        String toName = getLocationName(toType, toId);
+        
+        TransferLocation route = new TransferLocation(
+            fromId, fromType, fromName,
+            toId, toType, toName
+        );
+        
+        TransferLocation saved = transferLocationRepository.save(route);
+        logger.info("Created new transfer route: {}", saved);
+        return saved;
+    }
+    
+    /**
+     * Get location name for denormalization
+     */
+    private String getLocationName(String locationType, UUID locationId) {
         switch (locationType) {
             case "WAREHOUSE":
                 Warehouse warehouse = warehouseRepository.findById(locationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found: " + locationId));
-                
-                // Find existing or create new
-                return transferLocationRepository.findByWarehouseId(locationId)
-                    .orElseGet(() -> {
-                        TransferLocation location = new TransferLocation(warehouse);
-                        return transferLocationRepository.save(location);
-                    });
+                return warehouse.getName();
             
             case "STORE":
                 Store store = storeRepository.findById(locationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + locationId));
-                
-                // Find existing or create new
-                return transferLocationRepository.findByStoreId(locationId)
-                    .orElseGet(() -> {
-                        TransferLocation location = new TransferLocation(store);
-                        return transferLocationRepository.save(location);
-                    });
+                return store.getStoreName();
+            
+            case "MERCHANT":
+                // Future: fetch from merchants table
+                return "Merchant #" + locationId;
             
             default:
                 throw new IllegalArgumentException("Invalid location type: " + locationType);

@@ -12,26 +12,71 @@ import java.util.UUID;
 
 /**
  * Repository for TransferLocation entities.
- * Provides methods to find transfer locations by warehouse or store IDs.
+ * Updated in V39 to support route-based transfer locations.
  */
 @Repository
 public interface TransferLocationRepository extends JpaRepository<TransferLocation, UUID> {
 
     /**
-     * Find transfer location by warehouse ID
+     * Find transfer route by from and to locations
      */
-    @Query("SELECT tl FROM TransferLocation tl WHERE tl.warehouse.id = :warehouseId AND tl.locationType = 'WAREHOUSE'")
+    @Query("SELECT tl FROM TransferLocation tl " +
+           "WHERE tl.fromId = :fromId " +
+           "AND tl.fromLocationType = :fromType " +
+           "AND tl.toId = :toId " +
+           "AND tl.toLocationType = :toType")
+    Optional<TransferLocation> findByFromAndTo(
+        @Param("fromId") UUID fromId,
+        @Param("fromType") String fromType,
+        @Param("toId") UUID toId,
+        @Param("toType") String toType
+    );
+
+    /**
+     * Find all routes originating from a specific location
+     */
+    @Query("SELECT tl FROM TransferLocation tl " +
+           "WHERE tl.fromLocationType = :type " +
+           "AND tl.fromId = :id")
+    List<TransferLocation> findByFromLocationTypeAndFromId(
+        @Param("type") String type,
+        @Param("id") UUID id
+    );
+
+    /**
+     * Find all routes going to a specific location
+     */
+    @Query("SELECT tl FROM TransferLocation tl " +
+           "WHERE tl.toLocationType = :type " +
+           "AND tl.toId = :id")
+    List<TransferLocation> findByToLocationTypeAndToId(
+        @Param("type") String type,
+        @Param("id") UUID id
+    );
+
+    /**
+     * Find all routes involving a specific location (either from or to)
+     */
+    @Query("SELECT tl FROM TransferLocation tl " +
+           "WHERE (tl.fromLocationType = :type AND tl.fromId = :id) " +
+           "OR (tl.toLocationType = :type AND tl.toId = :id)")
+    List<TransferLocation> findByLocation(
+        @Param("type") String type,
+        @Param("id") UUID id
+    );
+
+    // Legacy methods for backward compatibility (will be removed in future version)
+    /**
+     * @deprecated Use findByFromAndTo or findByLocation instead
+     */
+    @Deprecated
+    @Query("SELECT tl FROM TransferLocation tl WHERE tl.fromId = :warehouseId AND tl.fromLocationType = 'WAREHOUSE'")
     Optional<TransferLocation> findByWarehouseId(@Param("warehouseId") UUID warehouseId);
 
     /**
-     * Find transfer location by store ID
+     * @deprecated Use findByFromAndTo or findByLocation instead
      */
-    @Query("SELECT tl FROM TransferLocation tl WHERE tl.store.id = :storeId AND tl.locationType = 'STORE'")
+    @Deprecated
+    @Query("SELECT tl FROM TransferLocation tl WHERE tl.fromId = :storeId AND tl.fromLocationType = 'STORE'")
     Optional<TransferLocation> findByStoreId(@Param("storeId") UUID storeId);
-
-    /**
-     * Find all transfer locations by location type
-     */
-    @Query("SELECT tl FROM TransferLocation tl WHERE tl.locationType = :locationType")
-    List<TransferLocation> findByLocationType(@Param("locationType") TransferLocation.LocationType locationType);
 }
