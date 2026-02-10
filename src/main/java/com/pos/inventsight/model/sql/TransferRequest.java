@@ -180,6 +180,23 @@ public class TransferRequest {
     @Column(name = "to_location_id")
     private UUID toLocationId;
     
+    // ===== NEW POLYMORPHIC LOCATION RELATIONSHIPS (v0.2.1) =====
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "from_transfer_location_id")
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler"
+    })
+    private TransferLocation fromTransferLocation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "to_transfer_location_id")
+    @JsonIgnoreProperties({
+        "hibernateLazyInitializer",
+        "handler"
+    })
+    private TransferLocation toTransferLocation;
+    
     // Item details
     @Column(name = "item_name")
     private String itemName;
@@ -820,6 +837,44 @@ public class TransferRequest {
     
     public void setPackingNotes(String packingNotes) {
         this.packingNotes = packingNotes;
+    }
+    
+    // ===== NEW POLYMORPHIC LOCATION GETTERS/SETTERS (v0.2.1) =====
+    public TransferLocation getFromTransferLocation() {
+        return fromTransferLocation;
+    }
+
+    public void setFromTransferLocation(TransferLocation fromTransferLocation) {
+        this.fromTransferLocation = fromTransferLocation;
+    }
+
+    public TransferLocation getToTransferLocation() {
+        return toTransferLocation;
+    }
+
+    public void setToTransferLocation(TransferLocation toTransferLocation) {
+        this.toTransferLocation = toTransferLocation;
+    }
+
+    // Helper methods for backward compatibility and convenience
+    public String getFromLocationTypeNew() {
+        return fromTransferLocation != null && fromTransferLocation.getLocationType() != null 
+            ? fromTransferLocation.getLocationType().name() 
+            : null;
+    }
+
+    public UUID getFromLocationIdNew() {
+        return fromTransferLocation != null ? fromTransferLocation.getLocationId() : null;
+    }
+
+    public String getToLocationTypeNew() {
+        return toTransferLocation != null && toTransferLocation.getLocationType() != null 
+            ? toTransferLocation.getLocationType().name() 
+            : null;
+    }
+
+    public UUID getToLocationIdNew() {
+        return toTransferLocation != null ? toTransferLocation.getLocationId() : null;
     }
     
     // Calculated field
