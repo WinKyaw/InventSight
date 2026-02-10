@@ -1029,11 +1029,10 @@ public class AuthController {
      * Returns: UUID string if resolved, TenantSelectionResponse if selection needed, String error otherwise
      */
     private Object resolveTenantForUser(User user) {
+        // Step 1: Check if user has a default tenant set
         logger.debug("Resolving tenant for user: {}", user.getEmail());
         
-        // Step 1: Check if user has a default tenant set
         if (user.getDefaultTenantId() != null) {
-            logger.debug("User's default tenant: {}", user.getDefaultTenantId());
             // Verify the default tenant is still valid and user still has active membership
             if (companyRepository.existsById(user.getDefaultTenantId())) {
                 java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
@@ -1043,13 +1042,15 @@ public class AuthController {
                     .anyMatch(m -> m.getCompany().getId().equals(user.getDefaultTenantId()));
                 
                 if (hasDefaultMembership) {
-                    logger.debug("Using existing default tenant: {}", user.getDefaultTenantId());
+                    logger.debug("Using existing default tenant: {} for user: {}", user.getDefaultTenantId(), user.getEmail());
                     System.out.println("✅ Using default tenant for user: " + user.getDefaultTenantId());
                     return user.getDefaultTenantId().toString();
                 } else {
                     logger.warn("User's default tenant is no longer valid, resolving from memberships");
                     System.out.println("⚠️ User's default tenant is no longer valid, resolving from memberships");
                 }
+            } else {
+                logger.warn("User's default tenant {} does not exist, resolving from memberships", user.getDefaultTenantId());
             }
         }
         
