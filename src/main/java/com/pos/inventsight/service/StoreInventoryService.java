@@ -370,7 +370,7 @@ public class StoreInventoryService {
 
         // If filtering by date range
         if (startDate != null && endDate != null) {
-            return Page.empty(pageable);
+            return Page.empty(pageable); // TODO: Implement date range filtering when needed
         }
 
         // Otherwise return all for the store
