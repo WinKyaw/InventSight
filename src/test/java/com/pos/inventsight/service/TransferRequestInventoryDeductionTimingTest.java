@@ -46,6 +46,9 @@ public class TransferRequestInventoryDeductionTimingTest {
     @Mock
     private WarehouseInventoryWithdrawalRepository withdrawalRepository;
 
+    @Mock
+    private StoreInventoryWithdrawalRepository storeWithdrawalRepository;
+
     @InjectMocks
     private TransferRequestService transferRequestService;
 
@@ -208,7 +211,11 @@ public class TransferRequestInventoryDeductionTimingTest {
             .thenReturn(Optional.of(testTransfer));
         when(productRepository.findById(testProduct.getId()))
             .thenReturn(Optional.of(testProduct));
+        when(storeRepository.findById(testStore.getId()))
+            .thenReturn(Optional.of(testStore));
         when(transferRequestRepository.save(any(TransferRequest.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(storeWithdrawalRepository.save(any()))
             .thenAnswer(invocation -> invocation.getArgument(0));
 
         // When - pickup transfer from store
@@ -226,6 +233,9 @@ public class TransferRequestInventoryDeductionTimingTest {
         verify(productRepository, times(1)).save(testProduct);
         assertEquals(50, testProduct.getQuantity(), 
             "Store inventory should be deducted by 100 units (150 - 100)");
+        
+        // And store withdrawal record should be created
+        verify(storeWithdrawalRepository, times(1)).save(any());
         
         // And transfer status should be IN_TRANSIT
         assertEquals(TransferRequestStatus.IN_TRANSIT, result.getStatus(),
