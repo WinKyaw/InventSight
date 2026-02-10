@@ -58,10 +58,16 @@ public class JwtUtils {
     }
     
     /**
-     * Generate JWT token with optional tenant_id claim
+     * Generate JWT token with tenant_id claim (required for production)
      */
     public String generateJwtToken(User user, String tenantId) {
-        logger.debug("Generating JWT token for user: {}", user.getEmail());
+        // Validate tenant_id is provided
+        if (tenantId == null || tenantId.isEmpty()) {
+            logger.error("Attempting to generate JWT without tenant_id for user: {}", user.getEmail());
+            throw new IllegalArgumentException("tenant_id is required for JWT generation");
+        }
+        
+        logger.debug("Generating JWT token with tenant_id: {} for user: {}", tenantId, user.getEmail());
         
         JwtBuilder builder = Jwts.builder()
                 .setSubject(user.getEmail())
@@ -72,13 +78,9 @@ public class JwtUtils {
                 .claim("system", "InventSight")
                 .claim("createdBy", "WinKyaw")
                 .claim("tokenType", "access")
+                .claim("tenant_id", tenantId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs));
-        
-        // Add tenant_id if provided
-        if (tenantId != null && !tenantId.isEmpty()) {
-            builder.claim("tenant_id", tenantId);
-        }
         
         return builder.signWith(getSigningKey()).compact();
     }
