@@ -292,6 +292,9 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponse("Unexpected tenant resolution result"));
             }
+            
+            // Generate JWT with tenant_id
+            logger.debug("Generating JWT with tenant_id: {} for user: {}", tenantId, user.getEmail());
             String jwt = jwtUtils.generateJwtToken(user, tenantId);
             
             // Update last login
@@ -550,6 +553,9 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new StructuredAuthResponse("Unexpected tenant resolution result", false));
             }
+            
+            // Generate JWT with tenant_id
+            logger.debug("Generating JWT with tenant_id: {} for user: {}", tenantId, user.getEmail());
             String accessToken = jwtUtils.generateJwtToken(user, tenantId);
             
             String refreshToken = jwtUtils.generateRefreshToken(user);
@@ -1024,6 +1030,8 @@ public class AuthController {
      */
     private Object resolveTenantForUser(User user) {
         // Step 1: Check if user has a default tenant set
+        logger.debug("Resolving tenant for user: {}", user.getEmail());
+        
         if (user.getDefaultTenantId() != null) {
             // Verify the default tenant is still valid and user still has active membership
             if (companyRepository.existsById(user.getDefaultTenantId())) {
@@ -1034,11 +1042,15 @@ public class AuthController {
                     .anyMatch(m -> m.getCompany().getId().equals(user.getDefaultTenantId()));
                 
                 if (hasDefaultMembership) {
+                    logger.debug("Using existing default tenant: {} for user: {}", user.getDefaultTenantId(), user.getEmail());
                     System.out.println("✅ Using default tenant for user: " + user.getDefaultTenantId());
                     return user.getDefaultTenantId().toString();
                 } else {
+                    logger.warn("User's default tenant is no longer valid, resolving from memberships");
                     System.out.println("⚠️ User's default tenant is no longer valid, resolving from memberships");
                 }
+            } else {
+                logger.warn("User's default tenant {} does not exist, resolving from memberships", user.getDefaultTenantId());
             }
         }
         
@@ -1046,16 +1058,21 @@ public class AuthController {
         java.util.List<com.pos.inventsight.model.sql.CompanyStoreUser> memberships = 
             companyStoreUserRepository.findByUserAndIsActiveTrue(user);
         
+        logger.debug("User {} has {} active memberships", user.getEmail(), memberships.size());
+        
         if (memberships.isEmpty()) {
+            logger.info("User has no active tenant memberships - creating default company for user: {}", user.getEmail());
             System.out.println("⚠️ User has no active tenant memberships - creating default company");
             // Create a default company for the user
             try {
                 com.pos.inventsight.model.sql.Company defaultCompany = createDefaultCompanyForUser(user);
                 user.setDefaultTenantId(defaultCompany.getId());
                 userService.saveUser(user);
+                logger.info("Created default company {} for user {}", defaultCompany.getId(), user.getEmail());
                 System.out.println("✅ Created default company and set as default tenant: " + defaultCompany.getId());
                 return defaultCompany.getId().toString();
             } catch (Exception e) {
+                logger.error("Failed to create default company for user {}: {}", user.getEmail(), e.getMessage());
                 System.out.println("❌ Failed to create default company for user: " + e.getMessage());
                 return "TENANT_CREATION_FAILED: Unable to create default tenant. Please contact your administrator. Error: " + e.getMessage();
             }
@@ -1066,11 +1083,13 @@ public class AuthController {
             java.util.UUID tenantId = memberships.get(0).getCompany().getId();
             user.setDefaultTenantId(tenantId);
             userService.saveUser(user);
+            logger.debug("Auto-set single membership as default tenant: {}", tenantId);
             System.out.println("✅ Auto-set single membership as default tenant: " + tenantId);
             return tenantId.toString();
         }
         
         // Step 4: Multiple memberships and no valid default - return selection required
+        logger.debug("User has {} memberships, tenant selection required", memberships.size());
         System.out.println("⚠️ Multiple memberships found, tenant selection required");
         java.util.List<com.pos.inventsight.dto.TenantSelectionResponse.MemberCompany> companies = 
             new java.util.ArrayList<>();
@@ -1377,8 +1396,23 @@ public class AuthController {
                     String username = jwtUtils.getUsernameFromJwtToken(jwt);
                     User user = userService.getUserByEmail(username);
                     
-                    // Generate new token
-                    String newJwt = jwtUtils.generateJwtToken(user);
+                    // Get tenant_id from existing token or user's default tenant
+                    String tenantId = jwtUtils.getTenantIdFromJwtToken(jwt);
+                    if (tenantId == null || tenantId.isEmpty()) {
+                        // Fall back to user's default tenant if not in token
+                        if (user.getDefaultTenantId() != null) {
+                            tenantId = user.getDefaultTenantId().toString();
+                            logger.debug("Using user's default tenant for refresh: {}", tenantId);
+                        } else {
+                            logger.error("Cannot refresh token: no tenant_id in token and user has no default tenant");
+                            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(new AuthResponse("Cannot refresh token: tenant information missing"));
+                        }
+                    }
+                    
+                    // Generate new token with tenant_id
+                    logger.debug("Refreshing JWT with tenant_id: {} for user: {}", tenantId, user.getEmail());
+                    String newJwt = jwtUtils.generateJwtToken(user, tenantId);
                     
                     // Log refresh activity
                     activityLogService.logActivity(
