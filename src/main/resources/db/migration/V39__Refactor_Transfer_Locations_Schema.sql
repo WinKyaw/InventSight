@@ -28,7 +28,18 @@ ALTER TABLE transfer_locations
 -- Step 1: Create a mapping table to track from/to location pairs from existing transfer_requests
 -- This helps us identify which locations form routes
 
-CREATE TEMP TABLE temp_transfer_routes AS
+CREATE TABLE IF NOT EXISTS migration_v39_transfer_routes (
+    from_loc_id UUID,
+    to_loc_id UUID,
+    from_type VARCHAR(20),
+    from_warehouse_id UUID,
+    from_store_id UUID,
+    to_type VARCHAR(20),
+    to_warehouse_id UUID,
+    to_store_id UUID
+);
+
+INSERT INTO migration_v39_transfer_routes
 SELECT DISTINCT
     tr.from_transfer_location_id as from_loc_id,
     tr.to_transfer_location_id as to_loc_id,
@@ -68,7 +79,7 @@ SELECT DISTINCT
         WHEN temp.to_type = 'STORE' THEN (SELECT store_name FROM stores WHERE id = temp.to_store_id)
     END as to_name,
     CURRENT_TIMESTAMP as created_at
-FROM temp_transfer_routes temp
+FROM migration_v39_transfer_routes temp
 WHERE NOT EXISTS (
     SELECT 1 FROM transfer_locations tl2
     WHERE tl2.from_id = CASE 
@@ -84,6 +95,9 @@ WHERE NOT EXISTS (
     AND tl2.from_id IS NOT NULL
     AND tl2.to_id IS NOT NULL
 );
+
+-- Clean up migration table
+DROP TABLE IF EXISTS migration_v39_transfer_routes;
 
 -- Step 3: Add transfer_location_id column to transfer_requests (nullable initially)
 ALTER TABLE transfer_requests
@@ -178,9 +192,9 @@ CREATE INDEX IF NOT EXISTS idx_transfer_requests_location ON transfer_requests(t
 -- Add constraint to ensure from and to are different
 ALTER TABLE transfer_locations
     ADD CONSTRAINT IF NOT EXISTS chk_transfer_different_locations CHECK (
-        (from_id IS NULL AND to_id IS NULL) OR  -- Allow old records
+        (from_id IS NULL AND to_id IS NULL) OR  -- Allow old records during migration
         (from_id IS NOT NULL AND to_id IS NOT NULL AND 
-         (from_id != to_id OR from_location_type != to_location_type))
+         NOT (from_id = to_id AND from_location_type = to_location_type))
     );
 
 -- Add indexes on new columns for query performance

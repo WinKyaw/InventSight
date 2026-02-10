@@ -183,7 +183,7 @@ public class TransferLocation {
             throw new IllegalStateException("TransferLocation must have both source and destination set");
         }
         
-        if (fromId.equals(toId) && fromLocationType != null && fromLocationType.equals(toLocationType)) {
+        if (fromId.equals(toId) && java.util.Objects.equals(fromLocationType, toLocationType)) {
             throw new IllegalStateException("TransferLocation source and destination must be different");
         }
     }

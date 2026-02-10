@@ -181,6 +181,8 @@ public class TransferRequest {
     private UUID toLocationId;
     
     // ===== TRANSFER LOCATION (v39 - Route-based model) =====
+    // Note: EAGER fetch is intentional - matches pattern in TransferRequest for complete API responses
+    // See line 17-23 comment about EAGER fetch strategy for all @ManyToOne relationships
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "transfer_location_id")
     @JsonIgnoreProperties({
