@@ -5,9 +5,12 @@ import com.pos.inventsight.dto.StoreInventoryAdditionRequest;
 import com.pos.inventsight.dto.StoreInventoryAdditionResponse;
 import com.pos.inventsight.dto.StoreInventoryBatchAddRequest;
 import com.pos.inventsight.dto.StoreInventoryBatchAddResponse;
+import com.pos.inventsight.dto.StoreInventoryWithdrawalRequest;
+import com.pos.inventsight.dto.StoreInventoryWithdrawalResponse;
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUserRole;
 import com.pos.inventsight.model.sql.StoreInventoryAddition;
+import com.pos.inventsight.model.sql.StoreInventoryWithdrawal;
 import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.StoreInventoryService;
@@ -55,9 +58,11 @@ public class StoreInventoryController {
         logger.info("✅ StoreInventoryController INITIALIZED and REGISTERED");
         logger.info("📍 Base URL: /api/store-inventory");
         logger.info("📍 Registered endpoints:");
-        logger.info("   - POST   /api/store-inventory/add                (addInventory)");
-        logger.info("   - POST   /api/store-inventory/add-batch          (addInventoryBatch)");
-        logger.info("   - GET    /api/store-inventory/store/{id}/additions (getAdditions)");
+        logger.info("   - POST   /api/store-inventory/add                     (addInventory)");
+        logger.info("   - POST   /api/store-inventory/add-batch               (addInventoryBatch)");
+        logger.info("   - POST   /api/store-inventory/withdraw                (withdrawInventory)");
+        logger.info("   - GET    /api/store-inventory/store/{id}/additions    (getAdditions)");
+        logger.info("   - GET    /api/store-inventory/store/{id}/withdrawals  (getWithdrawals)");
         logger.info("=".repeat(80));
     }
 
@@ -215,5 +220,95 @@ public class StoreInventoryController {
         return role == CompanyRole.FOUNDER || 
                role == CompanyRole.CEO || 
                role == CompanyRole.GENERAL_MANAGER;
+    }
+
+    /**
+     * Get withdrawal history for a store with pagination
+     * GET /api/store-inventory/store/{storeId}/withdrawals
+     */
+    @GetMapping("/store/{storeId}/withdrawals")
+    @PreAuthorize(RoleConstants.CAN_VIEW_INVENTORY)
+    public ResponseEntity<?> getWithdrawals(
+        @PathVariable UUID storeId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam(required = false) String transactionType,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size,
+        Authentication authentication
+    ) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            boolean isGMPlus = isGMPlusRole(currentUser);
+            String filterByUsername = isGMPlus ? null : currentUser.getUsername();
+            
+            logger.info("Fetching withdrawals for store: {} (User: {}, Filter: {})", 
+                storeId, currentUser.getUsername(), 
+                filterByUsername != null ? "Own only" : "All");
+            
+            Page<StoreInventoryWithdrawal> withdrawals = storeInventoryService.getWithdrawals(
+                storeId, startDate, endDate, transactionType, filterByUsername, 
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+            );
+            
+            List<StoreInventoryWithdrawalResponse> withdrawalDTOs = withdrawals.getContent()
+                .stream()
+                .map(StoreInventoryWithdrawalResponse::new)
+                .collect(Collectors.toList());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("storeId", storeId);
+            response.put("withdrawals", withdrawalDTOs);
+            response.put("currentPage", withdrawals.getNumber());
+            response.put("totalPages", withdrawals.getTotalPages());
+            response.put("totalItems", withdrawals.getTotalElements());
+            response.put("hasMore", withdrawals.hasNext());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Error fetching withdrawals: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()
+                ));
+        }
+    }
+
+    /**
+     * Record manual withdrawal from store (damages, losses, etc.)
+     * POST /api/store-inventory/withdraw
+     */
+    @PostMapping("/withdraw")
+    @PreAuthorize(RoleConstants.CAN_WITHDRAW_INVENTORY)
+    public ResponseEntity<?> withdrawInventory(
+            @Valid @RequestBody StoreInventoryWithdrawalRequest request,
+            Authentication authentication) {
+        logger.info("📦 [StoreInventoryController] Withdraw inventory request - Store ID: {}, Product ID: {}, Quantity: {}, Type: {}", 
+            request.getStoreId(), request.getProductId(), request.getQuantity(), request.getTransactionType());
+        
+        try {
+            StoreInventoryWithdrawalResponse response = storeInventoryService.withdrawInventory(request, authentication);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "Inventory withdrawn successfully");
+            result.put("withdrawal", response);
+            
+            logger.info("✅ Inventory withdrawn successfully");
+            
+            return ResponseEntity.ok(result);
+            
+        } catch (IllegalArgumentException e) {
+            logger.error("❌ Invalid request for withdrawing inventory: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("❌ Error withdrawing inventory: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error withdrawing inventory: " + e.getMessage()));
+        }
     }
 }

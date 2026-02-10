@@ -4,11 +4,14 @@ import com.pos.inventsight.dto.StoreInventoryAdditionRequest;
 import com.pos.inventsight.dto.StoreInventoryAdditionResponse;
 import com.pos.inventsight.dto.StoreInventoryBatchAddRequest;
 import com.pos.inventsight.dto.StoreInventoryBatchAddResponse;
+import com.pos.inventsight.dto.StoreInventoryWithdrawalRequest;
+import com.pos.inventsight.dto.StoreInventoryWithdrawalResponse;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.*;
 import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
 import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.StoreInventoryAdditionRepository;
+import com.pos.inventsight.repository.sql.StoreInventoryWithdrawalRepository;
 import com.pos.inventsight.repository.sql.StoreRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +36,9 @@ public class StoreInventoryService {
 
     @Autowired
     private StoreInventoryAdditionRepository additionRepository;
+
+    @Autowired
+    private StoreInventoryWithdrawalRepository withdrawalRepository;
 
     @Autowired
     private StoreRepository storeRepository;
@@ -277,5 +283,97 @@ public class StoreInventoryService {
         }
         
         return highestRole;
+    }
+
+    /**
+     * Withdraw inventory from store (manual withdrawal for damages, losses, etc.)
+     */
+    @Transactional
+    public StoreInventoryWithdrawalResponse withdrawInventory(StoreInventoryWithdrawalRequest request, Authentication authentication) {
+        if (authentication == null) {
+            throw new IllegalArgumentException("Authentication is required");
+        }
+
+        String username = authentication.getName();
+
+        // Get store and product
+        Store store = storeRepository.findById(request.getStoreId())
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + request.getStoreId()));
+
+        Product product = productRepository.findById(request.getProductId())
+            .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + request.getProductId()));
+
+        // Verify product belongs to store
+        if (product.getStore() == null || !product.getStore().getId().equals(store.getId())) {
+            throw new IllegalArgumentException("Product does not belong to the specified store");
+        }
+
+        // Check sufficient inventory
+        Integer currentQty = product.getQuantity() != null ? product.getQuantity() : 0;
+        if (currentQty < request.getQuantity()) {
+            throw new IllegalArgumentException(String.format(
+                "Insufficient inventory. Available: %d, Requested: %d", currentQty, request.getQuantity()));
+        }
+
+        // Create withdrawal record
+        StoreInventoryWithdrawal withdrawal = new StoreInventoryWithdrawal();
+        withdrawal.setStore(store);
+        withdrawal.setProduct(product);
+        withdrawal.setQuantity(request.getQuantity());
+        withdrawal.setReferenceNumber(request.getReferenceNumber());
+        withdrawal.setWithdrawalDate(request.getWithdrawalDate() != null ? request.getWithdrawalDate() : LocalDate.now());
+        withdrawal.setReason(request.getReason());
+        withdrawal.setNotes(request.getNotes());
+        withdrawal.setTransactionType(request.getTransactionType() != null ? 
+            request.getTransactionType() : StoreInventoryWithdrawal.TransactionType.DAMAGE);
+        withdrawal.setStatus(StoreInventoryWithdrawal.TransactionStatus.COMPLETED);
+        withdrawal.setCreatedBy(username);
+
+        // Deduct from product inventory
+        product.setQuantity(currentQty - request.getQuantity());
+        productRepository.save(product);
+
+        // Save withdrawal record
+        withdrawal = withdrawalRepository.save(withdrawal);
+
+        logger.info("✅ Store inventory withdrawn: Store={}, Product={}, Quantity={}, Type={}", 
+            store.getStoreName(), product.getName(), request.getQuantity(), withdrawal.getTransactionType());
+
+        // Log activity
+        activityLogService.logActivity(
+            username,
+            username,
+            "WITHDRAW_INVENTORY",
+            "store_inventory",
+            String.format("Withdrew %d units of %s from store %s (Type: %s)", 
+                request.getQuantity(), product.getName(), store.getStoreName(), withdrawal.getTransactionType())
+        );
+
+        return new StoreInventoryWithdrawalResponse(withdrawal);
+    }
+
+    /**
+     * Get withdrawal history for a store
+     */
+    public Page<StoreInventoryWithdrawal> getWithdrawals(
+            UUID storeId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String transactionType,
+            String filterByUsername,
+            Pageable pageable) {
+
+        // If filtering by user, get withdrawals created by that user
+        if (filterByUsername != null) {
+            return withdrawalRepository.findByStoreIdAndCreatedBy(storeId, filterByUsername, pageable);
+        }
+
+        // If filtering by date range
+        if (startDate != null && endDate != null) {
+            return Page.empty(pageable);
+        }
+
+        // Otherwise return all for the store
+        return withdrawalRepository.findByStoreId(storeId, pageable);
     }
 }
