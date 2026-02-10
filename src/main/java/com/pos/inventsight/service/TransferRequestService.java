@@ -9,6 +9,7 @@ import com.pos.inventsight.repository.sql.ProductRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryRepository;
 import com.pos.inventsight.repository.sql.StoreInventoryAdditionRepository;
 import com.pos.inventsight.repository.sql.WarehouseInventoryWithdrawalRepository;
+import com.pos.inventsight.repository.sql.StoreInventoryWithdrawalRepository;
 import com.pos.inventsight.repository.sql.TransferLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,9 @@ public class TransferRequestService {
     
     @Autowired
     private WarehouseInventoryWithdrawalRepository withdrawalRepository;
+    
+    @Autowired
+    private StoreInventoryWithdrawalRepository storeWithdrawalRepository;
     
     @Autowired
     private TransferLocationRepository transferLocationRepository;
@@ -782,7 +786,7 @@ public class TransferRequestService {
                 transfer.getFromLocationId(), 
                 transferId);
         } else if ("STORE".equals(transfer.getFromLocationType())) {
-            deductFromStoreInventory(transfer.getProductId(), transfer.getApprovedQuantity());
+            deductFromStoreInventory(transfer.getProductId(), transfer.getApprovedQuantity(), transfer);
             logger.info("✅ Deducted {} units from store for transfer {}", 
                 transfer.getApprovedQuantity(), 
                 transferId);
@@ -1008,6 +1012,13 @@ public class TransferRequestService {
      * Deduct inventory from store (product quantity)
      */
     private void deductFromStoreInventory(UUID productId, Integer quantity) {
+        deductFromStoreInventory(productId, quantity, null);
+    }
+    
+    /**
+     * Deduct inventory from store and create withdrawal record
+     */
+    private void deductFromStoreInventory(UUID productId, Integer quantity, TransferRequest transfer) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new RuntimeException("Product not found"));
         
@@ -1019,7 +1030,46 @@ public class TransferRequestService {
         product.setQuantity(currentQty - quantity);
         productRepository.save(product);
         
-        logger.info("Deducted {} units from store inventory for product {}", quantity, productId);
+        // ✅ CREATE STORE WITHDRAWAL RECORD if transfer is provided (shows in withdrawal tracking)
+        if (transfer != null && transfer.getFromLocationId() != null) {
+            Store sourceStore = storeRepository.findById(transfer.getFromLocationId())
+                .orElseThrow(() -> new RuntimeException("Source store not found"));
+            
+            StoreInventoryWithdrawal withdrawal = new StoreInventoryWithdrawal(
+                sourceStore,
+                product,
+                quantity,
+                "Transfer to " + getTransferDestinationDescription(transfer)
+            );
+            withdrawal.setTransactionType(StoreInventoryWithdrawal.TransactionType.TRANSFER_OUT);
+            withdrawal.setReferenceNumber("TRANSFER-" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
+            withdrawal.setNotes("Outbound transfer to " + getTransferDestinationDescription(transfer) +
+                               " - Transfer request #" + transfer.getId().toString().substring(0, TRANSFER_ID_PREFIX_LENGTH));
+            withdrawal.setCreatedBy(transfer.getApprovedBy() != null ? transfer.getApprovedBy().getUsername() : SYSTEM_USER);
+            withdrawal.setWithdrawalDate(LocalDate.now());
+            withdrawal.setStatus(StoreInventoryWithdrawal.TransactionStatus.COMPLETED);
+            
+            storeWithdrawalRepository.save(withdrawal);
+            
+            logger.info("✅ Deducted {} units from store {} and created withdrawal log for transfer {}", 
+                quantity, sourceStore.getStoreName(), transfer.getId());
+        } else {
+            logger.info("Deducted {} units from store inventory for product {}", quantity, productId);
+        }
+    }
+    
+    /**
+     * Get the destination location description for transfer notes
+     */
+    private String getTransferDestinationDescription(TransferRequest transfer) {
+        if ("WAREHOUSE".equals(transfer.getToLocationType())) {
+            return "warehouse";
+        } else if ("STORE".equals(transfer.getToLocationType())) {
+            Store toStore = storeRepository.findById(transfer.getToLocationId()).orElse(null);
+            return toStore != null ? "store: " + toStore.getStoreName() : "store";
+        } else {
+            return "Unknown";
+        }
     }
     
     /**
