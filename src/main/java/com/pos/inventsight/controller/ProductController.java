@@ -606,6 +606,10 @@ public class ProductController {
         response.setSku(product.getSku());
         response.setCategory(product.getCategory());
         response.setPrice(product.getPrice());
+        // Map retailPrice to sellingPrice for frontend compatibility
+        // Fall back to price if retailPrice is null
+        response.setSellingPrice(product.getRetailPrice() != null ? 
+            product.getRetailPrice() : product.getPrice());
         response.setCostPrice(product.getCostPrice());
         response.setQuantity(product.getQuantity());
         response.setMaxQuantity(product.getMaxQuantity());
