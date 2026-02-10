@@ -505,6 +505,46 @@ public class ProductController {
         }
     }
     
+    // GET /products/top-sellers - Get top-selling products
+    /**
+     * Get top-selling products for a store
+     * Sorted by sales volume (quantity sold)
+     */
+    @GetMapping("/top-sellers")
+    public ResponseEntity<?> getTopSellingProducts(
+            @RequestParam(required = false) UUID storeId,
+            @RequestParam(defaultValue = "10") int limit,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            System.out.println("🔥 InventSight - Fetching top " + limit + " selling products for user: " + username);
+            
+            if (storeId != null) {
+                System.out.println("🏪 Store ID: " + storeId);
+            }
+            
+            List<Product> topSellers;
+            if (storeId != null) {
+                topSellers = productService.getTopSellingProductsByStore(storeId, limit);
+            } else {
+                topSellers = productService.getTopSellingProducts(limit);
+            }
+            
+            List<ProductResponse> response = topSellers.stream()
+                    .map(this::convertToResponse)
+                    .collect(Collectors.toList());
+            
+            System.out.println("✅ InventSight - Top sellers retrieved: " + response.size());
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.out.println("❌ InventSight - Error fetching top sellers: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to fetch top selling products: " + e.getMessage()));
+        }
+    }
+    
     // PUT /products/{id}/low-stock-threshold - Update product low stock threshold (GM+ only)
     @PutMapping("/{id:[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}}/low-stock-threshold")
     public ResponseEntity<?> updateLowStockThreshold(
