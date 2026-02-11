@@ -13,6 +13,7 @@ public class ProductResponse {
     private String sku;
     private String category;
     private BigDecimal price;
+    private BigDecimal sellingPrice;
     private BigDecimal costPrice;
     private Integer quantity;
     private Integer maxQuantity;
@@ -47,6 +48,10 @@ public class ProductResponse {
         this.sku = product.getSku();
         this.category = product.getCategory();
         this.price = product.getPrice();
+        // Map retailPrice to sellingPrice for frontend compatibility
+        // Fall back to price if retailPrice is null
+        this.sellingPrice = product.getRetailPrice() != null ? 
+            product.getRetailPrice() : product.getPrice();
         this.costPrice = product.getCostPrice();
         this.quantity = product.getQuantity();
         this.maxQuantity = product.getMaxQuantity();
@@ -91,6 +96,9 @@ public class ProductResponse {
 
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+
+    public BigDecimal getSellingPrice() { return sellingPrice; }
+    public void setSellingPrice(BigDecimal sellingPrice) { this.sellingPrice = sellingPrice; }
 
     public BigDecimal getCostPrice() { return costPrice; }
     public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }

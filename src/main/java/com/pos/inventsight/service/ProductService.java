@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -455,5 +456,16 @@ public class ProductService {
         }
         
         return description.toString();
+    }
+    
+    // Top Selling Products
+    public List<Product> getTopSellingProductsByStore(UUID storeId, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return productRepository.findTopSellingByStore(storeId, pageable);
+    }
+
+    public List<Product> getTopSellingProducts(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return productRepository.findTopSelling(pageable);
     }
 }

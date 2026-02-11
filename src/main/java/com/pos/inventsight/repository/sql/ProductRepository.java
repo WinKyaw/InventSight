@@ -276,4 +276,30 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         @Param("productId") UUID productId,
         @Param("warehouseId") UUID warehouseId
     );
+    
+    /**
+     * Find top-selling products by sales volume for a specific store
+     * Joins with sale_items to get quantity sold
+     */
+    @Query("""
+        SELECT p FROM Product p 
+        LEFT JOIN SaleItem si ON si.product.id = p.id
+        LEFT JOIN Sale s ON si.sale.id = s.id AND s.status = 'COMPLETED'
+        WHERE p.store.id = :storeId
+        GROUP BY p.id
+        ORDER BY COALESCE(SUM(si.quantity), 0) DESC
+        """)
+    List<Product> findTopSellingByStore(@Param("storeId") UUID storeId, Pageable pageable);
+
+    /**
+     * Find top-selling products by sales volume across all stores
+     */
+    @Query("""
+        SELECT p FROM Product p 
+        LEFT JOIN SaleItem si ON si.product.id = p.id
+        LEFT JOIN Sale s ON si.sale.id = s.id AND s.status = 'COMPLETED'
+        GROUP BY p.id
+        ORDER BY COALESCE(SUM(si.quantity), 0) DESC
+        """)
+    List<Product> findTopSelling(Pageable pageable);
 }
