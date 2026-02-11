@@ -76,4 +76,28 @@ public class SaleItemProductNameTest {
         assertEquals("ORIG-SKU", saleItem.getProductSku(), 
             "SaleItem productSku should be denormalized and not change when Product changes");
     }
+
+    @Test
+    @DisplayName("SaleItem should handle null product name and SKU gracefully")
+    public void testSaleItemWithNullProductNameAndSku() {
+        // Given: Create a product with null name and SKU
+        Product product = new Product();
+        product.setName(null);
+        product.setSku(null);
+        product.setPrice(BigDecimal.valueOf(10.00));
+
+        // When: Create a sale item (this might happen with legacy data)
+        SaleItem saleItem = new SaleItem(
+            new Sale(), 
+            product, 
+            1, 
+            BigDecimal.valueOf(10.00)
+        );
+
+        // Then: productName and productSku should be null (not throw exception)
+        assertNull(saleItem.getProductName(), 
+            "SaleItem should handle null product name gracefully");
+        assertNull(saleItem.getProductSku(), 
+            "SaleItem should handle null product SKU gracefully");
+    }
 }
