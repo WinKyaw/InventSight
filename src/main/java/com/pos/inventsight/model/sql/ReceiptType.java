@@ -6,5 +6,6 @@ package com.pos.inventsight.model.sql;
 public enum ReceiptType {
     IN_STORE,    // Immediate purchase at store
     DELIVERY,    // Requires delivery
-    PICKUP       // Customer will pick up
+    PICKUP,      // Customer will pick up
+    HOLD         // Order on hold / pending
 }
