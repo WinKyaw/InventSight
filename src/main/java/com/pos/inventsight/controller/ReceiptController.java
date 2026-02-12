@@ -4,6 +4,7 @@ import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.PaymentMethod;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
@@ -484,7 +485,7 @@ public class ReceiptController {
             System.out.println("✅ Receipt fulfilled: " + receipt.getReceiptNumber());
             return ResponseEntity.ok(receipt);
             
-        } catch (com.pos.inventsight.exception.ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             System.err.println("❌ Receipt not found: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ApiResponse(false, e.getMessage()));
@@ -513,7 +514,8 @@ public class ReceiptController {
             System.out.println("✅ Receipt delivered: " + receipt.getReceiptNumber());
             return ResponseEntity.ok(receipt);
             
-        } catch (com.pos.inventsight.exception.ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
+            System.err.println("❌ Receipt not found: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ApiResponse(false, e.getMessage()));
         } catch (IllegalArgumentException e) {
