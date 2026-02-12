@@ -4,6 +4,7 @@ import com.pos.inventsight.dto.ApiResponse;
 import com.pos.inventsight.dto.CashierStatsDTO;
 import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
+import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.PaymentMethod;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
@@ -463,6 +464,67 @@ public class ReceiptController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Error completing receipt: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * POST /receipts/{id}/fulfill - Mark receipt as fulfilled
+     */
+    @PostMapping("/{id}/fulfill")
+    public ResponseEntity<?> fulfillReceipt(
+            @PathVariable Long id,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            System.out.println("✅ InventSight - Fulfilling receipt ID: " + id + " by user: " + username);
+            
+            SaleResponse receipt = saleService.fulfillReceipt(id, user.getId());
+            
+            System.out.println("✅ Receipt fulfilled: " + receipt.getReceiptNumber());
+            return ResponseEntity.ok(receipt);
+            
+        } catch (ResourceNotFoundException e) {
+            System.err.println("❌ Receipt not found: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Error fulfilling receipt: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error fulfilling receipt: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * POST /receipts/{id}/deliver - Mark receipt as delivered (for DELIVERY type receipts)
+     */
+    @PostMapping("/{id}/deliver")
+    public ResponseEntity<?> markAsDelivered(
+            @PathVariable Long id,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            System.out.println("🚚 InventSight - Marking receipt ID: " + id + " as delivered by: " + username);
+            
+            SaleResponse receipt = saleService.markAsDelivered(id, user.getId());
+            
+            System.out.println("✅ Receipt delivered: " + receipt.getReceiptNumber());
+            return ResponseEntity.ok(receipt);
+            
+        } catch (ResourceNotFoundException e) {
+            System.err.println("❌ Receipt not found: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Error marking receipt as delivered: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error marking receipt as delivered: " + e.getMessage()));
         }
     }
 }
