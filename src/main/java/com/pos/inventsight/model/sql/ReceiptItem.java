@@ -90,13 +90,17 @@ public class ReceiptItem {
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { 
         this.quantity = quantity; 
-        calculateTotalPrice();
+        if (quantity != null && unitPrice != null) {
+            calculateTotalPrice();
+        }
     }
     
     public BigDecimal getUnitPrice() { return unitPrice; }
     public void setUnitPrice(BigDecimal unitPrice) { 
         this.unitPrice = unitPrice; 
-        calculateTotalPrice();
+        if (quantity != null && unitPrice != null) {
+            calculateTotalPrice();
+        }
     }
     
     public BigDecimal getTotalPrice() { return totalPrice; }

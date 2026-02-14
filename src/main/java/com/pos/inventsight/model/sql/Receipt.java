@@ -150,7 +150,9 @@ public class Receipt {
     }
     
     public void calculateTotal() {
-        this.totalAmount = subtotal.add(taxAmount).subtract(discountAmount);
+        if (subtotal != null && taxAmount != null && discountAmount != null) {
+            this.totalAmount = subtotal.add(taxAmount).subtract(discountAmount);
+        }
     }
     
     // Getters and Setters

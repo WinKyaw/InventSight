@@ -37,7 +37,13 @@ INSERT INTO receipts (
 SELECT 
     gen_random_uuid() AS id,
     s.receipt_number,
-    'IN_STORE' AS receipt_type,  -- Map ReceiptType to receipt_type
+    CASE 
+        WHEN s.receipt_type = 'IN_STORE' THEN 'IN_STORE'
+        WHEN s.receipt_type = 'DELIVERY' THEN 'IN_STORE'  -- Map DELIVERY to IN_STORE for receipt_type
+        WHEN s.receipt_type = 'PICKUP' THEN 'IN_STORE'    -- Map PICKUP to IN_STORE for receipt_type
+        WHEN s.receipt_type = 'HOLD' THEN 'IN_STORE'      -- Map HOLD to IN_STORE for receipt_type
+        ELSE 'IN_STORE'  -- Default to IN_STORE
+    END AS receipt_type,  -- Note: delivery_type field will handle actual delivery method
     CASE 
         WHEN s.status = 'PENDING' THEN 'PENDING'
         WHEN s.status = 'COMPLETED' THEN 'COMPLETED'
