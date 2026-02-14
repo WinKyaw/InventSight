@@ -18,6 +18,12 @@ public class Sale {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    // Receipt relationship (one-to-one via junction table)
+    // New receipt system - use this to access receipt data
+    @OneToOne(mappedBy = "sale", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private SaleReceipt saleReceipt;
+    
     @Column(name = "receipt_number", unique = true, nullable = false)
     private String receiptNumber;
     
@@ -154,6 +160,9 @@ public class Sale {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    
+    public SaleReceipt getSaleReceipt() { return saleReceipt; }
+    public void setSaleReceipt(SaleReceipt saleReceipt) { this.saleReceipt = saleReceipt; }
     
     public String getReceiptNumber() { return receiptNumber; }
     public void setReceiptNumber(String receiptNumber) { this.receiptNumber = receiptNumber; }
