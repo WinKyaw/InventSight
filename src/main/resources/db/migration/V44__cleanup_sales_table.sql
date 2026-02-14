@@ -1,27 +1,22 @@
 -- V44__cleanup_sales_table.sql
--- Remove receipt-related columns from sales table
+-- Mark receipt-related columns in sales table as deprecated
 -- These columns are now in the receipts table, accessed via the sale_receipts junction table
+-- NOTE: Columns are NOT dropped yet to maintain backward compatibility during transition
+-- They will be dropped in a future migration after all code is updated
 
--- Drop indexes first
-DROP INDEX IF EXISTS idx_sales_receipt_type;
-DROP INDEX IF EXISTS idx_sales_delivery_person;
-DROP INDEX IF EXISTS idx_sales_fulfilled_by;
+-- Add comments to mark deprecated columns
+COMMENT ON COLUMN sales.receipt_number IS 'DEPRECATED: Use receipts table via sale_receipts junction';
+COMMENT ON COLUMN sales.status IS 'DEPRECATED: Use receipts.status via sale_receipts junction';  
+COMMENT ON COLUMN sales.payment_method IS 'DEPRECATED: Use receipts.payment_method via sale_receipts junction';
+COMMENT ON COLUMN sales.fulfilled_by_user_id IS 'DEPRECATED: Use receipts.fulfilled_by_user_id via sale_receipts junction';
+COMMENT ON COLUMN sales.fulfilled_at IS 'DEPRECATED: Use receipts.fulfilled_at via sale_receipts junction';
+COMMENT ON COLUMN sales.receipt_type IS 'DEPRECATED: Use receipts.delivery_type via sale_receipts junction';
+COMMENT ON COLUMN sales.delivery_person_id IS 'DEPRECATED: Use receipts.delivery_person_id via sale_receipts junction';
+COMMENT ON COLUMN sales.delivery_assigned_at IS 'DEPRECATED: Use receipts.delivery_assigned_at via sale_receipts junction';
+COMMENT ON COLUMN sales.delivered_at IS 'DEPRECATED: Use receipts.delivered_at via sale_receipts junction';
+COMMENT ON COLUMN sales.delivery_notes IS 'DEPRECATED: Use receipts.delivery_notes via sale_receipts junction';
 
--- Drop receipt-related columns from sales table
-ALTER TABLE sales DROP COLUMN IF EXISTS receipt_number;
-ALTER TABLE sales DROP COLUMN IF EXISTS status;
-ALTER TABLE sales DROP COLUMN IF EXISTS payment_method;
-ALTER TABLE sales DROP COLUMN IF EXISTS fulfilled_by_user_id;
-ALTER TABLE sales DROP COLUMN IF EXISTS fulfilled_at;
-ALTER TABLE sales DROP COLUMN IF EXISTS receipt_type;
-ALTER TABLE sales DROP COLUMN IF EXISTS delivery_person_id;
-ALTER TABLE sales DROP COLUMN IF EXISTS delivery_assigned_at;
-ALTER TABLE sales DROP COLUMN IF EXISTS delivered_at;
-ALTER TABLE sales DROP COLUMN IF EXISTS delivery_notes;
+-- The sales table keeps these columns for backward compatibility
+-- Receipt information should be accessed via: sale -> sale_receipts -> receipts
+-- Future migration will drop these columns after all code is updated
 
--- Sales table now only contains sale-specific data
--- Receipt information is accessed via: sale -> sale_receipts -> receipts
-
--- Note: We keep customer fields (customer_id, customer_name, customer_email, customer_phone)
--- in the sales table for now as they may be used for sale-specific purposes
--- The same information is also in receipts table for receipt purposes

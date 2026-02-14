@@ -70,7 +70,7 @@ public class ReceiptService {
             receipt.setCustomer(customer);
             receipt.setCustomerName(customer.getName());
             receipt.setCustomerEmail(customer.getEmail());
-            receipt.setCustomerPhone(customer.getPhone());
+            receipt.setCustomerPhone(customer.getPhoneNumber());
         } else {
             receipt.setCustomerName(request.getCustomerName());
             receipt.setCustomerEmail(request.getCustomerEmail());
