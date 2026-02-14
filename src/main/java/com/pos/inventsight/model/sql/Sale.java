@@ -18,8 +18,10 @@ public class Sale {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "receipt_number", unique = true, nullable = false)
-    private String receiptNumber;
+    // Receipt relationship (one-to-one via junction table)
+    @OneToOne(mappedBy = "sale", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private SaleReceipt saleReceipt;
     
     @NotNull
     @DecimalMin("0.0")
@@ -41,9 +43,6 @@ public class Sale {
     @Column(name = "total_amount", precision = 10, scale = 2)
     private BigDecimal totalAmount;
     
-    @Enumerated(EnumType.STRING)
-    private SaleStatus status = SaleStatus.COMPLETED;
-    
     // Customer relationship (replacing plain text fields)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
@@ -63,10 +62,6 @@ public class Sale {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Store store;
     
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method")
-    private PaymentMethod paymentMethod;
-    
     @Column(name = "customer_name")
     private String customerName;
     
@@ -76,40 +71,11 @@ public class Sale {
     @Column(name = "customer_phone")
     private String customerPhone;
     
-    // Employee who created the receipt (processedBy)
+    // Employee who created the sale (processedBy)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User processedBy;
-    
-    // Employee who fulfilled the receipt
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "fulfilled_by_user_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private User fulfilledBy;
-    
-    @Column(name = "fulfilled_at")
-    private LocalDateTime fulfilledAt;
-    
-    // Delivery person (optional)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "delivery_person_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private User deliveryPerson;
-    
-    @Column(name = "delivery_assigned_at")
-    private LocalDateTime deliveryAssignedAt;
-    
-    @Column(name = "delivered_at")
-    private LocalDateTime deliveredAt;
-    
-    @Column(name = "delivery_notes")
-    private String deliveryNotes;
-    
-    // Receipt type
-    @Enumerated(EnumType.STRING)
-    @Column(name = "receipt_type", length = 20)
-    private ReceiptType receiptType = ReceiptType.IN_STORE;
     
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -125,38 +91,25 @@ public class Sale {
     private LocalDateTime updatedAt = LocalDateTime.now();
     
     // Constructors
-    public Sale() {
-        this.receiptNumber = generateReceiptNumber();
-    }
+    public Sale() {}
     
     public Sale(BigDecimal subtotal, BigDecimal taxAmount, User processedBy) {
-        this();
         this.subtotal = subtotal;
         this.taxAmount = taxAmount;
         this.totalAmount = subtotal.add(taxAmount);
         this.processedBy = processedBy;
     }
     
-    // Business Logic Methods
-    private String generateReceiptNumber() {
-        return "INV-" + System.currentTimeMillis();
-    }
-    
     public void calculateTotal() {
         this.totalAmount = subtotal.add(taxAmount).subtract(discountAmount);
-    }
-    
-    public boolean isRefundable() {
-        return status == SaleStatus.COMPLETED && 
-               createdAt.isAfter(LocalDateTime.now().minusDays(30));
     }
     
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     
-    public String getReceiptNumber() { return receiptNumber; }
-    public void setReceiptNumber(String receiptNumber) { this.receiptNumber = receiptNumber; }
+    public SaleReceipt getSaleReceipt() { return saleReceipt; }
+    public void setSaleReceipt(SaleReceipt saleReceipt) { this.saleReceipt = saleReceipt; }
     
     public BigDecimal getSubtotal() { return subtotal; }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
@@ -170,9 +123,6 @@ public class Sale {
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
     
-    public SaleStatus getStatus() { return status; }
-    public void setStatus(SaleStatus status) { this.status = status; }
-    
     public Store getStore() { return store; }
     public void setStore(Store store) { this.store = store; }
     
@@ -181,9 +131,6 @@ public class Sale {
     
     public Customer getCustomer() { return customer; }
     public void setCustomer(Customer customer) { this.customer = customer; }
-    
-    public PaymentMethod getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
     
     public String getCustomerName() { return customerName; }
     public void setCustomerName(String customerName) { this.customerName = customerName; }
@@ -196,27 +143,6 @@ public class Sale {
     
     public User getProcessedBy() { return processedBy; }
     public void setProcessedBy(User processedBy) { this.processedBy = processedBy; }
-    
-    public User getFulfilledBy() { return fulfilledBy; }
-    public void setFulfilledBy(User fulfilledBy) { this.fulfilledBy = fulfilledBy; }
-    
-    public LocalDateTime getFulfilledAt() { return fulfilledAt; }
-    public void setFulfilledAt(LocalDateTime fulfilledAt) { this.fulfilledAt = fulfilledAt; }
-    
-    public User getDeliveryPerson() { return deliveryPerson; }
-    public void setDeliveryPerson(User deliveryPerson) { this.deliveryPerson = deliveryPerson; }
-    
-    public LocalDateTime getDeliveryAssignedAt() { return deliveryAssignedAt; }
-    public void setDeliveryAssignedAt(LocalDateTime deliveryAssignedAt) { this.deliveryAssignedAt = deliveryAssignedAt; }
-    
-    public LocalDateTime getDeliveredAt() { return deliveredAt; }
-    public void setDeliveredAt(LocalDateTime deliveredAt) { this.deliveredAt = deliveredAt; }
-    
-    public String getDeliveryNotes() { return deliveryNotes; }
-    public void setDeliveryNotes(String deliveryNotes) { this.deliveryNotes = deliveryNotes; }
-    
-    public ReceiptType getReceiptType() { return receiptType; }
-    public void setReceiptType(ReceiptType receiptType) { this.receiptType = receiptType; }
     
     public List<SaleItem> getItems() { return items; }
     public void setItems(List<SaleItem> items) { this.items = items; }
