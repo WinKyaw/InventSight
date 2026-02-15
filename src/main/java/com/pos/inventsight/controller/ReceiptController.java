@@ -474,33 +474,32 @@ public class ReceiptController {
     @PostMapping("/{id}/fulfill")
     public ResponseEntity<?> fulfillReceipt(
             @PathVariable Long id,
-            @RequestBody Map<String, Object> request,
+            @RequestBody(required = false) Map<String, Object> request,
             Authentication authentication) {
         try {
             String username = authentication.getName();
             User user = userService.getUserByUsername(username);
             
-            // Get receipt type from request (mandatory)
-            String receiptTypeStr = (String) request.get("receiptType");
-            if (receiptTypeStr == null) {
-                return ResponseEntity.badRequest().body(new ApiResponse(
-                    false,
-                    "Receipt type is required for fulfillment"
-                ));
+            // Get receipt type from request (optional for backward compatibility)
+            ReceiptType receiptType = null;
+            if (request != null && request.containsKey("receiptType")) {
+                String receiptTypeStr = (String) request.get("receiptType");
+                if (receiptTypeStr != null && !receiptTypeStr.isEmpty()) {
+                    try {
+                        receiptType = ReceiptType.valueOf(receiptTypeStr);
+                        System.out.println("✅ InventSight - Fulfilling receipt ID: " + id + " as " + receiptType + " by user: " + username);
+                    } catch (IllegalArgumentException e) {
+                        return ResponseEntity.badRequest().body(new ApiResponse(
+                            false,
+                            "Invalid receipt type: " + receiptTypeStr + ". Must be PICKUP, DELIVERY, or IN_STORE"
+                        ));
+                    }
+                }
+            } else {
+                System.out.println("✅ InventSight - Fulfilling receipt ID: " + id + " (no type specified - using default) by user: " + username);
             }
             
-            ReceiptType receiptType;
-            try {
-                receiptType = ReceiptType.valueOf(receiptTypeStr);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body(new ApiResponse(
-                    false,
-                    "Invalid receipt type: " + receiptTypeStr + ". Valid types are: PICKUP, DELIVERY, IN_STORE, HOLD"
-                ));
-            }
-            
-            System.out.println("✅ InventSight - Fulfilling receipt ID: " + id + " as " + receiptType + " by user: " + username);
-            
+            // Call service with optional receipt type (service will handle null)
             SaleResponse receipt = saleService.fulfillReceipt(id, receiptType, user.getId());
             
             System.out.println("✅ Receipt fulfilled: " + receipt.getReceiptNumber() + " - Status: " + receipt.getStatus());
