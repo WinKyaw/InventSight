@@ -721,13 +721,13 @@ public class SaleService {
         
         Sale savedSale = saleRepository.save(sale);
         
-        String typeInfo = receiptType != null ? " (Type: " + receiptType + ", Status: " + sale.getStatus() + ")" : " (Default: COMPLETED)";
+        String fulfillmentDetails = receiptType != null ? " (Type: " + receiptType + ", Status: " + sale.getStatus() + ")" : " (Default: COMPLETED)";
         activityLogService.logActivity(
             userId.toString(), 
             user.getUsername(), 
             "SALE_FULFILLED", 
             "SALE", 
-            String.format("Receipt fulfilled: %s%s", sale.getReceiptNumber(), typeInfo)
+            String.format("Receipt fulfilled: %s%s", sale.getReceiptNumber(), fulfillmentDetails)
         );
         
         return convertToSaleResponse(savedSale);

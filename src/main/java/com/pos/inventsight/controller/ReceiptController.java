@@ -491,7 +491,7 @@ public class ReceiptController {
                     } catch (IllegalArgumentException e) {
                         return ResponseEntity.badRequest().body(new ApiResponse(
                             false,
-                            "Invalid receipt type: " + receiptTypeStr + ". Must be PICKUP, DELIVERY, or IN_STORE"
+                            "Invalid receipt type: " + receiptTypeStr + ". Must be PICKUP, DELIVERY, IN_STORE, or HOLD"
                         ));
                     }
                 }
