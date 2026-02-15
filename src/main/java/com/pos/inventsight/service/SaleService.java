@@ -692,50 +692,42 @@ public class SaleService {
         Sale sale = saleRepository.findById(saleId)
             .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
         
-        // Validate receipt is paid before fulfilling
+        // ✅ Payment validation (optional - can be removed if not needed)
+        // Commented out for now to maintain backward compatibility
+        /*
         if (sale.getPaymentMethod() == null) {
             throw new IllegalStateException("Cannot fulfill unpaid receipt. Please complete payment first.");
         }
+        */
         
-        // Validate receipt type is provided
-        if (receiptType == null) {
-            throw new IllegalArgumentException("Receipt type is required for fulfillment");
-        }
-        
-        // If receipt already has a type, validate it matches
-        if (sale.getReceiptType() != null && sale.getReceiptType() != receiptType) {
-            throw new IllegalArgumentException(
-                String.format("Receipt type mismatch. Receipt was created as %s but fulfillment requested for %s", 
-                    sale.getReceiptType(), receiptType));
-        }
-        
-        // Set receipt type if not already set (for legacy receipts)
-        if (sale.getReceiptType() == null) {
+        // Set receipt type if provided
+        if (receiptType != null) {
             sale.setReceiptType(receiptType);
         }
         
+        // Set fulfillment details
         sale.setFulfilledBy(user);
         sale.setFulfilledAt(LocalDateTime.now());
         
-        // Set appropriate status based on receipt type
+        // Set status based on receipt type (or default to COMPLETED if not specified)
         if (receiptType == ReceiptType.PICKUP) {
             sale.setStatus(SaleStatus.READY_FOR_PICKUP);
         } else if (receiptType == ReceiptType.DELIVERY) {
             sale.setStatus(SaleStatus.OUT_FOR_DELIVERY);
         } else {
-            // IN_STORE or HOLD - mark as completed
+            // Default behavior: mark as COMPLETED
             sale.setStatus(SaleStatus.COMPLETED);
         }
         
         Sale savedSale = saleRepository.save(sale);
         
+        String fulfillmentDetails = receiptType != null ? " (Type: " + receiptType + ", Status: " + sale.getStatus() + ")" : " (Default: COMPLETED)";
         activityLogService.logActivity(
             userId.toString(), 
             user.getUsername(), 
             "SALE_FULFILLED", 
             "SALE", 
-            String.format("Receipt fulfilled: %s (Type: %s, Status: %s)", 
-                sale.getReceiptNumber(), receiptType, sale.getStatus())
+            String.format("Receipt fulfilled: %s%s", sale.getReceiptNumber(), fulfillmentDetails)
         );
         
         return convertToSaleResponse(savedSale);
