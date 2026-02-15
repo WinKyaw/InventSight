@@ -6,6 +6,7 @@ import com.pos.inventsight.dto.SaleRequest;
 import com.pos.inventsight.dto.SaleResponse;
 import com.pos.inventsight.exception.ResourceNotFoundException;
 import com.pos.inventsight.model.sql.PaymentMethod;
+import com.pos.inventsight.model.sql.ReceiptType;
 import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.User;
@@ -473,18 +474,46 @@ public class ReceiptController {
     @PostMapping("/{id}/fulfill")
     public ResponseEntity<?> fulfillReceipt(
             @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
             Authentication authentication) {
         try {
             String username = authentication.getName();
             User user = userService.getUserByUsername(username);
             
-            System.out.println("✅ InventSight - Fulfilling receipt ID: " + id + " by user: " + username);
+            // Get receipt type from request (mandatory)
+            String receiptTypeStr = (String) request.get("receiptType");
+            if (receiptTypeStr == null) {
+                return ResponseEntity.badRequest().body(new ApiResponse(
+                    false,
+                    "Receipt type is required for fulfillment"
+                ));
+            }
             
-            SaleResponse receipt = saleService.fulfillReceipt(id, user.getId());
+            ReceiptType receiptType;
+            try {
+                receiptType = ReceiptType.valueOf(receiptTypeStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(new ApiResponse(
+                    false,
+                    "Invalid receipt type: " + receiptTypeStr + ". Valid types are: PICKUP, DELIVERY, IN_STORE, HOLD"
+                ));
+            }
             
-            System.out.println("✅ Receipt fulfilled: " + receipt.getReceiptNumber());
+            System.out.println("✅ InventSight - Fulfilling receipt ID: " + id + " as " + receiptType + " by user: " + username);
+            
+            SaleResponse receipt = saleService.fulfillReceipt(id, receiptType, user.getId());
+            
+            System.out.println("✅ Receipt fulfilled: " + receipt.getReceiptNumber() + " - Status: " + receipt.getStatus());
             return ResponseEntity.ok(receipt);
             
+        } catch (IllegalStateException e) {
+            // Payment not completed
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            // Receipt type mismatch or validation error
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
         } catch (ResourceNotFoundException e) {
             System.err.println("❌ Receipt not found: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

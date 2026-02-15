@@ -18,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -60,17 +62,21 @@ public class ReceiptControllerFulfillDeliverTest {
         SaleResponse saleResponse = new SaleResponse();
         saleResponse.setId(receiptId);
         saleResponse.setReceiptNumber("RCP-001");
-        saleResponse.setStatus(SaleStatus.COMPLETED);
+        saleResponse.setStatus(SaleStatus.READY_FOR_PICKUP);
+        saleResponse.setReceiptType(ReceiptType.PICKUP);
         saleResponse.setFulfilledByUserId(userId);
         saleResponse.setFulfilledByUsername(username);
         saleResponse.setFulfilledAt(LocalDateTime.now());
         
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "PICKUP");
+        
         when(authentication.getName()).thenReturn(username);
         when(userService.getUserByUsername(username)).thenReturn(user);
-        when(saleService.fulfillReceipt(receiptId, userId)).thenReturn(saleResponse);
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.PICKUP, userId)).thenReturn(saleResponse);
         
         // When
-        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, authentication);
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
         
         // Then
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -79,10 +85,11 @@ public class ReceiptControllerFulfillDeliverTest {
         
         SaleResponse responseBody = (SaleResponse) response.getBody();
         assertEquals(receiptId, responseBody.getId());
-        assertEquals(SaleStatus.COMPLETED, responseBody.getStatus());
+        assertEquals(SaleStatus.READY_FOR_PICKUP, responseBody.getStatus());
+        assertEquals(ReceiptType.PICKUP, responseBody.getReceiptType());
         assertNotNull(responseBody.getFulfilledAt());
         
-        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(userId));
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.PICKUP), eq(userId));
     }
 
     /**
@@ -99,13 +106,16 @@ public class ReceiptControllerFulfillDeliverTest {
         user.setId(userId);
         user.setUsername(username);
         
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "PICKUP");
+        
         when(authentication.getName()).thenReturn(username);
         when(userService.getUserByUsername(username)).thenReturn(user);
-        when(saleService.fulfillReceipt(receiptId, userId))
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.PICKUP, userId))
             .thenThrow(new ResourceNotFoundException("Receipt not found with ID: " + receiptId));
         
         // When
-        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, authentication);
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
         
         // Then
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
@@ -116,7 +126,7 @@ public class ReceiptControllerFulfillDeliverTest {
         assertFalse(apiResponse.getSuccess());
         assertTrue(apiResponse.getMessage().contains("Receipt not found"));
         
-        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(userId));
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.PICKUP), eq(userId));
     }
 
     /**
@@ -246,16 +256,19 @@ public class ReceiptControllerFulfillDeliverTest {
         SaleResponse saleResponse = new SaleResponse();
         saleResponse.setId(receiptId);
         
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "DELIVERY");
+        
         when(authentication.getName()).thenReturn(username);
         when(userService.getUserByUsername(username)).thenReturn(user);
-        when(saleService.fulfillReceipt(receiptId, userId)).thenReturn(saleResponse);
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.DELIVERY, userId)).thenReturn(saleResponse);
         
         // When
-        receiptController.fulfillReceipt(receiptId, authentication);
+        receiptController.fulfillReceipt(receiptId, request, authentication);
         
         // Then
         verify(userService, times(1)).getUserByUsername(eq(username));
-        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(userId));
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.DELIVERY), eq(userId));
     }
 
     /**
@@ -285,5 +298,199 @@ public class ReceiptControllerFulfillDeliverTest {
         // Then
         verify(userService, times(1)).getUserByUsername(eq(username));
         verify(saleService, times(1)).markAsDelivered(eq(receiptId), eq(userId));
+    }
+
+    /**
+     * Test fulfillment without receipt type - should fail with BAD_REQUEST
+     */
+    @Test
+    public void testFulfillReceipt_MissingReceiptType() {
+        // Given
+        Long receiptId = 10L;
+        String username = "testuser";
+        UUID userId = UUID.randomUUID();
+        
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+        
+        // Request without receiptType
+        Map<String, Object> request = new HashMap<>();
+        
+        when(authentication.getName()).thenReturn(username);
+        when(userService.getUserByUsername(username)).thenReturn(user);
+        
+        // When
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
+        
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof ApiResponse);
+        
+        ApiResponse apiResponse = (ApiResponse) response.getBody();
+        assertFalse(apiResponse.getSuccess());
+        assertTrue(apiResponse.getMessage().contains("Receipt type"));
+        assertTrue(apiResponse.getMessage().contains("required"));
+        
+        // Service should not be called
+        verify(saleService, never()).fulfillReceipt(any(), any(), any());
+    }
+
+    /**
+     * Test fulfillment with invalid receipt type - should fail with BAD_REQUEST
+     */
+    @Test
+    public void testFulfillReceipt_InvalidReceiptType() {
+        // Given
+        Long receiptId = 11L;
+        String username = "testuser";
+        UUID userId = UUID.randomUUID();
+        
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+        
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "INVALID_TYPE");
+        
+        when(authentication.getName()).thenReturn(username);
+        when(userService.getUserByUsername(username)).thenReturn(user);
+        
+        // When
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
+        
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof ApiResponse);
+        
+        ApiResponse apiResponse = (ApiResponse) response.getBody();
+        assertFalse(apiResponse.getSuccess());
+        assertTrue(apiResponse.getMessage().contains("Invalid receipt type"));
+        
+        // Service should not be called
+        verify(saleService, never()).fulfillReceipt(any(), any(), any());
+    }
+
+    /**
+     * Test fulfillment without payment - should fail with BAD_REQUEST
+     */
+    @Test
+    public void testFulfillReceipt_UnpaidReceipt() {
+        // Given
+        Long receiptId = 12L;
+        String username = "testuser";
+        UUID userId = UUID.randomUUID();
+        
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+        
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "PICKUP");
+        
+        when(authentication.getName()).thenReturn(username);
+        when(userService.getUserByUsername(username)).thenReturn(user);
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.PICKUP, userId))
+            .thenThrow(new IllegalStateException("Cannot fulfill unpaid receipt. Please complete payment first."));
+        
+        // When
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
+        
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof ApiResponse);
+        
+        ApiResponse apiResponse = (ApiResponse) response.getBody();
+        assertFalse(apiResponse.getSuccess());
+        assertTrue(apiResponse.getMessage().contains("Cannot fulfill unpaid receipt"));
+        
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.PICKUP), eq(userId));
+    }
+
+    /**
+     * Test fulfillment with DELIVERY type - should set status to OUT_FOR_DELIVERY
+     */
+    @Test
+    public void testFulfillReceipt_DeliveryType() {
+        // Given
+        Long receiptId = 13L;
+        String username = "testuser";
+        UUID userId = UUID.randomUUID();
+        
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+        
+        SaleResponse saleResponse = new SaleResponse();
+        saleResponse.setId(receiptId);
+        saleResponse.setReceiptNumber("RCP-003");
+        saleResponse.setStatus(SaleStatus.OUT_FOR_DELIVERY);
+        saleResponse.setReceiptType(ReceiptType.DELIVERY);
+        saleResponse.setFulfilledByUserId(userId);
+        saleResponse.setFulfilledByUsername(username);
+        saleResponse.setFulfilledAt(LocalDateTime.now());
+        
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "DELIVERY");
+        
+        when(authentication.getName()).thenReturn(username);
+        when(userService.getUserByUsername(username)).thenReturn(user);
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.DELIVERY, userId)).thenReturn(saleResponse);
+        
+        // When
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
+        
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof SaleResponse);
+        
+        SaleResponse responseBody = (SaleResponse) response.getBody();
+        assertEquals(receiptId, responseBody.getId());
+        assertEquals(SaleStatus.OUT_FOR_DELIVERY, responseBody.getStatus());
+        assertEquals(ReceiptType.DELIVERY, responseBody.getReceiptType());
+        assertNotNull(responseBody.getFulfilledAt());
+        
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.DELIVERY), eq(userId));
+    }
+
+    /**
+     * Test fulfillment with receipt type mismatch - should fail with BAD_REQUEST
+     */
+    @Test
+    public void testFulfillReceipt_TypeMismatch() {
+        // Given
+        Long receiptId = 14L;
+        String username = "testuser";
+        UUID userId = UUID.randomUUID();
+        
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+        
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "DELIVERY");
+        
+        when(authentication.getName()).thenReturn(username);
+        when(userService.getUserByUsername(username)).thenReturn(user);
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.DELIVERY, userId))
+            .thenThrow(new IllegalArgumentException("Receipt type mismatch. Receipt was created as PICKUP but fulfillment requested for DELIVERY"));
+        
+        // When
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
+        
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof ApiResponse);
+        
+        ApiResponse apiResponse = (ApiResponse) response.getBody();
+        assertFalse(apiResponse.getSuccess());
+        assertTrue(apiResponse.getMessage().contains("Receipt type mismatch"));
+        
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.DELIVERY), eq(userId));
     }
 }

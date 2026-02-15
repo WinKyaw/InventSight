@@ -686,15 +686,46 @@ public class SaleService {
     /**
      * Mark receipt as fulfilled
      */
-    public SaleResponse fulfillReceipt(Long saleId, UUID userId) {
+    public SaleResponse fulfillReceipt(Long saleId, ReceiptType receiptType, UUID userId) {
         User user = userService.getUserById(userId);
         
         Sale sale = saleRepository.findById(saleId)
             .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
         
+        // Validate receipt is paid before fulfilling
+        if (sale.getPaymentMethod() == null) {
+            throw new IllegalStateException("Cannot fulfill unpaid receipt. Please complete payment first.");
+        }
+        
+        // Validate receipt type is provided
+        if (receiptType == null) {
+            throw new IllegalArgumentException("Receipt type is required for fulfillment");
+        }
+        
+        // If receipt already has a type, validate it matches
+        if (sale.getReceiptType() != null && sale.getReceiptType() != receiptType) {
+            throw new IllegalArgumentException(
+                String.format("Receipt type mismatch. Receipt was created as %s but fulfillment requested for %s", 
+                    sale.getReceiptType(), receiptType));
+        }
+        
+        // Set receipt type if not already set (for legacy receipts)
+        if (sale.getReceiptType() == null) {
+            sale.setReceiptType(receiptType);
+        }
+        
         sale.setFulfilledBy(user);
         sale.setFulfilledAt(LocalDateTime.now());
-        sale.setStatus(SaleStatus.COMPLETED);
+        
+        // Set appropriate status based on receipt type
+        if (receiptType == ReceiptType.PICKUP) {
+            sale.setStatus(SaleStatus.READY_FOR_PICKUP);
+        } else if (receiptType == ReceiptType.DELIVERY) {
+            sale.setStatus(SaleStatus.OUT_FOR_DELIVERY);
+        } else {
+            // IN_STORE or HOLD - mark as completed
+            sale.setStatus(SaleStatus.COMPLETED);
+        }
         
         Sale savedSale = saleRepository.save(sale);
         
@@ -703,7 +734,8 @@ public class SaleService {
             user.getUsername(), 
             "SALE_FULFILLED", 
             "SALE", 
-            String.format("Receipt fulfilled: %s", sale.getReceiptNumber())
+            String.format("Receipt fulfilled: %s (Type: %s, Status: %s)", 
+                sale.getReceiptNumber(), receiptType, sale.getStatus())
         );
         
         return convertToSaleResponse(savedSale);
