@@ -485,7 +485,7 @@ public class ReceiptController {
             if (receiptTypeStr == null) {
                 return ResponseEntity.badRequest().body(new ApiResponse(
                     false,
-                    "Receipt type (PICKUP or DELIVERY) is required for fulfillment"
+                    "Receipt type is required for fulfillment"
                 ));
             }
             
@@ -495,7 +495,7 @@ public class ReceiptController {
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(new ApiResponse(
                     false,
-                    "Invalid receipt type: " + receiptTypeStr + ". Must be PICKUP or DELIVERY"
+                    "Invalid receipt type: " + receiptTypeStr + ". Valid types are: PICKUP, DELIVERY, IN_STORE, HOLD"
                 ));
             }
             
@@ -508,6 +508,10 @@ public class ReceiptController {
             
         } catch (IllegalStateException e) {
             // Payment not completed
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            // Receipt type mismatch or validation error
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse(false, e.getMessage()));
         } catch (ResourceNotFoundException e) {

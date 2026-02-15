@@ -456,4 +456,41 @@ public class ReceiptControllerFulfillDeliverTest {
         
         verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.DELIVERY), eq(userId));
     }
+
+    /**
+     * Test fulfillment with receipt type mismatch - should fail with BAD_REQUEST
+     */
+    @Test
+    public void testFulfillReceipt_TypeMismatch() {
+        // Given
+        Long receiptId = 14L;
+        String username = "testuser";
+        UUID userId = UUID.randomUUID();
+        
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+        
+        Map<String, Object> request = new HashMap<>();
+        request.put("receiptType", "DELIVERY");
+        
+        when(authentication.getName()).thenReturn(username);
+        when(userService.getUserByUsername(username)).thenReturn(user);
+        when(saleService.fulfillReceipt(receiptId, ReceiptType.DELIVERY, userId))
+            .thenThrow(new IllegalArgumentException("Receipt type mismatch. Receipt was created as PICKUP but fulfillment requested for DELIVERY"));
+        
+        // When
+        ResponseEntity<?> response = receiptController.fulfillReceipt(receiptId, request, authentication);
+        
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof ApiResponse);
+        
+        ApiResponse apiResponse = (ApiResponse) response.getBody();
+        assertFalse(apiResponse.getSuccess());
+        assertTrue(apiResponse.getMessage().contains("Receipt type mismatch"));
+        
+        verify(saleService, times(1)).fulfillReceipt(eq(receiptId), eq(ReceiptType.DELIVERY), eq(userId));
+    }
 }

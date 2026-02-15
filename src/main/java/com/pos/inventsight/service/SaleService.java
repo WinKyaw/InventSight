@@ -699,14 +699,25 @@ public class SaleService {
         
         // Validate receipt type is provided
         if (receiptType == null) {
-            throw new IllegalArgumentException("Receipt type (PICKUP or DELIVERY) is required for fulfillment");
+            throw new IllegalArgumentException("Receipt type is required for fulfillment");
         }
         
-        // Set receipt type and appropriate status
-        sale.setReceiptType(receiptType);
+        // If receipt already has a type, validate it matches
+        if (sale.getReceiptType() != null && sale.getReceiptType() != receiptType) {
+            throw new IllegalArgumentException(
+                String.format("Receipt type mismatch. Receipt was created as %s but fulfillment requested for %s", 
+                    sale.getReceiptType(), receiptType));
+        }
+        
+        // Set receipt type if not already set (for legacy receipts)
+        if (sale.getReceiptType() == null) {
+            sale.setReceiptType(receiptType);
+        }
+        
         sale.setFulfilledBy(user);
         sale.setFulfilledAt(LocalDateTime.now());
         
+        // Set appropriate status based on receipt type
         if (receiptType == ReceiptType.PICKUP) {
             sale.setStatus(SaleStatus.READY_FOR_PICKUP);
         } else if (receiptType == ReceiptType.DELIVERY) {
