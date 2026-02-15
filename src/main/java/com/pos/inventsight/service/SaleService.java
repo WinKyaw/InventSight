@@ -686,15 +686,35 @@ public class SaleService {
     /**
      * Mark receipt as fulfilled
      */
-    public SaleResponse fulfillReceipt(Long saleId, UUID userId) {
+    public SaleResponse fulfillReceipt(Long saleId, ReceiptType receiptType, UUID userId) {
         User user = userService.getUserById(userId);
         
         Sale sale = saleRepository.findById(saleId)
             .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
         
+        // Validate receipt is paid before fulfilling
+        if (sale.getPaymentMethod() == null) {
+            throw new IllegalStateException("Cannot fulfill unpaid receipt. Please complete payment first.");
+        }
+        
+        // Validate receipt type is provided
+        if (receiptType == null) {
+            throw new IllegalArgumentException("Receipt type (PICKUP or DELIVERY) is required for fulfillment");
+        }
+        
+        // Set receipt type and appropriate status
+        sale.setReceiptType(receiptType);
         sale.setFulfilledBy(user);
         sale.setFulfilledAt(LocalDateTime.now());
-        sale.setStatus(SaleStatus.COMPLETED);
+        
+        if (receiptType == ReceiptType.PICKUP) {
+            sale.setStatus(SaleStatus.READY_FOR_PICKUP);
+        } else if (receiptType == ReceiptType.DELIVERY) {
+            sale.setStatus(SaleStatus.OUT_FOR_DELIVERY);
+        } else {
+            // IN_STORE or HOLD - mark as completed
+            sale.setStatus(SaleStatus.COMPLETED);
+        }
         
         Sale savedSale = saleRepository.save(sale);
         
@@ -703,7 +723,8 @@ public class SaleService {
             user.getUsername(), 
             "SALE_FULFILLED", 
             "SALE", 
-            String.format("Receipt fulfilled: %s", sale.getReceiptNumber())
+            String.format("Receipt fulfilled: %s (Type: %s, Status: %s)", 
+                sale.getReceiptNumber(), receiptType, sale.getStatus())
         );
         
         return convertToSaleResponse(savedSale);
