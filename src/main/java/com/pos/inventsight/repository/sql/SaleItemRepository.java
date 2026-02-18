@@ -1,6 +1,7 @@
 package com.pos.inventsight.repository.sql;
 
 import com.pos.inventsight.model.sql.SaleItem;
+import com.pos.inventsight.model.sql.SaleStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -42,7 +43,9 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
         FROM SaleItem si
         JOIN si.product p
         JOIN si.sale s
-        WHERE s.status = 'COMPLETED'
+        WHERE s.status IN (com.pos.inventsight.model.sql.SaleStatus.COMPLETED, 
+                          com.pos.inventsight.model.sql.SaleStatus.PAID, 
+                          com.pos.inventsight.model.sql.SaleStatus.DELIVERED)
         GROUP BY p.id, p.name, p.category
         ORDER BY totalQuantity DESC
         """)

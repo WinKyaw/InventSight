@@ -27,6 +27,13 @@ public class DashboardService {
     
     private static final Logger logger = LoggerFactory.getLogger(DashboardService.class);
     
+    // Constants for stock level calculation
+    private static final int CRITICAL_STOCK_DIVISOR = 2;
+    
+    // Constants for growth calculation precision
+    private static final int GROWTH_CALCULATION_SCALE = 4;
+    private static final int GROWTH_DISPLAY_SCALE = 1;
+    
     @Autowired
     private ProductService productService;
     
@@ -571,7 +578,7 @@ public class DashboardService {
      */
     private String calculateStockLevel(int current, int threshold) {
         if (current == 0) return "OUT_OF_STOCK";
-        if (current < threshold / 2) return "CRITICAL";
+        if (current < threshold / CRITICAL_STOCK_DIVISOR) return "CRITICAL";
         if (current < threshold) return "LOW";
         return "NORMAL";
     }
@@ -634,10 +641,10 @@ public class DashboardService {
             // Calculate growth percentage
             BigDecimal growth = currentRevenue
                 .subtract(previousRevenue)
-                .divide(previousRevenue, 4, RoundingMode.HALF_UP)
+                .divide(previousRevenue, GROWTH_CALCULATION_SCALE, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("100"));
                 
-            return growth.setScale(1, RoundingMode.HALF_UP);
+            return growth.setScale(GROWTH_DISPLAY_SCALE, RoundingMode.HALF_UP);
             
         } catch (Exception e) {
             logger.error("Error calculating revenue growth: " + e.getMessage());
@@ -666,7 +673,7 @@ public class DashboardService {
             
             // Calculate growth percentage
             double growth = ((double)(currentOrders - previousOrders) / previousOrders) * 100;
-            return BigDecimal.valueOf(growth).setScale(1, RoundingMode.HALF_UP);
+            return BigDecimal.valueOf(growth).setScale(GROWTH_DISPLAY_SCALE, RoundingMode.HALF_UP);
             
         } catch (Exception e) {
             logger.error("Error calculating order growth: " + e.getMessage());
