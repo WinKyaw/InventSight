@@ -41,6 +41,12 @@ public class DashboardServiceWidgetTest {
     @Mock
     private ProductService productService;
     
+    @Mock
+    private SaleItemRepository saleItemRepository;
+    
+    @Mock
+    private SaleRepository saleRepository;
+    
     @InjectMocks
     private DashboardService dashboardService;
     
@@ -327,6 +333,187 @@ public class DashboardServiceWidgetTest {
         assertEquals("John Doe", orderInfo.getCustomerName());
         
         verify(salesOrderRepository).findRecentOrders(any(PageRequest.class));
+    }
+    
+    // ==================== Tests for New Analytics Methods ====================
+    
+    @Test
+    void testGetTopSellingProducts_ShouldReturnTopProducts() {
+        // Given
+        List<Object[]> mockResults = new ArrayList<>();
+        mockResults.add(new Object[]{"Coffee", 250L, new BigDecimal("3750.00"), "Beverages"});
+        mockResults.add(new Object[]{"Sugar", 180L, new BigDecimal("1440.00"), "Groceries"});
+        mockResults.add(new Object[]{"Milk", 150L, new BigDecimal("2250.00"), "Dairy"});
+        
+        when(saleItemRepository.findTopSellingProducts(anyInt())).thenReturn(mockResults);
+        
+        // When
+        List<TopSellingProduct> result = dashboardService.getTopSellingProducts(5);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        assertEquals("Coffee", result.get(0).getName());
+        assertEquals(250L, result.get(0).getQuantitySold());
+        assertEquals(new BigDecimal("3750.00"), result.get(0).getTotalRevenue());
+        assertEquals("Beverages", result.get(0).getCategory());
+        
+        verify(saleItemRepository).findTopSellingProducts(5);
+    }
+    
+    @Test
+    void testGetTopSellingProducts_WithEmptyResults_ShouldReturnEmptyList() {
+        // Given
+        when(saleItemRepository.findTopSellingProducts(anyInt())).thenReturn(Collections.emptyList());
+        
+        // When
+        List<TopSellingProduct> result = dashboardService.getTopSellingProducts(5);
+        
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        
+        verify(saleItemRepository).findTopSellingProducts(5);
+    }
+    
+    @Test
+    void testGetRealLowStockItems_ShouldReturnLowStockItems() {
+        // Given
+        Product product1 = createMockProduct("Coffee", "CAP126", 5, 10);
+        product1.setId(UUID.randomUUID());
+        product1.setCategory("Beverages");
+        
+        Product product2 = createMockProduct("Sugar", "SUG001", 0, 15);
+        product2.setId(UUID.randomUUID());
+        product2.setCategory("Groceries");
+        
+        List<Product> lowStockProducts = Arrays.asList(product1, product2);
+        
+        when(productRepository.findByQuantityLessThanOrderByQuantityAsc(10)).thenReturn(lowStockProducts);
+        
+        // When
+        List<LowStockItem> result = dashboardService.getRealLowStockItems(10);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals("Coffee", result.get(0).getName());
+        assertEquals(5, result.get(0).getCurrentStock());
+        assertEquals(10, result.get(0).getMinStock());
+        assertEquals("Beverages", result.get(0).getCategory());
+        assertEquals("LOW", result.get(0).getStockLevel());
+        
+        assertEquals("Sugar", result.get(1).getName());
+        assertEquals(0, result.get(1).getCurrentStock());
+        assertEquals("OUT_OF_STOCK", result.get(1).getStockLevel());
+        
+        verify(productRepository).findByQuantityLessThanOrderByQuantityAsc(10);
+    }
+    
+    @Test
+    void testGetDailySalesLast7Days_ShouldReturnSevenDaysOfData() {
+        // Given
+        BigDecimal revenue = new BigDecimal("1500.00");
+        long orderCount = 25L;
+        
+        when(saleRepository.getTotalRevenueByDateRange(any(), any())).thenReturn(revenue);
+        when(saleRepository.getSalesCountByDateRange(any(), any())).thenReturn(orderCount);
+        
+        // When
+        List<DailySales> result = dashboardService.getDailySalesLast7Days();
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(7, result.size());
+        
+        // Check that each day has data
+        for (DailySales day : result) {
+            assertNotNull(day.getDate());
+            assertEquals(revenue, day.getRevenue());
+            assertEquals(orderCount, day.getOrderCount());
+        }
+        
+        // Verify repository was called 7 times for each metric
+        verify(saleRepository, times(7)).getTotalRevenueByDateRange(any(), any());
+        verify(saleRepository, times(7)).getSalesCountByDateRange(any(), any());
+    }
+    
+    @Test
+    void testCalculateRevenueGrowth_WithPositiveGrowth_ShouldReturnGrowthPercentage() {
+        // Given
+        BigDecimal currentRevenue = new BigDecimal("15000.00");
+        BigDecimal previousRevenue = new BigDecimal("12000.00");
+        
+        when(saleRepository.getTotalRevenueByDateRange(any(), any()))
+            .thenReturn(currentRevenue)
+            .thenReturn(previousRevenue);
+        
+        // When
+        BigDecimal result = dashboardService.calculateRevenueGrowth();
+        
+        // Then
+        assertNotNull(result);
+        assertTrue(result.compareTo(BigDecimal.ZERO) > 0);
+        assertEquals(new BigDecimal("25.0"), result);
+        
+        verify(saleRepository, times(2)).getTotalRevenueByDateRange(any(), any());
+    }
+    
+    @Test
+    void testCalculateRevenueGrowth_WithZeroPreviousRevenue_ShouldReturnZero() {
+        // Given
+        BigDecimal currentRevenue = new BigDecimal("15000.00");
+        BigDecimal previousRevenue = BigDecimal.ZERO;
+        
+        when(saleRepository.getTotalRevenueByDateRange(any(), any()))
+            .thenReturn(currentRevenue)
+            .thenReturn(previousRevenue);
+        
+        // When
+        BigDecimal result = dashboardService.calculateRevenueGrowth();
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(BigDecimal.ZERO, result);
+    }
+    
+    @Test
+    void testCalculateOrderGrowth_WithPositiveGrowth_ShouldReturnGrowthPercentage() {
+        // Given
+        long currentOrders = 150L;
+        long previousOrders = 120L;
+        
+        when(saleRepository.getSalesCountByDateRange(any(), any()))
+            .thenReturn(currentOrders)
+            .thenReturn(previousOrders);
+        
+        // When
+        BigDecimal result = dashboardService.calculateOrderGrowth();
+        
+        // Then
+        assertNotNull(result);
+        assertTrue(result.compareTo(BigDecimal.ZERO) > 0);
+        assertEquals(new BigDecimal("25.0"), result);
+        
+        verify(saleRepository, times(2)).getSalesCountByDateRange(any(), any());
+    }
+    
+    @Test
+    void testCalculateOrderGrowth_WithZeroPreviousOrders_ShouldReturnZero() {
+        // Given
+        long currentOrders = 150L;
+        long previousOrders = 0L;
+        
+        when(saleRepository.getSalesCountByDateRange(any(), any()))
+            .thenReturn(currentOrders)
+            .thenReturn(previousOrders);
+        
+        // When
+        BigDecimal result = dashboardService.calculateOrderGrowth();
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(BigDecimal.ZERO, result);
     }
     
     // Helper methods
