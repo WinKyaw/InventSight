@@ -692,13 +692,10 @@ public class SaleService {
         Sale sale = saleRepository.findById(saleId)
             .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
         
-        // ✅ Payment validation (optional - can be removed if not needed)
-        // Commented out for now to maintain backward compatibility
-        /*
-        if (sale.getPaymentMethod() == null) {
-            throw new IllegalStateException("Cannot fulfill unpaid receipt. Please complete payment first.");
+        // Validate receipt is paid before fulfillment
+        if (sale.getStatus() != SaleStatus.PAID) {
+            throw new IllegalStateException("Receipt must be paid before fulfillment. Current status: " + sale.getStatus());
         }
-        */
         
         // Set receipt type if provided
         if (receiptType != null) {
@@ -808,12 +805,12 @@ public class SaleService {
             productService.reduceStock(
                 product.getId(),
                 item.getQuantity(),
-                "COMPLETED - Receipt: " + sale.getReceiptNumber()
+                "PAID - Receipt: " + sale.getReceiptNumber()
             );
         }
         
         // Update receipt
-        sale.setStatus(SaleStatus.COMPLETED);
+        sale.setStatus(SaleStatus.PAID);
         sale.setPaymentMethod(paymentMethod);
         sale.setUpdatedAt(LocalDateTime.now());
         
@@ -830,9 +827,9 @@ public class SaleService {
         activityLogService.logActivity(
             userId.toString(),
             user.getUsername(),
-            "SALE_COMPLETED",
+            "SALE_PAID",
             "SALE",
-            String.format("Receipt completed: %s - Total: $%.2f", 
+            String.format("Receipt paid: %s - Total: $%.2f", 
                 completedSale.getReceiptNumber(), completedSale.getTotalAmount())
         );
         

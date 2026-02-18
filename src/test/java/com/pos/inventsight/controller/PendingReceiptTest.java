@@ -187,7 +187,7 @@ public class PendingReceiptTest {
         
         SaleResponse completedResponse = new SaleResponse();
         completedResponse.setId(receiptId);
-        completedResponse.setStatus(SaleStatus.COMPLETED);
+        completedResponse.setStatus(SaleStatus.PAID);
         completedResponse.setPaymentMethod(PaymentMethod.CASH);
         
         when(authentication.getName()).thenReturn("testuser");
@@ -204,7 +204,7 @@ public class PendingReceiptTest {
         assertTrue(response.getBody() instanceof SaleResponse);
         
         SaleResponse saleResponse = (SaleResponse) response.getBody();
-        assertEquals(SaleStatus.COMPLETED, saleResponse.getStatus());
+        assertEquals(SaleStatus.PAID, saleResponse.getStatus());
         assertEquals(PaymentMethod.CASH, saleResponse.getPaymentMethod());
         
         verify(saleService, times(1)).completeReceipt(eq(receiptId), eq(PaymentMethod.CASH), eq(mockUser.getId()));
@@ -273,6 +273,17 @@ public class PendingReceiptTest {
     public void testSaleRequest_RequiresPaymentMethod_ReturnsTrue_ForCompleted() {
         SaleRequest request = new SaleRequest();
         request.setStatus(SaleStatus.COMPLETED);
+        
+        assertTrue(request.requiresPaymentMethod());
+    }
+
+    /**
+     * Test that SaleRequest.requiresPaymentMethod() returns true for PAID status
+     */
+    @Test
+    public void testSaleRequest_RequiresPaymentMethod_ReturnsTrue_ForPaid() {
+        SaleRequest request = new SaleRequest();
+        request.setStatus(SaleStatus.PAID);
         
         assertTrue(request.requiresPaymentMethod());
     }

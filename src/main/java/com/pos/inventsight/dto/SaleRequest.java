@@ -92,6 +92,6 @@ public class SaleRequest {
     
     // Add validation method
     public boolean requiresPaymentMethod() {
-        return status == SaleStatus.COMPLETED;
+        return status == SaleStatus.COMPLETED || status == SaleStatus.PAID;
     }
 }
