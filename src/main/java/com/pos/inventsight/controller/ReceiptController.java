@@ -555,4 +555,33 @@ public class ReceiptController {
                 .body(new ApiResponse(false, "Error marking receipt as delivered: " + e.getMessage()));
         }
     }
+    
+    /**
+     * PUT /receipts/{id}/picked-up - Mark pickup receipt as completed
+     */
+    @PutMapping("/{id}/picked-up")
+    public ResponseEntity<?> markAsPickedUp(
+            @PathVariable Long id,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+            
+            System.out.println("📦 InventSight - Marking receipt as picked up: " + id);
+            
+            SaleResponse receipt = saleService.markAsPickedUp(id, user.getId());
+            
+            System.out.println("✅ Receipt marked as picked up: " + receipt.getReceiptNumber());
+            return ResponseEntity.ok(receipt);
+            
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            System.err.println("⚠️ Validation error: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Error marking receipt as picked up: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error: " + e.getMessage()));
+        }
+    }
 }

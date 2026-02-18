@@ -692,13 +692,12 @@ public class SaleService {
         Sale sale = saleRepository.findById(saleId)
             .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
         
-        // ✅ Payment validation (optional - can be removed if not needed)
-        // Commented out for now to maintain backward compatibility
-        /*
-        if (sale.getPaymentMethod() == null) {
-            throw new IllegalStateException("Cannot fulfill unpaid receipt. Please complete payment first.");
+        // Validate receipt must be PAID before fulfillment
+        if (sale.getStatus() != SaleStatus.PAID) {
+            throw new IllegalStateException(
+                "Receipt must be paid before fulfillment. Current status: " + sale.getStatus()
+            );
         }
-        */
         
         // Set receipt type if provided
         if (receiptType != null) {
@@ -762,8 +761,48 @@ public class SaleService {
     }
     
     /**
+     * Mark pickup receipt as completed (customer picked up)
+     */
+    public SaleResponse markAsPickedUp(Long saleId, UUID userId) {
+        Sale sale = saleRepository.findById(saleId)
+            .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + saleId));
+        
+        // Validate it's a pickup receipt
+        if (sale.getReceiptType() != ReceiptType.PICKUP) {
+            throw new IllegalArgumentException(
+                "Cannot mark non-pickup receipt as picked up. Receipt type is: " + sale.getReceiptType()
+            );
+        }
+        
+        // Validate it's ready for pickup
+        if (sale.getStatus() != SaleStatus.READY_FOR_PICKUP) {
+            throw new IllegalStateException(
+                "Receipt is not ready for pickup. Current status: " + sale.getStatus()
+            );
+        }
+        
+        // Mark as completed
+        sale.setStatus(SaleStatus.COMPLETED);
+        Sale savedSale = saleRepository.save(sale);
+        
+        // Log activity
+        User user = userService.getUserById(userId);
+        activityLogService.logActivity(
+            userId.toString(), 
+            user.getUsername(), 
+            "SALE_PICKED_UP", 
+            "SALE", 
+            String.format("Receipt picked up and completed: %s", sale.getReceiptNumber())
+        );
+        
+        logger.info("✅ Receipt {} marked as picked up and completed", sale.getReceiptNumber());
+        
+        return convertToSaleResponse(savedSale);
+    }
+    
+    /**
      * Complete a pending receipt with payment method
-     * Reduces stock for all items and updates status to COMPLETED
+     * Reduces stock for all items and updates status to PAID
      */
     public SaleResponse completeReceipt(Long saleId, PaymentMethod paymentMethod, UUID userId) {
         User user = userService.getUserById(userId);
@@ -812,8 +851,8 @@ public class SaleService {
             );
         }
         
-        // Update receipt
-        sale.setStatus(SaleStatus.COMPLETED);
+        // Update receipt - Set to PAID instead of COMPLETED
+        sale.setStatus(SaleStatus.PAID);
         sale.setPaymentMethod(paymentMethod);
         sale.setUpdatedAt(LocalDateTime.now());
         
