@@ -12,9 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/dashboard")
@@ -191,48 +190,69 @@ public class DashboardController {
     
     // Helper method to get top selling items
     private java.util.List<Map<String, Object>> getTopSellingItems(int limit) {
-        java.util.List<Map<String, Object>> topItems = new java.util.ArrayList<>();
         try {
-            // Mock data - in real implementation, query from sale_items or sales database
-            // This would join with products and aggregate by quantity sold
-            System.out.println("ℹ️ Top selling items query not yet implemented");
+            List<TopSellingProduct> topProducts = dashboardService.getTopSellingProducts(limit);
+            
+            return topProducts.stream()
+                .map(product -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("name", product.getName());
+                    item.put("quantity", product.getQuantitySold());
+                    item.put("revenue", product.getTotalRevenue());
+                    item.put("category", product.getCategory());
+                    return item;
+                })
+                .collect(Collectors.toList());
+                
         } catch (Exception e) {
             System.out.println("❌ Error fetching top selling items: " + e.getMessage());
+            return Collections.emptyList();
         }
-        return topItems;
     }
     
     // Helper method to get low stock items (quantity < threshold)
     private java.util.List<Map<String, Object>> getLowStockItems(int threshold) {
-        java.util.List<Map<String, Object>> lowStockItems = new java.util.ArrayList<>();
         try {
-            // Mock data - in real implementation, query products with quantity < threshold
-            System.out.println("ℹ️ Low stock items query not yet implemented");
+            List<LowStockItem> lowStockItems = dashboardService.getRealLowStockItems(threshold);
+            
+            return lowStockItems.stream()
+                .map(item -> {
+                    Map<String, Object> stockItem = new HashMap<>();
+                    stockItem.put("id", item.getId());
+                    stockItem.put("name", item.getName());
+                    stockItem.put("currentStock", item.getCurrentStock());
+                    stockItem.put("minStock", item.getMinStock());
+                    stockItem.put("category", item.getCategory());
+                    stockItem.put("level", item.getStockLevel());
+                    return stockItem;
+                })
+                .collect(Collectors.toList());
+                
         } catch (Exception e) {
             System.out.println("❌ Error fetching low stock items: " + e.getMessage());
+            return Collections.emptyList();
         }
-        return lowStockItems;
     }
     
     // Helper method to get daily sales for last 7 days
     private java.util.List<Map<String, Object>> getDailySalesLast7Days() {
-        java.util.List<Map<String, Object>> dailySales = new java.util.ArrayList<>();
         try {
-            // Mock data - in real implementation, aggregate sales by day for last 7 days
-            LocalDateTime now = LocalDateTime.now();
-            for (int i = 6; i >= 0; i--) {
-                Map<String, Object> daySale = new HashMap<>();
-                LocalDateTime date = now.minusDays(i);
-                daySale.put("date", date.toLocalDate().toString());
-                daySale.put("sales", 0.0);
-                daySale.put("orders", 0);
-                dailySales.add(daySale);
-            }
-            System.out.println("ℹ️ Daily sales query not yet fully implemented - returning mock data structure");
+            List<DailySales> dailySales = dashboardService.getDailySalesLast7Days();
+            
+            return dailySales.stream()
+                .map(day -> {
+                    Map<String, Object> daySale = new HashMap<>();
+                    daySale.put("date", day.getDate().toString());
+                    daySale.put("revenue", day.getRevenue());
+                    daySale.put("orders", day.getOrderCount());
+                    return daySale;
+                })
+                .collect(Collectors.toList());
+                
         } catch (Exception e) {
             System.out.println("❌ Error fetching daily sales: " + e.getMessage());
+            return Collections.emptyList();
         }
-        return dailySales;
     }
     
     // ==================== New Dashboard Widget Endpoints ====================

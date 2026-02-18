@@ -95,6 +95,12 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("SELECT p FROM Product p WHERE p.store = :store AND p.quantity <= p.reorderLevel AND p.isActive = true")
     List<Product> findProductsNeedingReorderByStore(@Param("store") Store store);
     
+    /**
+     * Find products with quantity less than a specific threshold
+     */
+    @Query("SELECT p FROM Product p WHERE p.quantity < :threshold AND p.isActive = true ORDER BY p.quantity ASC")
+    List<Product> findByQuantityLessThanOrderByQuantityAsc(@Param("threshold") int threshold);
+    
     @Query("SELECT p FROM Product p WHERE (p.name LIKE %:searchTerm% OR p.description LIKE %:searchTerm% OR p.category LIKE %:searchTerm% OR p.sku LIKE %:searchTerm%) AND p.isActive = true")
     Page<Product> searchProducts(@Param("searchTerm") String searchTerm, Pageable pageable);
     

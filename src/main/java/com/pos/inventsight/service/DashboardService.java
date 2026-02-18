@@ -6,6 +6,8 @@ import com.pos.inventsight.model.sql.SalesOrder;
 import com.pos.inventsight.model.sql.SalesOrderItem;
 import com.pos.inventsight.repository.nosql.ActivityLogRepository;
 import com.pos.inventsight.repository.sql.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +24,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class DashboardService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(DashboardService.class);
     
     @Autowired
     private ProductService productService;
@@ -50,6 +54,9 @@ public class DashboardService {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private SaleItemRepository saleItemRepository;
     
     public DashboardSummaryResponse getDashboardSummary() {
         System.out.println("📊 InventSight - Generating dashboard summary");
@@ -506,6 +513,164 @@ public class DashboardService {
                 return String.valueOf(date.getYear());
             default:
                 return date.toString();
+        }
+    }
+    
+    // ==================== New Analytics Methods ====================
+    
+    /**
+     * Get top selling products with real sales data
+     */
+    public List<TopSellingProduct> getTopSellingProducts(int limit) {
+        try {
+            // Query from sale_items joined with products
+            List<Object[]> results = saleItemRepository.findTopSellingProducts(limit);
+            
+            return results.stream()
+                .map(row -> new TopSellingProduct(
+                    (String) row[0],  // product name
+                    ((Number) row[1]).longValue(),  // quantity sold
+                    (BigDecimal) row[2],  // total revenue
+                    (String) row[3]   // category
+                ))
+                .collect(Collectors.toList());
+                
+        } catch (Exception e) {
+            logger.error("Error fetching top selling products: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Get low stock items with threshold
+     */
+    public List<LowStockItem> getRealLowStockItems(int threshold) {
+        try {
+            List<Product> lowStockProducts = productRepository
+                .findByQuantityLessThanOrderByQuantityAsc(threshold);
+            
+            return lowStockProducts.stream()
+                .map(p -> new LowStockItem(
+                    p.getId(),
+                    p.getName(),
+                    p.getQuantity(),
+                    p.getLowStockThreshold() != null ? p.getLowStockThreshold() : threshold,
+                    p.getCategory() != null ? p.getCategory() : "Uncategorized",
+                    calculateStockLevel(p.getQuantity(), threshold)
+                ))
+                .collect(Collectors.toList());
+                
+        } catch (Exception e) {
+            logger.error("Error fetching low stock items: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Calculate stock level status
+     */
+    private String calculateStockLevel(int current, int threshold) {
+        if (current == 0) return "OUT_OF_STOCK";
+        if (current < threshold / 2) return "CRITICAL";
+        if (current < threshold) return "LOW";
+        return "NORMAL";
+    }
+    
+    /**
+     * Get daily sales for last 7 days with real data
+     */
+    public List<DailySales> getDailySalesLast7Days() {
+        List<DailySales> dailySales = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+        
+        try {
+            for (int i = 6; i >= 0; i--) {
+                LocalDate date = today.minusDays(i);
+                LocalDateTime startOfDay = date.atStartOfDay();
+                LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+                
+                // Get sales data for this day
+                BigDecimal revenue = saleRepository.getTotalRevenueByDateRange(startOfDay, endOfDay);
+                long orderCount = saleRepository.getSalesCountByDateRange(startOfDay, endOfDay);
+                
+                dailySales.add(new DailySales(
+                    date,
+                    revenue != null ? revenue : BigDecimal.ZERO,
+                    orderCount
+                ));
+            }
+            
+            return dailySales;
+            
+        } catch (Exception e) {
+            logger.error("Error fetching daily sales: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Calculate revenue growth percentage
+     */
+    public BigDecimal calculateRevenueGrowth() {
+        try {
+            // Get current month revenue
+            LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+            LocalDateTime endOfMonth = LocalDateTime.now();
+            BigDecimal currentRevenue = saleRepository.getTotalRevenueByDateRange(startOfMonth, endOfMonth);
+            
+            // Get previous month revenue
+            LocalDateTime startOfPrevMonth = startOfMonth.minusMonths(1);
+            LocalDateTime endOfPrevMonth = startOfMonth.minusSeconds(1);
+            BigDecimal previousRevenue = saleRepository.getTotalRevenueByDateRange(startOfPrevMonth, endOfPrevMonth);
+            
+            if (previousRevenue == null || previousRevenue.compareTo(BigDecimal.ZERO) == 0) {
+                return BigDecimal.ZERO;
+            }
+            
+            if (currentRevenue == null) {
+                currentRevenue = BigDecimal.ZERO;
+            }
+            
+            // Calculate growth percentage
+            BigDecimal growth = currentRevenue
+                .subtract(previousRevenue)
+                .divide(previousRevenue, 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+                
+            return growth.setScale(1, RoundingMode.HALF_UP);
+            
+        } catch (Exception e) {
+            logger.error("Error calculating revenue growth: " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+    
+    /**
+     * Calculate order growth percentage
+     */
+    public BigDecimal calculateOrderGrowth() {
+        try {
+            // Get current month orders
+            LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+            LocalDateTime endOfMonth = LocalDateTime.now();
+            long currentOrders = saleRepository.getSalesCountByDateRange(startOfMonth, endOfMonth);
+            
+            // Get previous month orders
+            LocalDateTime startOfPrevMonth = startOfMonth.minusMonths(1);
+            LocalDateTime endOfPrevMonth = startOfMonth.minusSeconds(1);
+            long previousOrders = saleRepository.getSalesCountByDateRange(startOfPrevMonth, endOfPrevMonth);
+            
+            if (previousOrders == 0) {
+                return BigDecimal.ZERO;
+            }
+            
+            // Calculate growth percentage
+            double growth = ((double)(currentOrders - previousOrders) / previousOrders) * 100;
+            return BigDecimal.valueOf(growth).setScale(1, RoundingMode.HALF_UP);
+            
+        } catch (Exception e) {
+            logger.error("Error calculating order growth: " + e.getMessage());
+            return BigDecimal.ZERO;
         }
     }
 }
