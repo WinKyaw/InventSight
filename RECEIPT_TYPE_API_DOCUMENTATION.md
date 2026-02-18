@@ -312,7 +312,7 @@ const handleSubmitReceipt = async () => {
       notes: notes,
     };
     
-    const response = await fetch('https://api.example.com/receipts', {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/receipts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -352,7 +352,7 @@ const ReceiptsScreen = () => {
       params.append('receiptType', receiptType.toUpperCase());
     }
     
-    const response = await fetch(`https://api.example.com/receipts?${params}`, {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/receipts?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
