@@ -1,6 +1,8 @@
 package com.pos.inventsight.repository.sql;
 
 import com.pos.inventsight.model.sql.SaleItem;
+import com.pos.inventsight.model.sql.SaleStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,4 +30,31 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
     
     @Query("SELECT COUNT(si) FROM SaleItem si WHERE si.sale.createdAt >= :startDate AND si.sale.createdAt <= :endDate")
     long countItemsSoldInDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+    
+    /**
+     * Find top selling products with sales data
+     * Returns: [productName, totalQuantity, totalRevenue, categoryName]
+     */
+    @Query("""
+        SELECT p.name, 
+               SUM(si.quantity) as totalQuantity,
+               SUM(si.quantity * si.unitPrice) as totalRevenue,
+               COALESCE(p.category, 'Uncategorized') as categoryName
+        FROM SaleItem si
+        JOIN si.product p
+        JOIN si.sale s
+        WHERE s.status IN (com.pos.inventsight.model.sql.SaleStatus.COMPLETED, 
+                          com.pos.inventsight.model.sql.SaleStatus.PAID, 
+                          com.pos.inventsight.model.sql.SaleStatus.DELIVERED)
+        GROUP BY p.id, p.name, p.category
+        ORDER BY totalQuantity DESC
+        """)
+    List<Object[]> findTopSellingProducts(Pageable pageable);
+    
+    /**
+     * Convenience method to get top N selling products
+     */
+    default List<Object[]> findTopSellingProducts(int limit) {
+        return findTopSellingProducts(org.springframework.data.domain.PageRequest.of(0, limit));
+    }
 }
