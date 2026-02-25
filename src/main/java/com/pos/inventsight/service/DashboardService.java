@@ -1,10 +1,12 @@
 package com.pos.inventsight.service;
 
 import com.pos.inventsight.dto.*;
+import com.pos.inventsight.model.sql.OrderStatus;
 import com.pos.inventsight.model.sql.Product;
 import com.pos.inventsight.model.sql.SaleStatus;
 import com.pos.inventsight.model.sql.SalesOrder;
 import com.pos.inventsight.model.sql.SalesOrderItem;
+import com.pos.inventsight.model.sql.TransferRequestStatus;
 import com.pos.inventsight.repository.nosql.ActivityLogRepository;
 import com.pos.inventsight.repository.sql.*;
 import org.slf4j.Logger;
@@ -66,6 +68,15 @@ public class DashboardService {
     @Autowired
     private SaleItemRepository saleItemRepository;
     
+    @Autowired
+    private TransferRequestRepository transferRequestRepository;
+    
+    @Autowired
+    private WarehouseInventoryRepository warehouseInventoryRepository;
+    
+    @Autowired
+    private WarehouseRepository warehouseRepository;
+    
     public DashboardSummaryResponse getDashboardSummary() {
         System.out.println("📊 InventSight - Generating dashboard summary");
         System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
@@ -101,6 +112,35 @@ public class DashboardService {
             Long lowStockCount = (long) productService.getLowStockProducts().size();
             summary.setLowStockItems(lowStockCount);
             
+            // Transfer statistics
+            Map<String, Object> transferStats = getTransferStatistics();
+            summary.setTransferStats(transferStats);
+            
+            // Warehouse statistics
+            Map<String, Object> warehouseStats = getWarehouseStatistics();
+            summary.setWarehouseStats(warehouseStats);
+            
+            // Sales Order statistics
+            Long totalSalesOrders = salesOrderRepository.count();
+            BigDecimal salesOrderRevenue = calculateSalesOrderRevenue();
+            Map<String, Object> salesOrderStats = new HashMap<>();
+            salesOrderStats.put("totalOrders", totalSalesOrders);
+            salesOrderStats.put("totalRevenue", salesOrderRevenue);
+            summary.setSalesOrderStats(salesOrderStats);
+            
+            // Combined metrics
+            BigDecimal posRevenue = summary.getTotalRevenue();
+            summary.setTotalCombinedRevenue(posRevenue.add(salesOrderRevenue));
+            summary.setTotalCombinedOrders(totalSales + totalSalesOrders);
+            
+            System.out.println("💰 POS Revenue: $" + summary.getTotalRevenue());
+            System.out.println("📋 POS Orders: " + summary.getTotalOrders());
+            System.out.println("⚠️ Low Stock Items: " + summary.getLowStockItems());
+            System.out.println("🔄 Total Transfers: " + transferStats.get("totalTransfers"));
+            System.out.println("🏭 Total Warehouses: " + warehouseStats.get("totalWarehouses"));
+            System.out.println("💰 TOTAL COMBINED REVENUE: $" + summary.getTotalCombinedRevenue());
+            System.out.println("📋 TOTAL COMBINED ORDERS: " + summary.getTotalCombinedOrders());
+            
             // Get analytics data from InventoryAnalyticsService
             Map<String, Object> analytics = analyticsService.getDashboardAnalytics();
             if (analytics != null) {
@@ -134,9 +174,6 @@ public class DashboardService {
             
             System.out.println("✅ InventSight - Dashboard summary generated successfully");
             System.out.println("📦 Products: " + summary.getTotalProducts());
-            System.out.println("💰 Revenue: " + summary.getTotalRevenue());
-            System.out.println("📋 Orders: " + summary.getTotalOrders());
-            System.out.println("⚠️ Low Stock Items: " + summary.getLowStockItems());
             
         } catch (Exception e) {
             System.out.println("❌ InventSight - Error generating dashboard summary: " + e.getMessage());
@@ -156,8 +193,58 @@ public class DashboardService {
         return summary;
     }
     
+    private Map<String, Object> getTransferStatistics() {
+        Map<String, Object> stats = new HashMap<>();
+        try {
+            stats.put("totalTransfers", transferRequestRepository.count());
+            stats.put("completedTransfers", transferRequestRepository.countByStatus(TransferRequestStatus.COMPLETED));
+            stats.put("deliveredTransfers", transferRequestRepository.countByStatus(TransferRequestStatus.DELIVERED));
+            stats.put("pendingTransfers", transferRequestRepository.countByStatus(TransferRequestStatus.PENDING));
+            stats.put("inTransitTransfers", transferRequestRepository.countByStatus(TransferRequestStatus.IN_TRANSIT));
+            stats.put("recentTransfers", transferRequestRepository.findTop10ByOrderByRequestedAtDesc().size());
+        } catch (Exception e) {
+            logger.error("Error fetching transfer statistics: " + e.getMessage());
+            stats.put("error", e.getMessage());
+        }
+        return stats;
+    }
+
+    private Map<String, Object> getWarehouseStatistics() {
+        Map<String, Object> stats = new HashMap<>();
+        try {
+            stats.put("totalWarehouses", warehouseRepository.count());
+            stats.put("activeWarehouses", warehouseRepository.countByIsActiveTrue());
+            stats.put("totalInventoryItems", warehouseInventoryRepository.count());
+            Integer totalQty = warehouseInventoryRepository.getTotalQuantityAcrossAllWarehouses();
+            stats.put("totalQuantityInWarehouses", totalQty != null ? totalQty : 0);
+            stats.put("lowStockInWarehouses", warehouseInventoryRepository.findLowStockItems().size());
+        } catch (Exception e) {
+            logger.error("Error fetching warehouse statistics: " + e.getMessage());
+            stats.put("error", e.getMessage());
+        }
+        return stats;
+    }
+
+    private BigDecimal calculateSalesOrderRevenue() {
+        try {
+            List<SalesOrder> orders = salesOrderRepository.findAll();
+            BigDecimal totalRevenue = BigDecimal.ZERO;
+            for (SalesOrder order : orders) {
+                if (order.getStatus() == OrderStatus.CONFIRMED ||
+                    order.getStatus() == OrderStatus.FULFILLED) {
+                    for (SalesOrderItem item : order.getItems()) {
+                        totalRevenue = totalRevenue.add(item.getLineTotal());
+                    }
+                }
+            }
+            return totalRevenue;
+        } catch (Exception e) {
+            logger.error("Error calculating sales order revenue: " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
     public Map<String, Object> getKPIs() {
-        System.out.println("📈 InventSight - Generating KPIs");
         
         Map<String, Object> kpis = new HashMap<>();
         
