@@ -2,6 +2,8 @@ package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.*;
 import com.pos.inventsight.service.DashboardService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class DashboardController {
     
+    private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
+    
     // Constants for limit validation
     private static final int MIN_LIMIT = 1;
     private static final int DEFAULT_LIMIT = 5;
@@ -33,11 +37,17 @@ public class DashboardController {
     public ResponseEntity<?> getDashboardSummary(Authentication authentication) {
         try {
             String username = authentication.getName();
-            System.out.println("📊 InventSight - Fetching dashboard summary for user: " + username);
+            logger.info("📊 Dashboard summary requested by: {}", username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
             System.out.println("👤 Current User: WinKyaw");
             
             DashboardSummaryResponse summary = dashboardService.getDashboardSummary();
+            
+            logger.info("📈 Dashboard Data:");
+            logger.info("   - Total Revenue: ${}", summary.getTotalRevenue());
+            logger.info("   - Total Orders: {}", summary.getTotalOrders());
+            logger.info("   - Total Products: {}", summary.getTotalProducts());
+            logger.info("   - Low Stock Items: {}", summary.getLowStockItems());
             
             Map<String, Object> response = new HashMap<>();
             response.put("summary", summary);
@@ -49,9 +59,33 @@ public class DashboardController {
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            System.out.println("❌ InventSight - Error fetching dashboard summary: " + e.getMessage());
+            logger.error("❌ Error fetching dashboard summary: " + e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse(false, "Failed to fetch dashboard summary: " + e.getMessage()));
+        }
+    }
+    
+    // POST /api/dashboard/refresh - Clear cache and force refresh
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshDashboard(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            logger.info("🔄 Dashboard refresh requested by: {}", username);
+            
+            DashboardSummaryResponse summary = dashboardService.getDashboardSummary();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("summary", summary);
+            response.put("message", "Dashboard refreshed successfully");
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error refreshing dashboard: " + e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to refresh dashboard: " + e.getMessage()));
         }
     }
     
