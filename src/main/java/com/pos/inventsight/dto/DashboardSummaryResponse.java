@@ -15,6 +15,15 @@ public class DashboardSummaryResponse {
     private Long checkedInEmployees;
     private Long totalCategories;
     
+    // Average order value
+    private BigDecimal avgOrderValue;
+
+    // Best performer
+    private Map<String, Object> bestPerformer;
+
+    // Recent orders
+    private List<Map<String, Object>> recentOrders;
+
     // Combined metrics
     private BigDecimal totalCombinedRevenue;
     private Long totalCombinedOrders;
@@ -48,6 +57,15 @@ public class DashboardSummaryResponse {
     public DashboardSummaryResponse() {}
     
     // Getters and Setters
+    public BigDecimal getAvgOrderValue() { return avgOrderValue; }
+    public void setAvgOrderValue(BigDecimal avgOrderValue) { this.avgOrderValue = avgOrderValue; }
+
+    public Map<String, Object> getBestPerformer() { return bestPerformer; }
+    public void setBestPerformer(Map<String, Object> bestPerformer) { this.bestPerformer = bestPerformer; }
+
+    public List<Map<String, Object>> getRecentOrders() { return recentOrders; }
+    public void setRecentOrders(List<Map<String, Object>> recentOrders) { this.recentOrders = recentOrders; }
+
     public Long getTotalProducts() { return totalProducts; }
     public void setTotalProducts(Long totalProducts) { this.totalProducts = totalProducts; }
     

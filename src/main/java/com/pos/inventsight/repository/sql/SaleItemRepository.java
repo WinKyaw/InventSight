@@ -32,6 +32,33 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
     long countItemsSoldInDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
     
     /**
+     * Find best performing product by total quantity sold (includes PENDING, PAID, COMPLETED, etc.)
+     * Returns: [productName, totalQuantity, totalRevenue]
+     */
+    @Query("SELECT si.productName, " +
+           "SUM(si.quantity), " +
+           "SUM(si.totalPrice) " +
+           "FROM SaleItem si " +
+           "JOIN si.sale s " +
+           "WHERE s.status IN ('PENDING', 'PAID', 'COMPLETED', 'DELIVERED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY') " +
+           "GROUP BY si.productName " +
+           "ORDER BY SUM(si.quantity) DESC")
+    List<Object[]> findBestPerformer();
+
+    /**
+     * Find top N best performing products
+     */
+    @Query("SELECT si.productName, " +
+           "SUM(si.quantity), " +
+           "SUM(si.totalPrice) " +
+           "FROM SaleItem si " +
+           "JOIN si.sale s " +
+           "WHERE s.status IN ('PENDING', 'PAID', 'COMPLETED', 'DELIVERED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY') " +
+           "GROUP BY si.productName " +
+           "ORDER BY SUM(si.quantity) DESC")
+    List<Object[]> findTopPerformers(org.springframework.data.domain.Pageable pageable);
+
+    /**
      * Find top selling products with sales data
      * Returns: [productName, totalQuantity, totalRevenue, categoryName]
      */
