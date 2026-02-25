@@ -155,4 +155,45 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
     );
+
+    /**
+     * Get total revenue for sales with any of the given statuses
+     */
+    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM Sale s WHERE s.status IN :statuses")
+    BigDecimal getTotalRevenueByStatuses(@Param("statuses") List<SaleStatus> statuses);
+
+    /**
+     * Count sales with any of the given statuses
+     */
+    Long countByStatusIn(List<SaleStatus> statuses);
+
+    /**
+     * Get average order value for sales with given statuses
+     */
+    @Query("SELECT COALESCE(AVG(s.totalAmount), 0) FROM Sale s WHERE s.status IN :statuses")
+    BigDecimal getAvgOrderValueByStatuses(@Param("statuses") List<SaleStatus> statuses);
+
+    /**
+     * Get revenue for date range and statuses
+     */
+    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM Sale s " +
+           "WHERE s.createdAt BETWEEN :startDate AND :endDate " +
+           "AND s.status IN :statuses")
+    BigDecimal getTotalRevenueByDateRangeAndStatuses(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        @Param("statuses") List<SaleStatus> statuses
+    );
+
+    /**
+     * Count sales for date range and statuses
+     */
+    @Query("SELECT COUNT(s) FROM Sale s " +
+           "WHERE s.createdAt BETWEEN :startDate AND :endDate " +
+           "AND s.status IN :statuses")
+    Long countByDateRangeAndStatuses(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        @Param("statuses") List<SaleStatus> statuses
+    );
 }

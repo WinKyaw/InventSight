@@ -2,6 +2,7 @@ package com.pos.inventsight.service;
 
 import com.pos.inventsight.dto.*;
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.SaleStatus;
 import com.pos.inventsight.model.sql.SalesOrder;
 import com.pos.inventsight.model.sql.SalesOrderItem;
 import com.pos.inventsight.repository.nosql.ActivityLogRepository;
@@ -72,6 +73,15 @@ public class DashboardService {
         
         DashboardSummaryResponse summary = new DashboardSummaryResponse();
         
+        // Define completed statuses
+        List<SaleStatus> completedStatuses = Arrays.asList(
+            SaleStatus.COMPLETED,
+            SaleStatus.PAID,
+            SaleStatus.DELIVERED,
+            SaleStatus.READY_FOR_PICKUP,
+            SaleStatus.OUT_FOR_DELIVERY
+        );
+        
         try {
             // Basic metrics
             summary.setTotalProducts(productService.getTotalProductCount());
@@ -79,12 +89,12 @@ public class DashboardService {
             summary.setTotalEmployees(employeeRepository.countActiveEmployees());
             summary.setCheckedInEmployees(employeeRepository.countCheckedInEmployees());
             
-            // Sales metrics
-            Long totalSales = saleRepository.count();
+            // Sales metrics - count only completed/paid sales
+            Long totalSales = saleRepository.countByStatusIn(completedStatuses);
             summary.setTotalOrders(totalSales);
             
-            // Revenue - using inventory value as fallback
-            BigDecimal totalRevenue = productService.getTotalInventoryValue();
+            // Revenue - from completed sales
+            BigDecimal totalRevenue = saleRepository.getTotalRevenueByStatuses(completedStatuses);
             summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
             
             // Stock alerts
