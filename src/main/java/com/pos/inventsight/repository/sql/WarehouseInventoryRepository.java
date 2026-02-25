@@ -162,4 +162,10 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
      * Count inventory items in specific warehouse
      */
     long countByWarehouseId(UUID warehouseId);
+
+    /**
+     * Get total quantity across all warehouses
+     */
+    @Query("SELECT COALESCE(SUM(wi.currentQuantity), 0) FROM WarehouseInventory wi")
+    Integer getTotalQuantityAcrossAllWarehouses();
 }

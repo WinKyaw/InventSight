@@ -117,4 +117,14 @@ public interface TransferRequestRepository extends JpaRepository<TransferRequest
         @Param("warehouseIds") List<UUID> warehouseIds,
         @Param("status") TransferRequestStatus status
     );
+
+    /**
+     * Count transfer requests by status
+     */
+    Long countByStatus(TransferRequestStatus status);
+
+    /**
+     * Get most recent transfer requests
+     */
+    List<TransferRequest> findTop10ByOrderByRequestedAtDesc();
 }

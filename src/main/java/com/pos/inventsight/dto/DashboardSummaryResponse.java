@@ -15,6 +15,19 @@ public class DashboardSummaryResponse {
     private Long checkedInEmployees;
     private Long totalCategories;
     
+    // Combined metrics
+    private BigDecimal totalCombinedRevenue;
+    private Long totalCombinedOrders;
+    
+    // Transfer statistics
+    private Map<String, Object> transferStats;
+    
+    // Warehouse statistics
+    private Map<String, Object> warehouseStats;
+    
+    // Sales Order statistics
+    private Map<String, Object> salesOrderStats;
+    
     // Analytics data
     private Double revenueGrowth;
     private Double salesGrowth;
@@ -43,6 +56,21 @@ public class DashboardSummaryResponse {
     
     public Long getTotalOrders() { return totalOrders; }
     public void setTotalOrders(Long totalOrders) { this.totalOrders = totalOrders; }
+    
+    public BigDecimal getTotalCombinedRevenue() { return totalCombinedRevenue; }
+    public void setTotalCombinedRevenue(BigDecimal totalCombinedRevenue) { this.totalCombinedRevenue = totalCombinedRevenue; }
+    
+    public Long getTotalCombinedOrders() { return totalCombinedOrders; }
+    public void setTotalCombinedOrders(Long totalCombinedOrders) { this.totalCombinedOrders = totalCombinedOrders; }
+    
+    public Map<String, Object> getTransferStats() { return transferStats; }
+    public void setTransferStats(Map<String, Object> transferStats) { this.transferStats = transferStats; }
+    
+    public Map<String, Object> getWarehouseStats() { return warehouseStats; }
+    public void setWarehouseStats(Map<String, Object> warehouseStats) { this.warehouseStats = warehouseStats; }
+    
+    public Map<String, Object> getSalesOrderStats() { return salesOrderStats; }
+    public void setSalesOrderStats(Map<String, Object> salesOrderStats) { this.salesOrderStats = salesOrderStats; }
     
     public Long getLowStockItems() { return lowStockItems; }
     public void setLowStockItems(Long lowStockItems) { this.lowStockItems = lowStockItems; }
