@@ -46,8 +46,15 @@ public class DashboardController {
             logger.info("📈 Dashboard Data:");
             logger.info("   - Total Revenue: ${}", summary.getTotalRevenue());
             logger.info("   - Total Orders: {}", summary.getTotalOrders());
+            logger.info("   - Avg Order Value: ${}", summary.getAvgOrderValue());
             logger.info("   - Total Products: {}", summary.getTotalProducts());
             logger.info("   - Low Stock Items: {}", summary.getLowStockItems());
+            if (summary.getBestPerformer() != null) {
+                logger.info("   - Best Performer: {}", summary.getBestPerformer().get("productName"));
+            }
+            if (summary.getRecentOrders() != null) {
+                logger.info("   - Recent Orders: {}", summary.getRecentOrders().size());
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("summary", summary);

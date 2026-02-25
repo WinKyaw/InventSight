@@ -196,4 +196,9 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
         @Param("endDate") LocalDateTime endDate,
         @Param("statuses") List<SaleStatus> statuses
     );
+
+    /**
+     * Find recent sales ordered by creation date (newest first)
+     */
+    List<Sale> findTop10ByStatusInOrderByCreatedAtDesc(List<SaleStatus> statuses);
 }

@@ -3,6 +3,7 @@ package com.pos.inventsight.service;
 import com.pos.inventsight.dto.*;
 import com.pos.inventsight.model.sql.OrderStatus;
 import com.pos.inventsight.model.sql.Product;
+import com.pos.inventsight.model.sql.Sale;
 import com.pos.inventsight.model.sql.SaleStatus;
 import com.pos.inventsight.model.sql.SalesOrder;
 import com.pos.inventsight.model.sql.SalesOrderItem;
@@ -84,8 +85,9 @@ public class DashboardService {
         
         DashboardSummaryResponse summary = new DashboardSummaryResponse();
         
-        // Define completed statuses
-        List<SaleStatus> completedStatuses = Arrays.asList(
+        // Define active statuses (includes PENDING for POS sales)
+        List<SaleStatus> activeStatuses = Arrays.asList(
+            SaleStatus.PENDING,
             SaleStatus.COMPLETED,
             SaleStatus.PAID,
             SaleStatus.DELIVERED,
@@ -100,13 +102,26 @@ public class DashboardService {
             summary.setTotalEmployees(employeeRepository.countActiveEmployees());
             summary.setCheckedInEmployees(employeeRepository.countCheckedInEmployees());
             
-            // Sales metrics - count only completed/paid sales
-            Long totalSales = saleRepository.countByStatusIn(completedStatuses);
+            // Sales metrics - count active POS sales (including PENDING)
+            Long totalSales = saleRepository.countByStatusIn(activeStatuses);
             summary.setTotalOrders(totalSales);
-            
-            // Revenue - from completed sales
-            BigDecimal totalRevenue = saleRepository.getTotalRevenueByStatuses(completedStatuses);
+
+            // Revenue - from active POS sales (including PENDING)
+            BigDecimal totalRevenue = saleRepository.getTotalRevenueByStatuses(activeStatuses);
             summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
+
+            // Average order value
+            BigDecimal avgOrderValue = BigDecimal.ZERO;
+            if (totalSales != null && totalSales > 0 && totalRevenue != null) {
+                avgOrderValue = totalRevenue.divide(new BigDecimal(totalSales), 2, RoundingMode.HALF_UP);
+            }
+            summary.setAvgOrderValue(avgOrderValue);
+
+            // Best performer from POS sales
+            summary.setBestPerformer(computeBestPerformer());
+
+            // Recent orders from POS sales
+            summary.setRecentOrders(computeRecentOrders(10));
             
             // Stock alerts
             Long lowStockCount = (long) productService.getLowStockProducts().size();
@@ -133,8 +148,10 @@ public class DashboardService {
             summary.setTotalCombinedRevenue(posRevenue.add(salesOrderRevenue));
             summary.setTotalCombinedOrders(totalSales + totalSalesOrders);
             
-            System.out.println("💰 POS Revenue: $" + summary.getTotalRevenue());
-            System.out.println("📋 POS Orders: " + summary.getTotalOrders());
+            System.out.println("🔍 Querying sales with statuses: " + activeStatuses);
+            System.out.println("📋 Total Orders Found: " + summary.getTotalOrders());
+            System.out.println("💰 Total Revenue: $" + summary.getTotalRevenue());
+            System.out.println("📊 Average Order Value: $" + avgOrderValue);
             System.out.println("⚠️ Low Stock Items: " + summary.getLowStockItems());
             System.out.println("🔄 Total Transfers: " + transferStats.get("totalTransfers"));
             System.out.println("🏭 Total Warehouses: " + warehouseStats.get("totalWarehouses"));
@@ -182,6 +199,7 @@ public class DashboardService {
             summary.setTotalProducts(0L);
             summary.setTotalRevenue(BigDecimal.ZERO);
             summary.setTotalOrders(0L);
+            summary.setAvgOrderValue(BigDecimal.ZERO);
             summary.setLowStockItems(0L);
             summary.setTotalEmployees(0L);
             summary.setCheckedInEmployees(0L);
@@ -192,7 +210,75 @@ public class DashboardService {
         
         return summary;
     }
-    
+
+    /**
+     * Get best performing product from POS sales (includes PENDING status)
+     */
+    private Map<String, Object> computeBestPerformer() {
+        Map<String, Object> bestPerformer = new HashMap<>();
+        try {
+            List<Object[]> results = saleItemRepository.findBestPerformer();
+            if (!results.isEmpty()) {
+                Object[] result = results.get(0);
+                String productName = (String) result[0];
+                Long unitsSold = ((Number) result[1]).longValue();
+                BigDecimal revenue = (BigDecimal) result[2];
+                bestPerformer.put("productName", productName);
+                bestPerformer.put("unitsSold", unitsSold);
+                bestPerformer.put("revenue", revenue);
+                bestPerformer.put("hasData", true);
+                System.out.println("🏆 Best Performer Found: " + productName + " (" + unitsSold + " units sold)");
+            } else {
+                bestPerformer.put("productName", "No Data Available");
+                bestPerformer.put("unitsSold", 0L);
+                bestPerformer.put("revenue", BigDecimal.ZERO);
+                bestPerformer.put("hasData", false);
+                System.out.println("⚠️  No sales data available for best performer");
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching best performer: " + e.getMessage());
+            bestPerformer.put("productName", "Error");
+            bestPerformer.put("unitsSold", 0L);
+            bestPerformer.put("revenue", BigDecimal.ZERO);
+            bestPerformer.put("hasData", false);
+        }
+        return bestPerformer;
+    }
+
+    /**
+     * Get recent orders from POS sales (includes PENDING status)
+     */
+    private List<Map<String, Object>> computeRecentOrders(int limit) {
+        List<Map<String, Object>> recentOrders = new ArrayList<>();
+        try {
+            List<SaleStatus> visibleStatuses = Arrays.asList(
+                SaleStatus.PENDING,
+                SaleStatus.PAID,
+                SaleStatus.COMPLETED,
+                SaleStatus.DELIVERED,
+                SaleStatus.READY_FOR_PICKUP,
+                SaleStatus.OUT_FOR_DELIVERY
+            );
+            List<Sale> sales =
+                saleRepository.findTop10ByStatusInOrderByCreatedAtDesc(visibleStatuses);
+            for (Sale sale : sales) {
+                Map<String, Object> order = new HashMap<>();
+                order.put("id", sale.getId());
+                order.put("receiptNumber", sale.getReceiptNumber());
+                order.put("totalAmount", sale.getTotalAmount());
+                order.put("status", sale.getStatus().toString());
+                order.put("customerName", sale.getCustomerName() != null ? sale.getCustomerName() : "Walk-in Customer");
+                order.put("createdAt", sale.getCreatedAt());
+                order.put("paymentMethod", sale.getPaymentMethod() != null ? sale.getPaymentMethod().toString() : "PENDING");
+                recentOrders.add(order);
+            }
+            System.out.println("📋 Found " + recentOrders.size() + " recent orders");
+        } catch (Exception e) {
+            logger.error("Error fetching recent orders: " + e.getMessage());
+        }
+        return recentOrders;
+    }
+
     private Map<String, Object> getTransferStatistics() {
         Map<String, Object> stats = new HashMap<>();
         try {
