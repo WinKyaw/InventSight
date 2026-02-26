@@ -168,6 +168,11 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     Long countByStatusIn(List<SaleStatus> statuses);
 
     /**
+     * Count sales by single status (for debugging)
+     */
+    Long countByStatus(SaleStatus status);
+
+    /**
      * Get average order value for sales with given statuses
      */
     @Query("SELECT COALESCE(AVG(s.totalAmount), 0) FROM Sale s WHERE s.status IN :statuses")

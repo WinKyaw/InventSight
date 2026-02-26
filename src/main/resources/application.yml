@@ -290,6 +290,7 @@ logging:
     com.inventsight: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG
     com.pos.inventsight.controller.StoreInventoryController: DEBUG
     com.pos.inventsight.service.SaleService: INFO

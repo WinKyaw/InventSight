@@ -85,15 +85,19 @@ public class DashboardService {
         
         DashboardSummaryResponse summary = new DashboardSummaryResponse();
         
-        // Define active statuses (includes PENDING for POS sales)
+        // Define active statuses (including PENDING)
         List<SaleStatus> activeStatuses = Arrays.asList(
             SaleStatus.PENDING,
-            SaleStatus.COMPLETED,
             SaleStatus.PAID,
+            SaleStatus.COMPLETED,
             SaleStatus.DELIVERED,
             SaleStatus.READY_FOR_PICKUP,
             SaleStatus.OUT_FOR_DELIVERY
         );
+        
+        System.out.println("🔍 ========== DASHBOARD QUERY DEBUG ==========");
+        System.out.println("🔍 Querying sales with statuses: " + activeStatuses);
+        System.out.println("🔍 Status list size: " + activeStatuses.size());
         
         try {
             // Basic metrics
@@ -102,26 +106,57 @@ public class DashboardService {
             summary.setTotalEmployees(employeeRepository.countActiveEmployees());
             summary.setCheckedInEmployees(employeeRepository.countCheckedInEmployees());
             
-            // Sales metrics - count active POS sales (including PENDING)
-            Long totalSales = saleRepository.countByStatusIn(activeStatuses);
-            summary.setTotalOrders(totalSales);
-
-            // Revenue - from active POS sales (including PENDING)
-            BigDecimal totalRevenue = saleRepository.getTotalRevenueByStatuses(activeStatuses);
-            summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
-
-            // Average order value
-            BigDecimal avgOrderValue = BigDecimal.ZERO;
-            if (totalSales != null && totalSales > 0 && totalRevenue != null) {
-                avgOrderValue = totalRevenue.divide(new BigDecimal(totalSales), 2, RoundingMode.HALF_UP);
+            System.out.println("📦 Total Products: " + summary.getTotalProducts());
+            
+            // ============ DEBUG: Count Sales ============
+            System.out.println("🔍 Calling saleRepository.countByStatusIn()...");
+            Long totalSales = null;
+            try {
+                totalSales = saleRepository.countByStatusIn(activeStatuses);
+                System.out.println("✅ countByStatusIn() returned: " + totalSales);
+            } catch (Exception e) {
+                System.out.println("❌ ERROR in countByStatusIn(): " + e.getMessage());
+                e.printStackTrace();
+                totalSales = 0L;
             }
-            summary.setAvgOrderValue(avgOrderValue);
-
-            // Best performer from POS sales
-            summary.setBestPerformer(computeBestPerformer());
-
-            // Recent orders from POS sales
-            summary.setRecentOrders(computeRecentOrders(10));
+            summary.setTotalOrders(totalSales);
+            
+            // ============ DEBUG: Get Revenue ============
+            System.out.println("🔍 Calling saleRepository.getTotalRevenueByStatuses()...");
+            BigDecimal totalRevenue = null;
+            try {
+                totalRevenue = saleRepository.getTotalRevenueByStatuses(activeStatuses);
+                System.out.println("✅ getTotalRevenueByStatuses() returned: " + totalRevenue);
+            } catch (Exception e) {
+                System.out.println("❌ ERROR in getTotalRevenueByStatuses(): " + e.getMessage());
+                e.printStackTrace();
+                totalRevenue = BigDecimal.ZERO;
+            }
+            
+            summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
+            
+            // ============ DEBUG: Check Raw Count ============
+            System.out.println("🔍 Checking ALL sales count (no filter)...");
+            try {
+                Long allSalesCount = saleRepository.count();
+                System.out.println("📊 Total sales in database: " + allSalesCount);
+            } catch (Exception e) {
+                System.out.println("❌ ERROR counting all sales: " + e.getMessage());
+            }
+            
+            // ============ DEBUG: Manual Query Test ============
+            System.out.println("🔍 Testing manual count by status COMPLETED...");
+            try {
+                Long completedCount = saleRepository.countByStatus(SaleStatus.COMPLETED);
+                System.out.println("📊 Sales with COMPLETED status: " + completedCount);
+            } catch (Exception e) {
+                System.out.println("❌ ERROR: " + e.getMessage());
+            }
+            
+            System.out.println("🔍 ========== RESULTS ==========");
+            System.out.println("💰 POS Revenue: $" + summary.getTotalRevenue());
+            System.out.println("📋 POS Orders: " + summary.getTotalOrders());
+            System.out.println("🔍 ========================================");
             
             // Stock alerts
             Long lowStockCount = (long) productService.getLowStockProducts().size();
@@ -148,17 +183,13 @@ public class DashboardService {
             summary.setTotalCombinedRevenue(posRevenue.add(salesOrderRevenue));
             summary.setTotalCombinedOrders(totalSales + totalSalesOrders);
             
-            System.out.println("🔍 Querying sales with statuses: " + activeStatuses);
-            System.out.println("📋 Total Orders Found: " + summary.getTotalOrders());
-            System.out.println("💰 Total Revenue: $" + summary.getTotalRevenue());
-            System.out.println("📊 Average Order Value: $" + avgOrderValue);
             System.out.println("⚠️ Low Stock Items: " + summary.getLowStockItems());
             System.out.println("🔄 Total Transfers: " + transferStats.get("totalTransfers"));
             System.out.println("🏭 Total Warehouses: " + warehouseStats.get("totalWarehouses"));
             System.out.println("💰 TOTAL COMBINED REVENUE: $" + summary.getTotalCombinedRevenue());
             System.out.println("📋 TOTAL COMBINED ORDERS: " + summary.getTotalCombinedOrders());
             
-            // Get analytics data from InventoryAnalyticsService
+            // Get analytics data
             Map<String, Object> analytics = analyticsService.getDashboardAnalytics();
             if (analytics != null) {
                 summary.setRevenueGrowth(getDoubleValue(analytics.get("revenueGrowth")));
@@ -169,7 +200,7 @@ public class DashboardService {
                 summary.setSmartInsights((Map<String, Object>) analytics.get("smartInsights"));
             }
             
-            // Recent activities (last 10)
+            // Recent activities
             List<Map<String, Object>> recentActivities = activityLogRepository
                 .findTop10ByOrderByTimestampDesc()
                 .stream()
@@ -190,16 +221,15 @@ public class DashboardService {
             summary.setSystem("InventSight");
             
             System.out.println("✅ InventSight - Dashboard summary generated successfully");
-            System.out.println("📦 Products: " + summary.getTotalProducts());
             
         } catch (Exception e) {
             System.out.println("❌ InventSight - Error generating dashboard summary: " + e.getMessage());
             e.printStackTrace();
-            // Return minimal summary with defaults
+            
+            // Return minimal summary with zeros
             summary.setTotalProducts(0L);
             summary.setTotalRevenue(BigDecimal.ZERO);
             summary.setTotalOrders(0L);
-            summary.setAvgOrderValue(BigDecimal.ZERO);
             summary.setLowStockItems(0L);
             summary.setTotalEmployees(0L);
             summary.setCheckedInEmployees(0L);
