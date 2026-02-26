@@ -61,9 +61,16 @@ server:
   # Development Logging
 logging:
   level:
-    com.inventsight: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate: DEBUG
+    root: INFO
+    com.pos.inventsight: DEBUG
+    org.springframework.security: INFO
+    org.springframework: INFO
+    org.hibernate: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.pos.inventsight.config.AuthTokenFilter: DEBUG
+    com.pos.inventsight.service: DEBUG
+    com.pos.inventsight.controller: DEBUG
     
 # Development Security
 inventsight:

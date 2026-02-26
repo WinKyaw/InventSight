@@ -37,15 +37,15 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         String method = request.getMethod();
         
         // Log every invocation
-        logger.info("🔍 shouldNotFilter() called for: {} {}", method, requestUri);
+        logger.debug("🔍 shouldNotFilter() called for: {} {}", method, requestUri);
         
         // Skip filter for truly public endpoints only
         boolean shouldSkip = isPublicEndpoint(requestUri);
         
         if (shouldSkip) {
-            logger.info("⏭️  WILL SKIP request (public endpoint): {} {}", method, requestUri);
+            logger.debug("⏭️  WILL SKIP request (public endpoint): {} {}", method, requestUri);
         } else {
-            logger.info("⚡ WILL PROCESS request (protected endpoint): {} {}", method, requestUri);
+            logger.debug("⚡ Processing request: {} {}", method, requestUri);
         }
         
         return shouldSkip;
@@ -107,13 +107,13 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             
             if (jwt != null) {
                 logger.debug("JWT token extracted from Authorization header (length: {})", jwt.length());
-                logger.info("🔐 Validating JWT token...");
+                logger.debug("🔐 Validating JWT token...");
                 
                 if (jwtUtils.validateJwtToken(jwt)) {
                     String username = jwtUtils.getUsernameFromJwtToken(jwt);
                     String tenantId = jwtUtils.getTenantIdFromJwtToken(jwt);
                     
-                    logger.info("✅ JWT validation successful for user: {}", username);
+                    logger.debug("✅ JWT validation successful for user: {}", username);
                     logger.debug("Tenant ID from JWT: {}", tenantId);
                     
                     if (username == null || username.isEmpty()) {
@@ -139,21 +139,21 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     
-                    logger.info("🔑 Setting authentication in SecurityContext");
+                    logger.debug("🔑 Setting authentication in SecurityContext");
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     
                     // Enhanced verification logging
                     Authentication verifyAuth = SecurityContextHolder.getContext().getAuthentication();
-                    logger.info("✅ Authentication SET and VERIFIED in SecurityContext: {}", verifyAuth != null);
+                    logger.debug("✅ Authentication SET and VERIFIED in SecurityContext: {}", verifyAuth != null);
                     if (verifyAuth != null) {
                         logger.debug("  - Principal class: {}", verifyAuth.getPrincipal().getClass().getName());
                         logger.debug("  - Is authenticated: {}", verifyAuth.isAuthenticated());
                         logger.debug("  - Authorities: {}", verifyAuth.getAuthorities());
                         logger.debug("  - SecurityContext hashCode: {}", System.identityHashCode(SecurityContextHolder.getContext()));
                     }
-                    logger.info("✅ Authentication successful for user: {} on {} {}", username, method, requestUri);
+                    logger.debug("✅ Authentication successful for user: {} on {} {}", username, method, requestUri);
                 } else {
-                    logger.warn("❌ JWT token validation failed for request: {} {}", method, requestUri);
+                    logger.warn("⚠️ Invalid JWT token for request: {} {}", method, requestUri);
                 }
             } else {
                 logger.debug("No JWT token found in Authorization header for: {} {}", method, requestUri);
