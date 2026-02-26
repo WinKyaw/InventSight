@@ -79,7 +79,7 @@ public class DashboardService {
     private WarehouseRepository warehouseRepository;
     
     public DashboardSummaryResponse getDashboardSummary() {
-        System.out.println("📊 InventSight - Generating dashboard summary");
+        System.out.println("📊 ========== DASHBOARD QUERY DEBUG ==========");
         System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
         System.out.println("👤 Current User: WinKyaw");
         
@@ -95,21 +95,21 @@ public class DashboardService {
             SaleStatus.OUT_FOR_DELIVERY
         );
         
-        System.out.println("🔍 ========== DASHBOARD QUERY DEBUG ==========");
         System.out.println("🔍 Querying sales with statuses: " + activeStatuses);
-        System.out.println("🔍 Status list size: " + activeStatuses.size());
         
         try {
-            // Basic metrics
-            summary.setTotalProducts(productService.getTotalProductCount());
-            summary.setTotalCategories(categoryRepository.countActiveCategories());
-            summary.setTotalEmployees(employeeRepository.countActiveEmployees());
-            summary.setCheckedInEmployees(employeeRepository.countCheckedInEmployees());
+            // ========== CHECK TOTAL COUNT FIRST ==========
+            System.out.println("🔍 Checking total sales count (no filter)...");
+            Long allSalesCount = saleRepository.count();
+            System.out.println("📊 Total sales in database: " + allSalesCount);
             
-            System.out.println("📦 Total Products: " + summary.getTotalProducts());
+            // ========== CHECK PRODUCT COUNT ==========
+            System.out.println("🔍 Checking total products count...");
+            Long allProductsCount = productRepository.count();
+            System.out.println("📦 Total products in database: " + allProductsCount);
             
-            // ============ DEBUG: Count Sales ============
-            System.out.println("🔍 Calling saleRepository.countByStatusIn()...");
+            // ========== NOW TRY FILTERED QUERY ==========
+            System.out.println("🔍 Calling countByStatusIn() with statuses...");
             Long totalSales = null;
             try {
                 totalSales = saleRepository.countByStatusIn(activeStatuses);
@@ -119,10 +119,9 @@ public class DashboardService {
                 e.printStackTrace();
                 totalSales = 0L;
             }
-            summary.setTotalOrders(totalSales);
             
-            // ============ DEBUG: Get Revenue ============
-            System.out.println("🔍 Calling saleRepository.getTotalRevenueByStatuses()...");
+            // ========== CHECK REVENUE ==========
+            System.out.println("🔍 Calling getTotalRevenueByStatuses()...");
             BigDecimal totalRevenue = null;
             try {
                 totalRevenue = saleRepository.getTotalRevenueByStatuses(activeStatuses);
@@ -133,30 +132,16 @@ public class DashboardService {
                 totalRevenue = BigDecimal.ZERO;
             }
             
+            summary.setTotalOrders(totalSales);
             summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
             
-            // ============ DEBUG: Check Raw Count ============
-            System.out.println("🔍 Checking ALL sales count (no filter)...");
-            try {
-                Long allSalesCount = saleRepository.count();
-                System.out.println("📊 Total sales in database: " + allSalesCount);
-            } catch (Exception e) {
-                System.out.println("❌ ERROR counting all sales: " + e.getMessage());
-            }
-            
-            // ============ DEBUG: Manual Query Test ============
-            System.out.println("🔍 Testing manual count by status COMPLETED...");
-            try {
-                Long completedCount = saleRepository.countByStatus(SaleStatus.COMPLETED);
-                System.out.println("📊 Sales with COMPLETED status: " + completedCount);
-            } catch (Exception e) {
-                System.out.println("❌ ERROR: " + e.getMessage());
-            }
-            
-            System.out.println("🔍 ========== RESULTS ==========");
-            System.out.println("💰 POS Revenue: $" + summary.getTotalRevenue());
-            System.out.println("📋 POS Orders: " + summary.getTotalOrders());
-            System.out.println("🔍 ========================================");
+            // Basic metrics
+            Long totalProducts = productService.getTotalProductCount();
+            System.out.println("📦 getTotalProductCount() returned: " + totalProducts);
+            summary.setTotalProducts(totalProducts);
+            summary.setTotalCategories(categoryRepository.countActiveCategories());
+            summary.setTotalEmployees(employeeRepository.countActiveEmployees());
+            summary.setCheckedInEmployees(employeeRepository.countCheckedInEmployees());
             
             // Stock alerts
             Long lowStockCount = (long) productService.getLowStockProducts().size();
@@ -220,10 +205,14 @@ public class DashboardService {
             summary.setTimestamp(LocalDateTime.now());
             summary.setSystem("InventSight");
             
-            System.out.println("✅ InventSight - Dashboard summary generated successfully");
+            System.out.println("🔍 ========== FINAL RESULTS ==========");
+            System.out.println("💰 Revenue: $" + summary.getTotalRevenue());
+            System.out.println("📋 Orders: " + summary.getTotalOrders());
+            System.out.println("📦 Products: " + summary.getTotalProducts());
+            System.out.println("🔍 ===================================");
             
         } catch (Exception e) {
-            System.out.println("❌ InventSight - Error generating dashboard summary: " + e.getMessage());
+            System.out.println("❌ DASHBOARD ERROR: " + e.getMessage());
             e.printStackTrace();
             
             // Return minimal summary with zeros
