@@ -437,6 +437,11 @@ public class UserController {
                 userSettings.setDataSharing(settingsRequest.getDataSharing());
             }
             
+            // Update store preference
+            if (settingsRequest.getCurrentStoreId() != null) {
+                userSettings.setCurrentStoreId(settingsRequest.getCurrentStoreId());
+            }
+            
             userSettings.setUpdatedAt(LocalDateTime.now());
             UserSettings savedSettings = userSettingsRepository.save(userSettings);
             
