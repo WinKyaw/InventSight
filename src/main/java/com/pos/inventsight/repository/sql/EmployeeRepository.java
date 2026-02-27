@@ -3,6 +3,7 @@ package com.pos.inventsight.repository.sql;
 import com.pos.inventsight.model.sql.Employee;
 import com.pos.inventsight.model.sql.EmployeeStatus;
 import com.pos.inventsight.model.sql.Store;
+import com.pos.inventsight.model.sql.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -68,7 +69,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
     List<Employee> findByStoreAndCreatedBy(@Param("store") Store store, @Param("createdBy") String createdBy);
     
     Optional<Employee> findByUserId(UUID userId);
-    
+
+    Optional<Employee> findByUser(User user);
+
     boolean existsByEmail(String email);
     
     boolean existsByEmailAndStore(String email, Store store);
