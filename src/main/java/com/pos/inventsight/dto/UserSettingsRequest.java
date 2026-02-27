@@ -66,6 +66,9 @@ public class UserSettingsRequest {
     private Boolean activityTracking;
     private Boolean dataSharing;
     
+    // Store preference
+    private String currentStoreId;
+    
     // Constructors
     public UserSettingsRequest() {}
     
@@ -138,4 +141,7 @@ public class UserSettingsRequest {
     
     public Boolean getDataSharing() { return dataSharing; }
     public void setDataSharing(Boolean dataSharing) { this.dataSharing = dataSharing; }
+    
+    public String getCurrentStoreId() { return currentStoreId; }
+    public void setCurrentStoreId(String currentStoreId) { this.currentStoreId = currentStoreId; }
 }

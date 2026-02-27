@@ -99,6 +99,10 @@ public class UserSettings {
     @Column(name = "data_sharing")
     private Boolean dataSharing = false;
     
+    // Store preference
+    @Column(name = "current_store_id")
+    private String currentStoreId;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
     
@@ -204,6 +208,9 @@ public class UserSettings {
     
     public Boolean getDataSharing() { return dataSharing; }
     public void setDataSharing(Boolean dataSharing) { this.dataSharing = dataSharing; }
+    
+    public String getCurrentStoreId() { return currentStoreId; }
+    public void setCurrentStoreId(String currentStoreId) { this.currentStoreId = currentStoreId; }
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
