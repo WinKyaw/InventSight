@@ -295,7 +295,11 @@ public class UserService implements UserDetailsService {
     public boolean emailExists(String email) {
         return userRepository.existsByEmail(email);
     }
-    
+
+    public boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
     public boolean usernameExists(String username) {
         return userRepository.existsByUsername(username);
     }

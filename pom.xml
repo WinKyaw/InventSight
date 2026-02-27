@@ -216,6 +216,13 @@
             <scope>test</scope>
         </dependency>
         
+        <!-- BouncyCastle for Argon2id password hashing -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.78.1</version>
+        </dependency>
+
         <!-- Image Processing Dependencies -->
         <dependency>
             <groupId>org.imgscalr</groupId>
