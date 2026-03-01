@@ -37,6 +37,21 @@ public class DashboardSummaryResponse {
     // Sales Order statistics
     private Map<String, Object> salesOrderStats;
     
+    // Inventory value
+    private BigDecimal inventoryValue;
+
+    // Daily sales (last 7 days)
+    private List<Map<String, Object>> dailySales;
+
+    // Top selling items
+    private List<Map<String, Object>> topSellingItems;
+
+    // Order growth
+    private Double orderGrowth;
+
+    // Customer satisfaction
+    private Double customerSatisfaction;
+
     // Analytics data
     private Double revenueGrowth;
     private Double salesGrowth;
@@ -102,6 +117,21 @@ public class DashboardSummaryResponse {
     public Long getTotalCategories() { return totalCategories; }
     public void setTotalCategories(Long totalCategories) { this.totalCategories = totalCategories; }
     
+    public BigDecimal getInventoryValue() { return inventoryValue; }
+    public void setInventoryValue(BigDecimal inventoryValue) { this.inventoryValue = inventoryValue; }
+
+    public List<Map<String, Object>> getDailySales() { return dailySales; }
+    public void setDailySales(List<Map<String, Object>> dailySales) { this.dailySales = dailySales; }
+
+    public List<Map<String, Object>> getTopSellingItems() { return topSellingItems; }
+    public void setTopSellingItems(List<Map<String, Object>> topSellingItems) { this.topSellingItems = topSellingItems; }
+
+    public Double getOrderGrowth() { return orderGrowth; }
+    public void setOrderGrowth(Double orderGrowth) { this.orderGrowth = orderGrowth; }
+
+    public Double getCustomerSatisfaction() { return customerSatisfaction; }
+    public void setCustomerSatisfaction(Double customerSatisfaction) { this.customerSatisfaction = customerSatisfaction; }
+
     public Double getRevenueGrowth() { return revenueGrowth; }
     public void setRevenueGrowth(Double revenueGrowth) { this.revenueGrowth = revenueGrowth; }
     

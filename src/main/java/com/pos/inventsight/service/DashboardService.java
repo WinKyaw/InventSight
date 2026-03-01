@@ -184,7 +184,57 @@ public class DashboardService {
                 summary.setProfitabilityScore(getDoubleValue(analytics.get("profitabilityScore")));
                 summary.setSmartInsights((Map<String, Object>) analytics.get("smartInsights"));
             }
-            
+
+            // Revenue growth (month-over-month from real data)
+            BigDecimal revenueGrowthBD = calculateRevenueGrowth();
+            summary.setRevenueGrowth(revenueGrowthBD != null ? revenueGrowthBD.doubleValue() : 0.0);
+
+            // Order growth (month-over-month from real data)
+            BigDecimal orderGrowthBD = calculateOrderGrowth();
+            summary.setOrderGrowth(orderGrowthBD != null ? orderGrowthBD.doubleValue() : 0.0);
+
+            // Inventory value
+            BigDecimal inventoryValue = productRepository.getTotalInventoryValue();
+            summary.setInventoryValue(inventoryValue != null ? inventoryValue : BigDecimal.ZERO);
+
+            // Daily sales (last 7 days)
+            List<com.pos.inventsight.dto.DailySales> dailySalesData = getDailySalesLast7Days();
+            List<Map<String, Object>> dailySalesMaps = (dailySalesData != null ? dailySalesData : Collections.<com.pos.inventsight.dto.DailySales>emptyList()).stream()
+                .map(ds -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("date", ds.getDate().toString());
+                    m.put("revenue", ds.getRevenue());
+                    m.put("orders", ds.getOrderCount());
+                    return m;
+                })
+                .collect(Collectors.toList());
+            summary.setDailySales(dailySalesMaps);
+
+            // Top selling items (top 5)
+            List<Object[]> topItems = saleItemRepository.findTopSellingProducts(5);
+            List<Map<String, Object>> topSellingMaps = (topItems != null ? topItems : Collections.<Object[]>emptyList()).stream()
+                .map(row -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("name", row[0]);
+                    m.put("quantity", row[1]);
+                    m.put("revenue", row[2]);
+                    m.put("category", row[3]);
+                    return m;
+                })
+                .collect(Collectors.toList());
+            summary.setTopSellingItems(topSellingMaps);
+
+            // Best performer
+            Map<String, Object> bestPerformer = computeBestPerformer();
+            summary.setBestPerformer(bestPerformer != null ? bestPerformer : new HashMap<>());
+
+            // Recent orders
+            List<Map<String, Object>> recentOrders = computeRecentOrders(10);
+            summary.setRecentOrders(recentOrders != null ? recentOrders : new ArrayList<>());
+
+            // Customer satisfaction (static placeholder)
+            summary.setCustomerSatisfaction(4.5);
+
             // Recent activities
             List<Map<String, Object>> recentActivities = activityLogRepository
                 .findTop10ByOrderByTimestampDesc()
