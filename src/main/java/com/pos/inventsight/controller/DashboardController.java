@@ -34,14 +34,16 @@ public class DashboardController {
     
     // GET /api/dashboard/summary - Comprehensive dashboard data
     @GetMapping("/summary")
-    public ResponseEntity<?> getDashboardSummary(Authentication authentication) {
+    public ResponseEntity<?> getDashboardSummary(
+            Authentication authentication,
+            @RequestParam(required = false) String storeId) {
         try {
             String username = authentication.getName();
             logger.info("📊 Dashboard summary requested by: {}", username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
             System.out.println("👤 Current User: WinKyaw");
             
-            DashboardSummaryResponse summary = dashboardService.getDashboardSummary();
+            DashboardSummaryResponse summary = dashboardService.getDashboardSummary(storeId);
             
             logger.info("📈 Dashboard Data:");
             logger.info("   - Total Revenue: ${}", summary.getTotalRevenue());
@@ -74,12 +76,14 @@ public class DashboardController {
     
     // POST /api/dashboard/refresh - Clear cache and force refresh
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshDashboard(Authentication authentication) {
+    public ResponseEntity<?> refreshDashboard(
+            Authentication authentication,
+            @RequestParam(required = false) String storeId) {
         try {
             String username = authentication.getName();
             logger.info("🔄 Dashboard refresh requested by: {}", username);
             
-            DashboardSummaryResponse summary = dashboardService.getDashboardSummary();
+            DashboardSummaryResponse summary = dashboardService.getDashboardSummary(storeId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

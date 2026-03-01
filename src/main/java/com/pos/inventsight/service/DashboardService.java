@@ -8,6 +8,7 @@ import com.pos.inventsight.model.sql.SaleStatus;
 import com.pos.inventsight.model.sql.SalesOrder;
 import com.pos.inventsight.model.sql.SalesOrderItem;
 import com.pos.inventsight.model.sql.TransferRequestStatus;
+import com.pos.inventsight.model.sql.Store;
 import com.pos.inventsight.repository.nosql.ActivityLogRepository;
 import com.pos.inventsight.repository.sql.*;
 import org.slf4j.Logger;
@@ -77,8 +78,15 @@ public class DashboardService {
     
     @Autowired
     private WarehouseRepository warehouseRepository;
-    
+
+    @Autowired
+    private StoreRepository storeRepository;
+
     public DashboardSummaryResponse getDashboardSummary() {
+        return getDashboardSummary(null);
+    }
+
+    public DashboardSummaryResponse getDashboardSummary(String storeId) {
         System.out.println("📊 ========== DASHBOARD QUERY DEBUG ==========");
         System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
         System.out.println("👤 Current User: WinKyaw");
@@ -135,8 +143,24 @@ public class DashboardService {
             summary.setTotalOrders(totalSales);
             summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
             
+            // Resolve store if storeId is provided
+            Store resolvedStore = null;
+            if (storeId != null && !storeId.isBlank()) {
+                try {
+                    resolvedStore = storeRepository.findById(UUID.fromString(storeId)).orElse(null);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("⚠️ Invalid storeId format: " + storeId + ", falling back to default store resolution");
+                }
+                System.out.println("🏪 Resolved store for storeId " + storeId + ": " + (resolvedStore != null ? resolvedStore.getStoreName() : "not found"));
+            }
+
             // Basic metrics
-            Long totalProducts = productService.getTotalProductCount();
+            Long totalProducts;
+            if (resolvedStore != null) {
+                totalProducts = productRepository.countActiveProductsByStore(resolvedStore);
+            } else {
+                totalProducts = productService.getTotalProductCount();
+            }
             System.out.println("📦 getTotalProductCount() returned: " + totalProducts);
             summary.setTotalProducts(totalProducts);
             summary.setTotalCategories(categoryRepository.countActiveCategories());
@@ -144,7 +168,12 @@ public class DashboardService {
             summary.setCheckedInEmployees(employeeRepository.countCheckedInEmployees());
             
             // Stock alerts
-            Long lowStockCount = (long) productService.getLowStockProducts().size();
+            Long lowStockCount;
+            if (resolvedStore != null) {
+                lowStockCount = (long) productRepository.findLowStockProductsByStore(resolvedStore).size();
+            } else {
+                lowStockCount = (long) productService.getLowStockProducts().size();
+            }
             summary.setLowStockItems(lowStockCount);
             
             // Transfer statistics
