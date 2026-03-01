@@ -148,7 +148,7 @@ public class DashboardController {
             }
             
             // Get comprehensive dashboard data
-            DashboardSummaryResponse summary = dashboardService.getDashboardSummary();
+            DashboardSummaryResponse summary = dashboardService.getDashboardSummary(storeId != null ? storeId.toString() : null);
             Map<String, Object> kpis = dashboardService.getKPIs();
             
             // Create structured stats response for frontend
