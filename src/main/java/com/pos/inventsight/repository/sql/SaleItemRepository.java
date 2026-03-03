@@ -2,6 +2,7 @@ package com.pos.inventsight.repository.sql;
 
 import com.pos.inventsight.model.sql.SaleItem;
 import com.pos.inventsight.model.sql.SaleStatus;
+import com.pos.inventsight.model.sql.Store;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -83,5 +84,48 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
      */
     default List<Object[]> findTopSellingProducts(int limit) {
         return findTopSellingProducts(org.springframework.data.domain.PageRequest.of(0, limit));
+    }
+
+    /**
+     * Find best performing product by total quantity sold filtered by store
+     * Returns: [productName, totalQuantity, totalRevenue]
+     */
+    @Query("SELECT si.productName, " +
+           "SUM(si.quantity), " +
+           "SUM(si.totalPrice) " +
+           "FROM SaleItem si " +
+           "JOIN si.sale s " +
+           "WHERE s.store = :store " +
+           "AND s.status IN ('PENDING', 'PAID', 'COMPLETED', 'DELIVERED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY') " +
+           "GROUP BY si.productName " +
+           "ORDER BY SUM(si.quantity) DESC")
+    List<Object[]> findBestPerformerByStore(@Param("store") Store store);
+
+    /**
+     * Find top selling products with sales data filtered by store
+     * Returns: [productName, totalQuantity, totalRevenue, categoryName]
+     */
+    @Query("""
+        SELECT p.name,
+               SUM(si.quantity) as totalQuantity,
+               SUM(si.quantity * si.unitPrice) as totalRevenue,
+               COALESCE(p.category, 'Uncategorized') as categoryName
+        FROM SaleItem si
+        JOIN si.product p
+        JOIN si.sale s
+        WHERE s.store = :store
+        AND s.status IN (com.pos.inventsight.model.sql.SaleStatus.COMPLETED,
+                          com.pos.inventsight.model.sql.SaleStatus.PAID,
+                          com.pos.inventsight.model.sql.SaleStatus.DELIVERED)
+        GROUP BY p.id, p.name, p.category
+        ORDER BY totalQuantity DESC
+        """)
+    List<Object[]> findTopSellingProductsByStore(@Param("store") Store store, Pageable pageable);
+
+    /**
+     * Convenience method to get top N selling products for a store
+     */
+    default List<Object[]> findTopSellingProductsByStore(Store store, int limit) {
+        return findTopSellingProductsByStore(store, org.springframework.data.domain.PageRequest.of(0, limit));
     }
 }

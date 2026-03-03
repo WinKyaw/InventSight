@@ -163,9 +163,21 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     BigDecimal getTotalRevenueByStatuses(@Param("statuses") List<SaleStatus> statuses);
 
     /**
+     * Get total revenue for sales with any of the given statuses filtered by store
+     */
+    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM Sale s WHERE s.store = :store AND s.status IN :statuses")
+    BigDecimal getTotalRevenueByStoreAndStatuses(@Param("store") Store store, @Param("statuses") List<SaleStatus> statuses);
+
+    /**
      * Count sales with any of the given statuses
      */
     Long countByStatusIn(List<SaleStatus> statuses);
+
+    /**
+     * Count sales with any of the given statuses filtered by store
+     */
+    @Query("SELECT COUNT(s) FROM Sale s WHERE s.store = :store AND s.status IN :statuses")
+    Long countByStoreAndStatusIn(@Param("store") Store store, @Param("statuses") List<SaleStatus> statuses);
 
     /**
      * Count sales by single status (for debugging)
@@ -177,6 +189,12 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
      */
     @Query("SELECT COALESCE(AVG(s.totalAmount), 0) FROM Sale s WHERE s.status IN :statuses")
     BigDecimal getAvgOrderValueByStatuses(@Param("statuses") List<SaleStatus> statuses);
+
+    /**
+     * Get average order value for sales with given statuses filtered by store
+     */
+    @Query("SELECT COALESCE(AVG(s.totalAmount), 0) FROM Sale s WHERE s.store = :store AND s.status IN :statuses")
+    BigDecimal getAvgOrderValueByStoreAndStatuses(@Param("store") Store store, @Param("statuses") List<SaleStatus> statuses);
 
     /**
      * Get revenue for date range and statuses
@@ -206,4 +224,9 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
      * Find recent sales ordered by creation date (newest first)
      */
     List<Sale> findTop10ByStatusInOrderByCreatedAtDesc(List<SaleStatus> statuses);
+
+    /**
+     * Find recent sales for a specific store ordered by creation date (newest first)
+     */
+    List<Sale> findTop10ByStoreAndStatusInOrderByCreatedAtDesc(Store store, List<SaleStatus> statuses);
 }

@@ -115,12 +115,27 @@ public class DashboardService {
             System.out.println("🔍 Checking total products count...");
             Long allProductsCount = productRepository.count();
             System.out.println("📦 Total products in database: " + allProductsCount);
+
+            // Resolve store if storeId is provided (must be done before order/revenue queries)
+            Store resolvedStore = null;
+            if (storeId != null && !storeId.isBlank()) {
+                try {
+                    resolvedStore = storeRepository.findById(UUID.fromString(storeId)).orElse(null);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("⚠️ Invalid storeId format: " + storeId + ", falling back to default store resolution");
+                }
+                System.out.println("🏪 Resolved store for storeId " + storeId + ": " + (resolvedStore != null ? resolvedStore.getStoreName() : "not found"));
+            }
             
             // ========== NOW TRY FILTERED QUERY ==========
             System.out.println("🔍 Calling countByStatusIn() with statuses...");
             Long totalSales = null;
             try {
-                totalSales = saleRepository.countByStatusIn(activeStatuses);
+                if (resolvedStore != null) {
+                    totalSales = saleRepository.countByStoreAndStatusIn(resolvedStore, activeStatuses);
+                } else {
+                    totalSales = saleRepository.countByStatusIn(activeStatuses);
+                }
                 System.out.println("✅ countByStatusIn() returned: " + totalSales);
             } catch (Exception e) {
                 System.out.println("❌ ERROR in countByStatusIn(): " + e.getMessage());
@@ -132,7 +147,11 @@ public class DashboardService {
             System.out.println("🔍 Calling getTotalRevenueByStatuses()...");
             BigDecimal totalRevenue = null;
             try {
-                totalRevenue = saleRepository.getTotalRevenueByStatuses(activeStatuses);
+                if (resolvedStore != null) {
+                    totalRevenue = saleRepository.getTotalRevenueByStoreAndStatuses(resolvedStore, activeStatuses);
+                } else {
+                    totalRevenue = saleRepository.getTotalRevenueByStatuses(activeStatuses);
+                }
                 System.out.println("✅ getTotalRevenueByStatuses() returned: " + totalRevenue);
             } catch (Exception e) {
                 System.out.println("❌ ERROR in getTotalRevenueByStatuses(): " + e.getMessage());
@@ -142,17 +161,6 @@ public class DashboardService {
             
             summary.setTotalOrders(totalSales);
             summary.setTotalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
-            
-            // Resolve store if storeId is provided
-            Store resolvedStore = null;
-            if (storeId != null && !storeId.isBlank()) {
-                try {
-                    resolvedStore = storeRepository.findById(UUID.fromString(storeId)).orElse(null);
-                } catch (IllegalArgumentException e) {
-                    System.out.println("⚠️ Invalid storeId format: " + storeId + ", falling back to default store resolution");
-                }
-                System.out.println("🏪 Resolved store for storeId " + storeId + ": " + (resolvedStore != null ? resolvedStore.getStoreName() : "not found"));
-            }
 
             // Basic metrics
             Long totalProducts;
@@ -215,19 +223,24 @@ public class DashboardService {
             }
 
             // Revenue growth (month-over-month from real data)
-            BigDecimal revenueGrowthBD = calculateRevenueGrowth();
+            BigDecimal revenueGrowthBD = calculateRevenueGrowth(resolvedStore);
             summary.setRevenueGrowth(revenueGrowthBD != null ? revenueGrowthBD.doubleValue() : 0.0);
 
             // Order growth (month-over-month from real data)
-            BigDecimal orderGrowthBD = calculateOrderGrowth();
+            BigDecimal orderGrowthBD = calculateOrderGrowth(resolvedStore);
             summary.setOrderGrowth(orderGrowthBD != null ? orderGrowthBD.doubleValue() : 0.0);
 
             // Inventory value
-            BigDecimal inventoryValue = productRepository.getTotalInventoryValue();
+            BigDecimal inventoryValue;
+            if (resolvedStore != null) {
+                inventoryValue = productRepository.getTotalInventoryValueByStore(resolvedStore);
+            } else {
+                inventoryValue = productRepository.getTotalInventoryValue();
+            }
             summary.setInventoryValue(inventoryValue != null ? inventoryValue : BigDecimal.ZERO);
 
             // Daily sales (last 7 days)
-            List<com.pos.inventsight.dto.DailySales> dailySalesData = getDailySalesLast7Days();
+            List<com.pos.inventsight.dto.DailySales> dailySalesData = getDailySalesLast7Days(resolvedStore);
             List<Map<String, Object>> dailySalesMaps = (dailySalesData != null ? dailySalesData : Collections.<com.pos.inventsight.dto.DailySales>emptyList()).stream()
                 .map(ds -> {
                     Map<String, Object> m = new HashMap<>();
@@ -240,7 +253,12 @@ public class DashboardService {
             summary.setDailySales(dailySalesMaps);
 
             // Top selling items (top 5)
-            List<Object[]> topItems = saleItemRepository.findTopSellingProducts(5);
+            List<Object[]> topItems;
+            if (resolvedStore != null) {
+                topItems = saleItemRepository.findTopSellingProductsByStore(resolvedStore, 5);
+            } else {
+                topItems = saleItemRepository.findTopSellingProducts(5);
+            }
             List<Map<String, Object>> topSellingMaps = (topItems != null ? topItems : Collections.<Object[]>emptyList()).stream()
                 .map(row -> {
                     Map<String, Object> m = new HashMap<>();
@@ -254,11 +272,11 @@ public class DashboardService {
             summary.setTopSellingItems(topSellingMaps);
 
             // Best performer
-            Map<String, Object> bestPerformer = computeBestPerformer();
+            Map<String, Object> bestPerformer = computeBestPerformer(resolvedStore);
             summary.setBestPerformer(bestPerformer != null ? bestPerformer : new HashMap<>());
 
             // Recent orders
-            List<Map<String, Object>> recentOrders = computeRecentOrders(10);
+            List<Map<String, Object>> recentOrders = computeRecentOrders(10, resolvedStore);
             summary.setRecentOrders(recentOrders != null ? recentOrders : new ArrayList<>());
 
             // Customer satisfaction (static placeholder)
@@ -312,10 +330,12 @@ public class DashboardService {
     /**
      * Get best performing product from POS sales (includes PENDING status)
      */
-    private Map<String, Object> computeBestPerformer() {
+    private Map<String, Object> computeBestPerformer(Store store) {
         Map<String, Object> bestPerformer = new HashMap<>();
         try {
-            List<Object[]> results = saleItemRepository.findBestPerformer();
+            List<Object[]> results = (store != null)
+                ? saleItemRepository.findBestPerformerByStore(store)
+                : saleItemRepository.findBestPerformer();
             if (!results.isEmpty()) {
                 Object[] result = results.get(0);
                 String productName = (String) result[0];
@@ -346,7 +366,7 @@ public class DashboardService {
     /**
      * Get recent orders from POS sales (includes PENDING status)
      */
-    private List<Map<String, Object>> computeRecentOrders(int limit) {
+    private List<Map<String, Object>> computeRecentOrders(int limit, Store store) {
         List<Map<String, Object>> recentOrders = new ArrayList<>();
         try {
             List<SaleStatus> visibleStatuses = Arrays.asList(
@@ -357,8 +377,9 @@ public class DashboardService {
                 SaleStatus.READY_FOR_PICKUP,
                 SaleStatus.OUT_FOR_DELIVERY
             );
-            List<Sale> sales =
-                saleRepository.findTop10ByStatusInOrderByCreatedAtDesc(visibleStatuses);
+            List<Sale> sales = (store != null)
+                ? saleRepository.findTop10ByStoreAndStatusInOrderByCreatedAtDesc(store, visibleStatuses)
+                : saleRepository.findTop10ByStatusInOrderByCreatedAtDesc(visibleStatuses);
             for (Sale sale : sales) {
                 Map<String, Object> order = new HashMap<>();
                 order.put("id", sale.getId());
@@ -868,6 +889,13 @@ public class DashboardService {
      * Get daily sales for last 7 days with real data
      */
     public List<DailySales> getDailySalesLast7Days() {
+        return getDailySalesLast7Days(null);
+    }
+
+    /**
+     * Get daily sales for last 7 days filtered by store
+     */
+    public List<DailySales> getDailySalesLast7Days(Store store) {
         List<DailySales> dailySales = new ArrayList<>();
         LocalDate today = LocalDate.now();
         
@@ -878,8 +906,15 @@ public class DashboardService {
                 LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
                 
                 // Get sales data for this day
-                BigDecimal revenue = saleRepository.getTotalRevenueByDateRange(startOfDay, endOfDay);
-                long orderCount = saleRepository.getSalesCountByDateRange(startOfDay, endOfDay);
+                BigDecimal revenue;
+                long orderCount;
+                if (store != null) {
+                    revenue = saleRepository.getTotalRevenueByStoreAndDateRange(store, startOfDay, endOfDay);
+                    orderCount = saleRepository.getSalesCountByStoreAndDateRange(store, startOfDay, endOfDay);
+                } else {
+                    revenue = saleRepository.getTotalRevenueByDateRange(startOfDay, endOfDay);
+                    orderCount = saleRepository.getSalesCountByDateRange(startOfDay, endOfDay);
+                }
                 
                 dailySales.add(new DailySales(
                     date,
@@ -900,16 +935,31 @@ public class DashboardService {
      * Calculate revenue growth percentage
      */
     public BigDecimal calculateRevenueGrowth() {
+        return calculateRevenueGrowth(null);
+    }
+
+    /**
+     * Calculate revenue growth percentage filtered by store
+     */
+    public BigDecimal calculateRevenueGrowth(Store store) {
         try {
             // Get current month revenue
             LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
             LocalDateTime endOfMonth = LocalDateTime.now();
-            BigDecimal currentRevenue = saleRepository.getTotalRevenueByDateRange(startOfMonth, endOfMonth);
+            BigDecimal currentRevenue;
+            BigDecimal previousRevenue;
             
             // Get previous month revenue
             LocalDateTime startOfPrevMonth = startOfMonth.minusMonths(1);
             LocalDateTime endOfPrevMonth = startOfMonth.minusSeconds(1);
-            BigDecimal previousRevenue = saleRepository.getTotalRevenueByDateRange(startOfPrevMonth, endOfPrevMonth);
+
+            if (store != null) {
+                currentRevenue = saleRepository.getTotalRevenueByStoreAndDateRange(store, startOfMonth, endOfMonth);
+                previousRevenue = saleRepository.getTotalRevenueByStoreAndDateRange(store, startOfPrevMonth, endOfPrevMonth);
+            } else {
+                currentRevenue = saleRepository.getTotalRevenueByDateRange(startOfMonth, endOfMonth);
+                previousRevenue = saleRepository.getTotalRevenueByDateRange(startOfPrevMonth, endOfPrevMonth);
+            }
             
             if (previousRevenue == null || previousRevenue.compareTo(BigDecimal.ZERO) == 0) {
                 return BigDecimal.ZERO;
@@ -937,16 +987,31 @@ public class DashboardService {
      * Calculate order growth percentage
      */
     public BigDecimal calculateOrderGrowth() {
+        return calculateOrderGrowth(null);
+    }
+
+    /**
+     * Calculate order growth percentage filtered by store
+     */
+    public BigDecimal calculateOrderGrowth(Store store) {
         try {
             // Get current month orders
             LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
             LocalDateTime endOfMonth = LocalDateTime.now();
-            long currentOrders = saleRepository.getSalesCountByDateRange(startOfMonth, endOfMonth);
+            long currentOrders;
+            long previousOrders;
             
             // Get previous month orders
             LocalDateTime startOfPrevMonth = startOfMonth.minusMonths(1);
             LocalDateTime endOfPrevMonth = startOfMonth.minusSeconds(1);
-            long previousOrders = saleRepository.getSalesCountByDateRange(startOfPrevMonth, endOfPrevMonth);
+
+            if (store != null) {
+                currentOrders = saleRepository.getSalesCountByStoreAndDateRange(store, startOfMonth, endOfMonth);
+                previousOrders = saleRepository.getSalesCountByStoreAndDateRange(store, startOfPrevMonth, endOfPrevMonth);
+            } else {
+                currentOrders = saleRepository.getSalesCountByDateRange(startOfMonth, endOfMonth);
+                previousOrders = saleRepository.getSalesCountByDateRange(startOfPrevMonth, endOfPrevMonth);
+            }
             
             if (previousOrders == 0) {
                 return BigDecimal.ZERO;
