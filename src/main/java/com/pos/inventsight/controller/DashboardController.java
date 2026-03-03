@@ -1,6 +1,8 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.*;
+import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.DashboardService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +36,18 @@ public class DashboardController {
     
     // GET /api/dashboard/summary - Comprehensive dashboard data
     @GetMapping("/summary")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getDashboardSummary(
             Authentication authentication,
             @RequestParam(required = false) String storeId) {
         try {
+            User currentUser = (User) authentication.getPrincipal();
+            if (!isGMPlusRole(currentUser)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
+                ));
+            }
             String username = authentication.getName();
             logger.info("📊 Dashboard summary requested by: {}", username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
@@ -76,6 +86,7 @@ public class DashboardController {
     
     // POST /api/dashboard/refresh - Clear cache and force refresh
     @PostMapping("/refresh")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> refreshDashboard(
             Authentication authentication,
             @RequestParam(required = false) String storeId) {
@@ -102,6 +113,7 @@ public class DashboardController {
     
     // GET /api/dashboard/kpis - Key Performance Indicators
     @GetMapping("/kpis")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getDashboardKPIs(Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -129,12 +141,20 @@ public class DashboardController {
     
     // GET /api/dashboard/stats - Dashboard statistics (frontend compatibility)
     @GetMapping("/stats")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getDashboardStats(
             @RequestParam(required = false) UUID storeId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             Authentication authentication) {
         try {
+            User currentUser = (User) authentication.getPrincipal();
+            if (!isGMPlusRole(currentUser)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
+                ));
+            }
             String username = authentication.getName();
             System.out.println("📊 InventSight - Fetching dashboard stats for user: " + username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
@@ -303,7 +323,7 @@ public class DashboardController {
     // ==================== New Dashboard Widget Endpoints ====================
     
     @GetMapping("/revenue")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<RevenueDTO> getRevenue(
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
@@ -323,7 +343,7 @@ public class DashboardController {
     }
     
     @GetMapping("/orders")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<OrdersDTO> getOrders(
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
@@ -343,7 +363,7 @@ public class DashboardController {
     }
     
     @GetMapping("/low-stock")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<LowStockDTO> getLowStock(Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -361,7 +381,7 @@ public class DashboardController {
     }
     
     @GetMapping("/products")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<ProductStatsDTO> getProducts(Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -379,7 +399,7 @@ public class DashboardController {
     }
     
     @GetMapping("/categories")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<CategoryStatsDTO> getCategories(Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -397,7 +417,7 @@ public class DashboardController {
     }
     
     @GetMapping("/inventory-value")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<InventoryValueDTO> getInventoryValue(Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -415,7 +435,7 @@ public class DashboardController {
     }
     
     @GetMapping("/avg-order-value")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<AvgOrderValueDTO> getAvgOrderValue(
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
@@ -435,7 +455,7 @@ public class DashboardController {
     }
     
     @GetMapping("/sales-chart")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<SalesChartDTO> getSalesChart(
             @RequestParam(defaultValue = "MONTHLY") String period,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -458,7 +478,7 @@ public class DashboardController {
     }
     
     @GetMapping("/best-performer")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<BestPerformerDTO> getBestPerformer(
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
@@ -478,7 +498,7 @@ public class DashboardController {
     }
     
     @GetMapping("/recent-orders")
-    @PreAuthorize("hasAnyRole('USER', 'EMPLOYEE', 'MANAGER', 'OWNER')")
+    @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<RecentOrdersDTO> getRecentOrders(
             @RequestParam(defaultValue = "5") int limit,
             Authentication authentication) {
@@ -499,5 +519,14 @@ public class DashboardController {
             System.out.println("❌ InventSight - Error fetching recent orders: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * Helper method to check if user has GM+ role
+     * Follows the same pattern used in WarehouseInventoryController and StoreInventoryController
+     */
+    private boolean isGMPlusRole(User user) {
+        if (user.getRole() == null) return false;
+        return com.pos.inventsight.constants.RoleConstants.isGMPlus(user.getRole());
     }
 }
