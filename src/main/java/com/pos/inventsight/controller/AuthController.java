@@ -341,7 +341,11 @@ public class AuthController {
                 if (!validRoles.isEmpty()) {
                     // Use highest priority company role
                     CompanyStoreUserRole highestRole = RoleUtils.getHighestPriorityRole(validRoles);
-                    activeRole = RoleUtils.mapCompanyRoleToUserRole(highestRole.getRole());
+                    String companyMappedRole = RoleUtils.mapCompanyRoleToUserRole(highestRole.getRole());
+                    // Only use company role if global role is not already GM+ (don't downgrade)
+                    if (!RoleUtils.isGMPlusRole(user.getRole())) {
+                        activeRole = companyMappedRole;
+                    }
                 }
             }
             

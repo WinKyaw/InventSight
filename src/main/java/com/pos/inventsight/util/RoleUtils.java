@@ -2,6 +2,7 @@ package com.pos.inventsight.util;
 
 import com.pos.inventsight.model.sql.CompanyRole;
 import com.pos.inventsight.model.sql.CompanyStoreUserRole;
+import com.pos.inventsight.model.sql.UserRole;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,12 +50,25 @@ public class RoleUtils {
      */
     public static String mapCompanyRoleToUserRole(CompanyRole companyRole) {
         return switch (companyRole) {
-            case FOUNDER, CEO -> "OWNER";
+            case FOUNDER -> "FOUNDER";
+            case CEO -> "OWNER";
             case GENERAL_MANAGER -> "MANAGER";
             case STORE_MANAGER -> "MANAGER";
             case EMPLOYEE -> "EMPLOYEE";
             default -> "EMPLOYEE";
         };
+    }
+
+    /**
+     * Check if a UserRole is GM+ level (should not be downgraded by company role)
+     */
+    public static boolean isGMPlusRole(UserRole role) {
+        if (role == null) return false;
+        return role == UserRole.OWNER ||
+               role == UserRole.FOUNDER ||
+               role == UserRole.CO_OWNER ||
+               role == UserRole.MANAGER ||
+               role == UserRole.ADMIN;
     }
     
     /**
