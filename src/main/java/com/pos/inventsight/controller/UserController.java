@@ -1,6 +1,7 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.ApiResponse;
+import com.pos.inventsight.dto.UserCapabilitiesResponse;
 import com.pos.inventsight.dto.UserProfileRequest;
 import com.pos.inventsight.dto.UserSettingsRequest;
 import com.pos.inventsight.dto.UserRoleResponse;
@@ -33,9 +34,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -65,6 +68,10 @@ public class UserController {
     @Autowired
     private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
+    private static final Set<String> GM_PLUS_ROLE_NAMES = Set.of(
+        "OWNER", "FOUNDER", "CO_OWNER", "MANAGER", "ADMIN", "GENERAL_MANAGER", "CEO"
+    );
+
     @Value("${app.upload.dir:${user.dir}/uploads}")
     private String uploadDir;
     
@@ -500,6 +507,85 @@ public class UserController {
         }
     }
     
+    /**
+     * GET /users/me/capabilities
+     * Returns the current user's capabilities and allowed API paths.
+     * Used by the frontend to skip API calls that the user is not permitted to make,
+     * preventing unnecessary 403 errors.
+     * Accessible by ALL authenticated users.
+     */
+    @GetMapping("/me/capabilities")
+    public ResponseEntity<?> getUserCapabilities(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            User user = userService.getUserByUsername(username);
+
+            String effectiveRole = resolveEffectiveRole(user);
+            boolean gmPlus = isEffectiveRoleGMPlus(effectiveRole);
+
+            UserCapabilitiesResponse caps = new UserCapabilitiesResponse();
+            caps.setRole(effectiveRole);
+            caps.setGMPlus(gmPlus);
+            caps.setCanViewDashboard(gmPlus);
+            caps.setCanViewReports(gmPlus);
+            caps.setCanManageTeam(gmPlus);
+            caps.setCanManageWarehouse(gmPlus);
+            caps.setCanManageInventory(true);
+            caps.setCanViewReceipts(true);
+            caps.setCanCreateReceipts(true);
+
+            List<String> allowed = new ArrayList<>();
+            allowed.add("/api/users/**");
+            allowed.add("/api/stores/**");
+            allowed.add("/api/receipts/**");
+            allowed.add("/api/items/**");
+            allowed.add("/api/inventory/**");
+            allowed.add("/api/permissions/**");
+            allowed.add("/api/warehouse-inventory/**");
+
+            if (gmPlus) {
+                allowed.add("/api/dashboard/**");
+                allowed.add("/api/reports/**");
+                allowed.add("/api/employees/**");
+                allowed.add("/api/warehouse/**");
+                allowed.add("/api/analytics/**");
+            }
+            caps.setAllowedApiPaths(allowed);
+
+            return ResponseEntity.ok(new ApiResponse(true, "Capabilities retrieved", caps));
+        } catch (Exception e) {
+            System.err.println("❌ Error getting user capabilities: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Error retrieving capabilities: " + e.getMessage()));
+        }
+    }
+
+    private String resolveEffectiveRole(User user) {
+        try {
+            List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+            if (!companies.isEmpty()) {
+                Company company = companies.get(0);
+                List<CompanyStoreUserRole> roles = companyStoreUserRoleRepository
+                    .findByUserAndCompanyAndIsActiveTrue(user, company);
+                List<CompanyStoreUserRole> validRoles = roles.stream()
+                    .filter(role -> !RoleUtils.isExpired(role))
+                    .collect(Collectors.toList());
+                if (!validRoles.isEmpty()) {
+                    CompanyStoreUserRole highestRole = RoleUtils.getHighestPriorityRole(validRoles);
+                    return RoleUtils.mapCompanyRoleToUserRole(highestRole.getRole());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to resolve company role, falling back to user role: " + e.getMessage());
+        }
+        return user.getRole().name();
+    }
+
+    private boolean isEffectiveRoleGMPlus(String role) {
+        if (role == null) return false;
+        return GM_PLUS_ROLE_NAMES.contains(role.toUpperCase());
+    }
+
     // Helper methods
     private boolean isProfileComplete(UserProfile profile) {
         return profile.getBio() != null && !profile.getBio().trim().isEmpty() &&
