@@ -51,9 +51,9 @@ public class RoleUtils {
     public static String mapCompanyRoleToUserRole(CompanyRole companyRole) {
         return switch (companyRole) {
             case FOUNDER -> "FOUNDER";
-            case CEO -> "OWNER";
+            case CEO -> "CEO";
             case GENERAL_MANAGER -> "MANAGER";
-            case STORE_MANAGER -> "MANAGER";
+            case STORE_MANAGER -> "STORE_MANAGER";
             case EMPLOYEE -> "EMPLOYEE";
             default -> "EMPLOYEE";
         };

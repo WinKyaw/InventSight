@@ -35,8 +35,10 @@ public final class RoleConstants {
         "hasAnyAuthority(" +
         "'OWNER', 'owner', " +
         "'FOUNDER', 'founder', " +
+        "'CO_OWNER', 'co_owner', " +
         "'CEO', 'ceo', " +
         "'GENERAL_MANAGER', 'general_manager', " +
+        "'MANAGER', 'manager', " +
         "'STORE_MANAGER', 'store_manager', " +
         "'EMPLOYEE', 'employee', " +
         "'ADMIN', 'admin'" +
@@ -54,15 +56,17 @@ public final class RoleConstants {
         ")";
     
     /**
-     * General Manager and above (OWNER, FOUNDER, CEO, GENERAL_MANAGER)
+     * General Manager and above (OWNER, FOUNDER, CO_OWNER, CEO, GENERAL_MANAGER, MANAGER)
      * Used for: warehouse management, inventory control, reporting
      */
     public static final String GM_PLUS = 
         "hasAnyAuthority(" +
         "'OWNER', 'owner', " +
         "'FOUNDER', 'founder', " +
+        "'CO_OWNER', 'co_owner', " +
         "'CEO', 'ceo', " +
         "'GENERAL_MANAGER', 'general_manager', " +
+        "'MANAGER', 'manager', " +
         "'ADMIN', 'admin'" +
         ")";
     
@@ -74,8 +78,10 @@ public final class RoleConstants {
         "hasAnyAuthority(" +
         "'OWNER', 'owner', " +
         "'FOUNDER', 'founder', " +
+        "'CO_OWNER', 'co_owner', " +
         "'CEO', 'ceo', " +
         "'GENERAL_MANAGER', 'general_manager', " +
+        "'MANAGER', 'manager', " +
         "'STORE_MANAGER', 'store_manager', " +
         "'ADMIN', 'admin'" +
         ")";

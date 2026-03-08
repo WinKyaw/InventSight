@@ -21,9 +21,9 @@ class RoleUtilsTest {
     }
 
     @Test
-    @DisplayName("CEO CompanyRole maps to 'OWNER'")
-    void ceoCompanyRoleMapsToOwner() {
-        assertEquals("OWNER", RoleUtils.mapCompanyRoleToUserRole(CompanyRole.CEO));
+    @DisplayName("CEO CompanyRole maps to 'CEO'")
+    void ceoCompanyRoleMapsToCeo() {
+        assertEquals("CEO", RoleUtils.mapCompanyRoleToUserRole(CompanyRole.CEO));
     }
 
     @Test
@@ -33,9 +33,9 @@ class RoleUtilsTest {
     }
 
     @Test
-    @DisplayName("STORE_MANAGER CompanyRole maps to 'MANAGER'")
-    void storeManagerCompanyRoleMapsToManager() {
-        assertEquals("MANAGER", RoleUtils.mapCompanyRoleToUserRole(CompanyRole.STORE_MANAGER));
+    @DisplayName("STORE_MANAGER CompanyRole maps to 'STORE_MANAGER'")
+    void storeManagerCompanyRoleMapsToStoreManager() {
+        assertEquals("STORE_MANAGER", RoleUtils.mapCompanyRoleToUserRole(CompanyRole.STORE_MANAGER));
     }
 
     @Test
