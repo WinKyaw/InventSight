@@ -1,6 +1,12 @@
 package com.pos.inventsight.config;
 
+import com.pos.inventsight.model.sql.Company;
+import com.pos.inventsight.model.sql.CompanyStoreUserRole;
+import com.pos.inventsight.model.sql.User;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRepository;
+import com.pos.inventsight.repository.sql.CompanyStoreUserRoleRepository;
 import com.pos.inventsight.service.UserService;
+import com.pos.inventsight.util.RoleUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -19,6 +27,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class AuthTokenFilter extends OncePerRequestFilter {
@@ -30,6 +42,12 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private CompanyStoreUserRepository companyStoreUserRepository;
+
+    @Autowired
+    private CompanyStoreUserRoleRepository companyStoreUserRoleRepository;
     
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
@@ -133,9 +151,40 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     
                     logger.debug("User details loaded successfully. User type: {}", userDetails.getClass().getSimpleName());
                     logger.debug("User authorities: {}", userDetails.getAuthorities());
-                    
-                    UsernamePasswordAuthenticationToken authentication = 
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+                    User user = (User) userDetails;
+                    Collection<GrantedAuthority> authorities = new ArrayList<>(userDetails.getAuthorities());
+
+                    // Upgrade authority from active company role when the global role is not already GM+
+                    if (!RoleUtils.isGMPlusRole(user.getRole())) {
+                        List<Company> companies = companyStoreUserRepository.findCompaniesByUser(user);
+                        if (!companies.isEmpty()) {
+                            // Use the first active company as the primary context.
+                            // In multi-company scenarios the full resolution strategy is handled
+                            // by downstream services; this filter only needs to determine
+                            // whether the user has at least GM+ access in any assigned company.
+                            Company primaryCompany = companies.get(0);
+                            List<CompanyStoreUserRole> roles = companyStoreUserRoleRepository
+                                .findByUserAndCompanyAndIsActiveTrue(user, primaryCompany);
+                            List<CompanyStoreUserRole> validRoles = roles.stream()
+                                .filter(r -> !RoleUtils.isExpired(r))
+                                .collect(Collectors.toList());
+                            if (!validRoles.isEmpty()) {
+                                CompanyStoreUserRole highestRole = RoleUtils.getHighestPriorityRole(validRoles);
+                                String mappedRole = RoleUtils.mapCompanyRoleToUserRole(highestRole.getRole());
+                                logger.debug("Upgrading authority for user {} from {} to {} (via company role {})",
+                                    username, user.getRole(), mappedRole, highestRole.getRole());
+                                // Replace the single global-role authority with the mapped company role.
+                                // User.getAuthorities() always returns exactly one SimpleGrantedAuthority,
+                                // so no non-role permissions are discarded.
+                                authorities = new ArrayList<>();
+                                authorities.add(new SimpleGrantedAuthority(mappedRole));
+                            }
+                        }
+                    }
+
+                    UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
                     
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     

@@ -82,7 +82,7 @@ class RoleConstantsTest {
     
     @Test
     void testGetGMPlusRolesForPreAuthorize_ReturnsCorrectString() {
-        String expected = "hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')";
+        String expected = "hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'GENERAL_MANAGER', 'ADMIN')";
         assertEquals(expected, RoleConstants.getGMPlusRolesForPreAuthorize());
     }
 }

@@ -54,6 +54,6 @@ public class RoleConstants {
      * @return String expression for @PreAuthorize annotation
      */
     public static String getGMPlusRolesForPreAuthorize() {
-        return "hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'ADMIN')";
+        return "hasAnyRole('OWNER', 'FOUNDER', 'CO_OWNER', 'MANAGER', 'GENERAL_MANAGER', 'ADMIN')";
     }
 }
