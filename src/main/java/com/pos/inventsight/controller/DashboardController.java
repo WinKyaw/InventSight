@@ -1,7 +1,6 @@
 package com.pos.inventsight.controller;
 
 import com.pos.inventsight.dto.*;
-import com.pos.inventsight.model.sql.User;
 import com.pos.inventsight.security.RoleConstants;
 import com.pos.inventsight.service.DashboardService;
 import org.slf4j.Logger;
@@ -41,13 +40,6 @@ public class DashboardController {
             Authentication authentication,
             @RequestParam(required = false) String storeId) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             logger.info("📊 Dashboard summary requested by: {}", username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
@@ -91,13 +83,6 @@ public class DashboardController {
             Authentication authentication,
             @RequestParam(required = false) String storeId) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             logger.info("🔄 Dashboard refresh requested by: {}", username);
             
@@ -123,13 +108,6 @@ public class DashboardController {
     @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getDashboardKPIs(Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📈 InventSight - Fetching KPIs for user: " + username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
@@ -162,13 +140,6 @@ public class DashboardController {
             @RequestParam(required = false) String endDate,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📊 InventSight - Fetching dashboard stats for user: " + username);
             System.out.println("📅 Current DateTime (UTC): " + LocalDateTime.now());
@@ -342,13 +313,6 @@ public class DashboardController {
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("💰 InventSight - Fetching revenue for user: " + username);
             
@@ -369,13 +333,6 @@ public class DashboardController {
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📋 InventSight - Fetching orders for user: " + username);
             
@@ -394,13 +351,6 @@ public class DashboardController {
     @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getLowStock(Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("⚠️ InventSight - Fetching low stock items for user: " + username);
             
@@ -419,13 +369,6 @@ public class DashboardController {
     @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getProducts(Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📦 InventSight - Fetching product stats for user: " + username);
             
@@ -444,13 +387,6 @@ public class DashboardController {
     @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getCategories(Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("🏷️ InventSight - Fetching category stats for user: " + username);
             
@@ -469,13 +405,6 @@ public class DashboardController {
     @PreAuthorize(RoleConstants.GM_PLUS)
     public ResponseEntity<?> getInventoryValue(Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("💵 InventSight - Fetching inventory value for user: " + username);
             
@@ -496,13 +425,6 @@ public class DashboardController {
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📊 InventSight - Fetching avg order value for user: " + username);
             
@@ -525,13 +447,6 @@ public class DashboardController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📈 InventSight - Fetching sales chart for user: " + username);
             
@@ -553,13 +468,6 @@ public class DashboardController {
             @RequestParam(defaultValue = "THIS_MONTH") String period,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("🏆 InventSight - Fetching best performer for user: " + username);
             
@@ -580,13 +488,6 @@ public class DashboardController {
             @RequestParam(defaultValue = "5") int limit,
             Authentication authentication) {
         try {
-            User currentUser = (User) authentication.getPrincipal();
-            if (!isGMPlusRole(currentUser)) {
-                return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "error", "Insufficient permissions. Only GM+ users can access the dashboard."
-                ));
-            }
             String username = authentication.getName();
             System.out.println("📜 InventSight - Fetching recent orders for user: " + username);
             
@@ -605,12 +506,4 @@ public class DashboardController {
         }
     }
 
-    /**
-     * Helper method to check if user has GM+ role
-     * Follows the same pattern used in WarehouseInventoryController and StoreInventoryController
-     */
-    private boolean isGMPlusRole(User user) {
-        if (user.getRole() == null) return false;
-        return com.pos.inventsight.constants.RoleConstants.isGMPlus(user.getRole());
-    }
 }
